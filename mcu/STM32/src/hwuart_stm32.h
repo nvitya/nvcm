@@ -19,29 +19,38 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwuart_stm32.h
+ *  brief:    STM32 UART
  *  version:  1.00
  *  date:     2018-02-10
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
-#endif
+#ifndef HWUART_STM32_H_
+#define HWUART_STM32_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
+#define HWUART_PRE_ONLY
+#include "hwuart.h"
 
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
+class THwUart_stm32 : public THwUart_pre
+{
+public:
+	bool Init(int adevnum);
 
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
+	bool TrySendChar(char ach);
+	bool TryRecvChar(char * ach);
 
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
+	bool SendFinished();
+
+	void DmaAssign(bool istx, THwDmaChannel * admach);
+
+	bool DmaStartSend(THwDmaTransfer * axfer);
+	bool DmaStartRecv(THwDmaTransfer * axfer);
+
+public:
+	HW_UART_REGS *      regs = nullptr;
+};
+
+#define HWUART_IMPL THwUart_stm32
+
+#endif // def HWUART_STM32_H_

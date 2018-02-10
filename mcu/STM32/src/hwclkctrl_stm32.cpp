@@ -337,7 +337,7 @@ void THwClkCtrl_stm32::PrepareHiSpeed(unsigned acpuspeed)
   FLASH->ACR |= (FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN);
 }
 
-bool THwClkCtrl::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed)
+bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed)
 {
 	// select the HSI as clock source
   RCC->CFGR &= ~3;

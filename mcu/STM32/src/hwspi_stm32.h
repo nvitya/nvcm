@@ -19,29 +19,41 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwspi_stm32.h
+ *  brief:    STM32 SPI (master only)
  *  version:  1.00
  *  date:     2018-02-10
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
-#endif
+#ifndef HWSPI_STM32_H_
+#define HWSPI_STM32_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
+#define HWSPI_PRE_ONLY
+#include "hwspi.h"
 
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
+class THwSpi_stm32 : public THwSpi_pre
+{
+public:
+	bool Init(int adevnum);
 
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
+	bool TrySendData(unsigned short adata);
+	bool TryRecvData(unsigned short * dstptr);
+	bool SendFinished();
 
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
+	void DmaAssign(bool istx, THwDmaChannel * admach);
+
+	bool DmaStartSend(THwDmaTransfer * axfer);
+	bool DmaStartRecv(THwDmaTransfer * axfer);
+	bool DmaSendCompleted();
+	bool DmaRecvCompleted();
+
+public:
+	unsigned  					basespeed;
+	HW_SPI_REGS * 			regs;
+};
+
+
+#define HWSPI_IMPL THwSpi_stm32
+
+#endif // def HWSPI_STM32_H_

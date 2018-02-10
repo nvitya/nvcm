@@ -19,29 +19,44 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwdma_stm32.h
+ *  brief:    STM32 DMA
  *  version:  1.00
  *  date:     2018-02-10
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
-#endif
+#ifndef HWDMA_STM32_H_
+#define HWDMA_STM32_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
+#define HWDMA_PRE_ONLY
+#include "hwdma.h"
 
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
+class THwDmaChannel_stm32 : public THwDmaChannel_pre
+{
+public:
+	HW_DMA_REGS *      regs = nullptr;
 
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
+	bool Init(int achnum);
 
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
+	void Prepare(bool aistx, void * aperiphaddr, unsigned aflags);
+	void Disable();
+	void Enable();
+
+	bool Enabled();
+	bool Active();
+
+	bool StartTransfer(THwDmaTransfer * axfer);
+	bool StartMemToMem(THwDmaTransfer * axfer);
+
+public:
+  __IO unsigned *    crreg;
+
+  __IO unsigned *    irqstreg;
+  __IO unsigned *    irqstclrreg;
+  unsigned           irqstshift;
+};
+
+#define HWDMACHANNEL_IMPL  THwDmaChannel_stm32
+
+#endif // def HWDMA_STM32_H_

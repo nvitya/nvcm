@@ -104,7 +104,7 @@ public:
 
 #ifndef HWQSPI_IMPL
 
-#warning "HWQSPI is not implemented!"
+//#warning "HWQSPI is not implemented!"
 
 class THwQspi_noimpl : public THwQspi_pre
 {
