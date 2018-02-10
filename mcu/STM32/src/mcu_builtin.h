@@ -51,6 +51,20 @@
 
   #include "stm32f072xb.h"
 
+#elif defined(MCU_STM32F070F6)
+
+  #define MCUF_STM32
+  #define MCUSF_F0
+
+  #include "stm32f070x6.h"
+
+#elif defined(MCU_STM32F070RB)
+
+  #define MCUF_STM32
+  #define MCUSF_F0
+
+  #include "stm32f070xb.h"
+
 // STM32F1: Cortex-M3
 
 #elif defined(MCU_STM32F103C8)

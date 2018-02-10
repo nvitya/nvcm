@@ -1,3 +1,9 @@
+/* The font data is taken from the Adafruit-GFX Library:
+
+   https://github.com/adafruit/Adafruit-GFX-Library
+
+*/
+
 // This is the 'classic' fixed-space bitmap font for Adafruit_GFX since 1.0.
 
 extern const unsigned char font_bitmap_data_5x8[1280];
