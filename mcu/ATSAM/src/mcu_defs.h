@@ -19,7 +19,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_defs.h
+ *  file:     mcu_defs.h (ATSAM)
  *  brief:    ATSAM MCU Family definitions
  *  version:  1.00
  *  date:     2018-02-10

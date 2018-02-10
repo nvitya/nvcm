@@ -19,7 +19,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_builtin.h
+ *  file:     mcu_builtin.h (ATSAM)
  *  brief:    Built-in ATSAM MCU definitions
  *  version:  1.00
  *  date:     2018-02-10

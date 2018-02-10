@@ -19,7 +19,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h
+ *  file:     mcu_impl.h (STM32)
  *  brief:    STM32 list of implemented NVCM core peripherals
  *  version:  1.00
  *  date:     2018-02-10

@@ -19,7 +19,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     boards_builtin.h
+ *  file:     boards_builtin.h (STM32)
  *  brief:    Built-in STM32 board definitions
  *  version:  1.00
  *  date:     2018-02-10
