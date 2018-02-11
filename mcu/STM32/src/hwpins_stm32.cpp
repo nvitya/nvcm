@@ -142,6 +142,16 @@ bool THwPinCtrl_stm32::PinSetup(int aportnum, int apinnum, unsigned flags)
   unsigned n;
   int pinx2 = apinnum * 2;
 
+  // set gpio initial state
+  if (flags & PINCFG_GPIO_INIT_1)
+  {
+  	regs->BSRR = (1 << apinnum);
+  }
+  else
+  {
+  	regs->BSRR = (1 << apinnum) << 16;
+  }
+
   // set mode register
 	if (flags & PINCFG_AF_MASK)
 	{
@@ -212,16 +222,6 @@ bool THwPinCtrl_stm32::PinSetup(int aportnum, int apinnum, unsigned flags)
 	}
 
 #endif
-
-  // 6. initial state
-  if (flags & PINCFG_GPIO_INIT_1)
-  {
-  	regs->BSRR = (1 << apinnum);
-  }
-  else
-  {
-  	regs->BSRR = (1 << apinnum) << 16;
-  }
 
   return true;
 }

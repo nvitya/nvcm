@@ -7,7 +7,7 @@ MEMORY
 
 REGION_ALIAS("TEXT", FLASH);
 REGION_ALIAS("ITCRAM", RAM2);  /* no code execute possible in DTCRAM ! */
-REGION_ALIAS("RAM", DTCRAM);
+REGION_ALIAS("RAM", RAM2);     /* The DMA does not work with DTCRAM ! */
 
 INCLUDE nvcm_default_flash.ld
 

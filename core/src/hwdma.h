@@ -79,7 +79,7 @@ public: // mandatory
 	bool Active()  { return false; }
 
 	bool StartTransfer(THwDmaTransfer * axfer)  { return false; }
-	//bool StartMemToMem(THwDmaTransfer * axfer)  { return false; }
+	bool StartMemToMem(THwDmaTransfer * axfer)  { return false; }
 };
 
 #define HWDMACHANNEL_IMPL THwDmaChannel_noimpl

@@ -34,14 +34,14 @@
   #include "hwpins_stm32.h"
 #endif
 
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
-
 #ifdef HWUART_H_
   #include "hwuart_stm32.h"
 #endif
 
 #ifdef HWSPI_H_
   #include "hwspi_stm32.h"
+#endif
+
+#ifdef HWDMA_H_
+  #include "hwdma_stm32.h"
 #endif
