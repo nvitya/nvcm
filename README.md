@@ -50,5 +50,6 @@ This NVCM core project contains some useful external module drivers as well. Cur
  * TFT LCD displays: SPI, Parallel
  * SPI, QSPI flash memories
  * Led and Key module
+
 Hopefully this list will grow too.
 
