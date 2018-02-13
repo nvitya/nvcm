@@ -4,7 +4,7 @@ The NVCM is an open source, object based, vendor independent C++ software framew
 
 ## Quick Start
 
-There are several examples which reside in a separate repository: [[https://github.com/nvitya/nvcmtests]].
+There are several examples which reside in a separate repository: [https://github.com/nvitya/nvcmtests].
 Download/clone this repository and follow the instructions there.
 
 ## Microcontroller Support
@@ -21,12 +21,16 @@ The microcontroller vendors produce a lot of different microcontrollers. They mi
 
 ## Currently Included MCU Families
 
+Family | Sub-Family
+-------|-----------
+ATSAM  | 3X, 4S, E70/S70/V70
+LPC    | LPC43xx
+STM32  | F0, L0, F1, F3, F4, F7
+
+### Driver Status
 (table)
 
-## Driver Status
-(table)
-
-## Planned Drivers
+### Planned Drivers
  * i2c
  * USB Device
 
