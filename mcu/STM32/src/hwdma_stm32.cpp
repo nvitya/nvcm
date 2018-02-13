@@ -31,7 +31,7 @@
 
 #include "hwdma.h"
 
-#if defined(STM32F1) || defined(STM32F0) || defined(STM32L0) || defined(STM32F3)
+#if defined(MCUSF_F1) || defined(MCUSF_F0) || defined(MCUSF_L0) || defined(MCUSF_F3)
 
 bool THwDmaChannel_stm32::Init(int achnum)  // bits 19..16 = DMA1/2, bits 15..8 = Request number (CSEL), bits 7..0 = channel,
 {

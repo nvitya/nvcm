@@ -26,6 +26,8 @@
  *  authors:  nvitya
 */
 
+#ifdef Qspi
+
 #include "platform.h"
 #include "hwpins.h"
 #include "hwqspi.h"
@@ -419,3 +421,4 @@ void THwQspi_atsam::Run()
 	busy = false;
 }
 
+#endif

@@ -90,7 +90,9 @@ void THwClkCtrl_atsam::PrepareHiSpeed(unsigned acpuspeed)
 	  EFC1->EEFC_FMR = EEFC_FMR_FWS(fws);
   #endif
 
-	REG_CMCC_CTRL = 1;
+	#ifdef REG_CMCC_CTRL
+	  REG_CMCC_CTRL = 1;
+  #endif
 
 #elif defined(MCUSF_E70)
 

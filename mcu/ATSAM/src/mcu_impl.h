@@ -46,6 +46,8 @@
   #include "hwspi_atsam.h"
 #endif
 
-#ifdef HWQSPI_H_
-  #include "hwqspi_atsam.h"
+#ifdef Qspi
+	#ifdef HWQSPI_H_
+		#include "hwqspi_atsam.h"
+	#endif
 #endif

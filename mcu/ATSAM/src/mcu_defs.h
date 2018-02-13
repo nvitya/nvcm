@@ -51,7 +51,9 @@
 #define HW_UART_REGS      Uart
 #define HW_UART_ALT_REGS  Usart
 #define HW_SPI_REGS       Spi
-#define HW_QSPI_REGS      Qspi
+#ifdef Qspi
+  #define HW_QSPI_REGS      Qspi
+#endif
 
 #ifdef DMACCH_NUM_NUMBER
   #define HW_DMA_REGS  DmacCh_num
