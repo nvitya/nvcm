@@ -35,7 +35,7 @@ From a former (unpublished) state of the project these failies will come soon:
 
 ### Driver Status
 
-           | __PINCFG + GPIO__ | __CPU SPEED__ | __DMA__ | __UART__ | __SPI__ | __QSPI__
+  Family   | __PINCFG + GPIO__ | __CPU SPEED__ | __DMA__ | __UART__ | __SPI__ | __QSPI__
 -----------|-------------------|---------------|---------|----------|---------|---------
 __ATSAM__  | OK                | OK            | OK      | OK       | OK      | OK
 __LPC__    | OK                | OK            | OK      | OK       | OK      | OK
