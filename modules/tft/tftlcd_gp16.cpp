@@ -57,10 +57,18 @@ void TTftLcd_gp16::ResetPanel()
 	delay_ms(10);
 
 	pin_cs.Set1();
+
+	curdata = 0xffff;
+	SetData16(0);
 }
 
 void TTftLcd_gp16::SetData8(uint16_t adata)
 {
+	if ((adata & 0xFF) == (curdata & 0xFF))
+	{
+		return;
+	}
+
 	TGpioPin * pgpio = &pin_d[0];
 	uint16_t bit = 1;
 
@@ -78,10 +86,17 @@ void TTftLcd_gp16::SetData8(uint16_t adata)
 		++pgpio;
 	}
 	while (bit & 0xFF);
+
+	curdata = ((curdata & 0xFF00) | (adata & 0xFF));
 }
 
 void TTftLcd_gp16::SetData16(uint16_t adata)
 {
+	if (adata == curdata)
+	{
+		return;
+	}
+
 	TGpioPin * pgpio = &pin_d[0];
 	uint16_t bit = 1;
 
@@ -99,6 +114,8 @@ void TTftLcd_gp16::SetData16(uint16_t adata)
 		++pgpio;
 	}
 	while (bit & 0xFFFF);
+
+	curdata = adata;
 }
 
 void TTftLcd_gp16::WriteCmd(uint8_t adata)

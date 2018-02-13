@@ -46,6 +46,7 @@ public:
 	TGpioPin 	 pin_reset;  // unassigned
 
 	TGpioPin   pin_d[16];
+	uint16_t   curdata = 0;
 
 public:
 	// interface dependent
