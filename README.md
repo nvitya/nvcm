@@ -33,13 +33,13 @@ From a former (unpublished) state of the project these failies will come soon:
  * LPC_V3 (LPC546xx)
  * XMC (XMC1xxx)
 
-### Driver Status
+### Current Driver Status
 
-  Family   | __PINCFG <br/>+ GPIO__ | __CPU SPEED__ | __DMA__ | __UART__ | __SPI__ | __QSPI__
------------|-------------------|---------------|---------|----------|---------|---------
-__ATSAM__  | OK                | OK            | OK      | OK       | OK      | OK
-__LPC__    | OK                | OK            | OK      | OK       | OK      | OK
-__STM32__  | OK                | OK            | OK      | OK       | OK      | -
+  Family   | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __DMA__ | __UART__ | __SPI__ | __QSPI__
+-----------|-----------------------|-------------------|---------|----------|---------|---------
+__ATSAM__  | OK                    | OK                | OK      | OK       | OK      | OK
+__LPC__    | OK                    | OK                | OK      | OK       | OK      | OK
+__STM32__  | OK                    | OK                | OK      | OK       | OK      | -
 
 ### Planned Drivers
  * i2c
