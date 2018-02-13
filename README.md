@@ -1,6 +1,6 @@
 # NVCM ARM Cortex-M Microcontroller Framework
 
-The NVCM is an open source, object based, true multi-vendor C++ software framework for ARM Cortex-M microcontrollers. It allows to create MCU vendor-independent or multi-MCU software, while the code stays small and very effective.
+The NVCM is an open source, object based, true multi-vendor C++ software framework for ARM Cortex-M microcontrollers. It allows to create easily MCU vendor-independent or multi-MCU software, while the code stays small and very effective.
 
 ## Quick Start
 
