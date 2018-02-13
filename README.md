@@ -21,14 +21,25 @@ The microcontroller vendors produce a lot of different microcontrollers. They mi
 
 ## Currently Included MCU Families
 
-Family | Sub-Family
--------|-----------
-ATSAM  | 3X, 4S, E70/S70/V70
-LPC    | LPC43xx
-STM32  | F0, L0, F1, F3, F4, F7
+__Family__ | __Sub-Family__
+-----------|------------------------
+__ATSAM__  | 3X, 4S, E70/S70/V70
+__LPC__    | LPC43xx
+__STM32__  | F0, L0, F1, F3, F4, F7
+
+From a former (unpublished) state of the project these failies will come soon:
+ * ATSAM_V2 (D10, D20, D51/E5x)
+ * KINETIS (K20, KL03)
+ * LPC_V3 (LPC546xx)
+ * XMC (XMC1xxx)
 
 ### Driver Status
-(table)
+
+           | __PINCFG + GPIO__ | __CPU SPEED__ | __DMA__ | __UART__ | __SPI__ | __QSPI__
+-----------|-------------------|---------------|---------|----------|---------|---------
+__ATSAM__  | OK                | OK            | OK      | OK       | OK      | OK
+__LPC__    | OK                | OK            | OK      | OK       | OK      | OK
+__STM32__  | OK                | OK            | OK      | OK       | OK      | -
 
 ### Planned Drivers
  * i2c
