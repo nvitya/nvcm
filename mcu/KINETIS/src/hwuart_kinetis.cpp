@@ -26,12 +26,12 @@
  *  authors:  nvitya
 */
 
-#if 0
-
 #include <stdio.h>
 #include <stdarg.h>
 
 #include "hwuart.h"
+
+#ifdef LPUART_Type
 
 bool THwUart_kinetis::Init(int adevnum)
 {
@@ -124,5 +124,113 @@ bool THwUart_kinetis::SendFinished()
 		return false;
 	}
 }
+
+#else
+
+bool THwUart_kinetis::Init(int adevnum)
+{
+	unsigned x;
+
+	devnum = adevnum;
+	initialized = false;
+
+	regs = nullptr;
+	if      (0 == devnum)
+	{
+		regs = (HW_UART_REGS *)UART0_BASE;
+		SIM->SCGC4 |= SIM_SCGC4_UART0_MASK; // enable system clock for the module
+	}
+	else if      (1 == devnum)
+	{
+		regs = (HW_UART_REGS *)UART1_BASE;
+		SIM->SCGC4 |= SIM_SCGC4_UART1_MASK; // enable system clock for the module
+	}
+
+	if (!regs)
+	{
+		return false;
+	}
+
+#warning "Kinetis UART is not implemented !"
+
+#if 0
+	// disable transmit and receive
+	regs->CTRL &= (3 << 18);
+
+	unsigned baseclock = 48000000 >> 4;
+	unsigned sbr = baseclock / baudrate;
+
+	// BAUD RATE register
+	x = 0
+	 | (0x0F << 24)  // OSR(5): oversampling, 0x0F = 16
+	 | (0 << 13)     // SBNS: 0 = 1 stop bit
+	 | (sbr << 0)
+	;
+	if (halfstopbits == 4)
+	{
+		x |= (1 << 13);
+	}
+	regs->BAUD = x;
+
+
+	// STAT register
+	x = 0
+	 | (0 << 29)  // MSBF: 0 = LSB first
+	;
+	regs->STAT = x;
+
+	// CTRL register
+	x = 0
+	 | (1 << 19)  // TE: 1 = transmitter enable
+	 | (1 << 18)  // RE: 1 = receiver enable
+	 | (0 <<  4)  // M: 8 bit characters
+	;
+	if (parity)
+	{
+		x |= (1 << 1);
+		if (oddparity)	x |= (1 << 0);
+	}
+	regs->CTRL = x;  // enables the UART as well
+
+	initialized = true;
+
+	return true;
+#endif
+
+	return false;
+}
+
+bool THwUart_kinetis::TrySendChar(char ach)
+{
+#if 0
+	if ((regs->S1 & LPUART_STAT_TDRE_MASK) == 0)
+	{
+		return false;
+	}
+
+	regs->DATA = ach;
+
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool THwUart_kinetis::SendFinished()
+{
+#if 0
+	if (regs->STAT & LPUART_STAT_TC_MASK)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+#else
+	return false;
+#endif
+}
+
 
 #endif
