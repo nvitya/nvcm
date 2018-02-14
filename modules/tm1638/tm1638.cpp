@@ -69,9 +69,9 @@ bool Ttm1638::Init()
 	clk_pin.Setup(PINCFG_OUTPUT);
 
   dio_pin.SwitchDirection(1); // set output
-  dio_pin.Clear();
-  stb_pin.Set();
-  clk_pin.Set();
+  dio_pin.Set0();
+  stb_pin.Set1();
+  clk_pin.Set1();
 
 	initialized = true;
 
@@ -90,7 +90,7 @@ void Ttm1638::Run()
 				break;
 
 			case 1:	// start shifting
-				stb_pin.Clear();
+				stb_pin.Set0();
 				dio_pin.SwitchDirection(1);;
 				shiftbit = 0;
 				shiftbyte = 0;
@@ -107,7 +107,7 @@ void Ttm1638::Run()
 
 			case 3: // start data bit, setup clock
 				dio_pin.SetTo(shiftdata[shiftbyte] >> shiftbit);
-				clk_pin.Clear();
+				clk_pin.Set0();
 				sstarttime = CLOCKCNT;
 				++shiftstate;
 				break;
@@ -115,7 +115,7 @@ void Ttm1638::Run()
 			case 4: // wait for clock rising edge time
 				if (ELAPSEDCLOCKS(CLOCKCNT, sstarttime) >= clock_sysclocks / 2)
 				{
-					clk_pin.Set();
+					clk_pin.Set1();
 					++shiftstate;
 				}
 				break;
@@ -167,7 +167,7 @@ void Ttm1638::Run()
 				break;
 
 			case 21: // start data bit, setup clock
-				clk_pin.Clear();
+				clk_pin.Set0();
 				sstarttime = CLOCKCNT;
 				++shiftstate;
 				break;
@@ -175,7 +175,7 @@ void Ttm1638::Run()
 			case 22: // wait for clock rising edge time
 				if (ELAPSEDCLOCKS(CLOCKCNT, sstarttime) >= clock_sysclocks / 2)
 				{
-					clk_pin.Set();
+					clk_pin.Set1();
 					// sample the data
 					readdata[shiftbyte] |= (dio_pin.Value() << shiftbit);
 
@@ -207,7 +207,7 @@ void Ttm1638::Run()
 				break;
 
 			case 32: // finish transaction
-				stb_pin.Set();
+				stb_pin.Set1();
 				sstarttime = CLOCKCNT;
 				state = nextstate;
 				shiftstate = 0;  // stop;
