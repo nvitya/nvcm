@@ -2,6 +2,45 @@
 
 The NVCM is an open source, object based, true multi-vendor C++ software framework for ARM Cortex-M microcontrollers. It allows to create easily MCU vendor-independent or multi-MCU software, while the code stays small and very effective.
 
+## NVCM Focuses on Ease of Use
+
+__GPIO Setup on STM32F103 Minimum Development Board:__
+```C++
+TGpioPin  led1pin(PORTNUM_C, 13, false); // PC13
+
+void setup_board()
+{
+	led1pin.Setup(PINCFG_OUTPUT | PINCFG_GPIO_INIT_1);
+}
+```
+
+__GPIO Setup on Arduino DUE (ATSAM3X8E):__
+```C++
+TGpioPin  led1pin(1, 27, false); // D13
+
+void setup_board()
+{
+	led1pin.Setup(PINCFG_OUTPUT | PINCFG_GPIO_INIT_1);
+}
+```
+
+__GPIO Setup on LPC4330-XPlorer:__
+```C++
+TGpioPin  led1pin(1, 12, true); // D2
+TGpioPin  led2pin(1, 11, true); // D3
+
+#define LED_COUNT 2
+
+void setup_board()
+{
+	hwpinctrl.PinSetup(2, 12, PINCFG_OUTPUT | PINCFG_AF_0);  // D2: GPIO_1_12, pad B9
+	hwpinctrl.PinSetup(2, 11, PINCFG_OUTPUT | PINCFG_AF_0);  // D3: GPIO_1_11, pad A9
+
+	led1pin.Setup(PINCFG_OUTPUT | PINCFG_GPIO_INIT_1);
+	led2pin.Setup(PINCFG_OUTPUT | PINCFG_GPIO_INIT_1);
+}
+```
+
 ## Quick Start
 
 There are several examples which reside in a separate repository: [https://github.com/nvitya/nvcmtests].
@@ -27,7 +66,7 @@ __ATSAM__  | 3X, 4S, E70/S70/V70
 __LPC__    | LPC43xx
 __STM32__  | F0, L0, F1, F3, F4, F7
 
-From a former (unpublished) state of the project these failies will come soon:
+From a former (unpublished) state of the project these families will come soon:
  * ATSAM_V2 (D10, D20, D51/E5x)
  * KINETIS (K20, KL03)
  * LPC_V3 (LPC546xx)
