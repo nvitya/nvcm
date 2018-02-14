@@ -4,46 +4,57 @@ The NVCM is an open source, object based, true multi-vendor C++ software framewo
 
 ## NVCM Focuses on Ease of Use
 
-__GPIO Setup on STM32F103 Minimum Development Board:__
+GPIO Setup on STM32F103 Minimum Development Board:
 ```C++
-TGpioPin  led1pin(PORTNUM_C, 13, false); // PC13
-
+TGpioPin  led1pin(PORTNUM_C, 13, false);
 void setup_board()
 {
 	led1pin.Setup(PINCFG_OUTPUT | PINCFG_GPIO_INIT_1);
 }
 ```
 
-__GPIO Setup on Arduino DUE (ATSAM3X8E):__
+GPIO Setup on Arduino DUE (ATSAM3X8E):
 ```C++
 TGpioPin  led1pin(1, 27, false); // D13
-
 void setup_board()
 {
 	led1pin.Setup(PINCFG_OUTPUT | PINCFG_GPIO_INIT_1);
 }
 ```
 
-__GPIO Setup on LPC4330-XPlorer:__
+GPIO Setup on LPC4330-XPlorer (independent Pin and GPIO numbering):
 ```C++
 TGpioPin  led1pin(1, 12, true); // D2
 TGpioPin  led2pin(1, 11, true); // D3
-
-#define LED_COUNT 2
-
 void setup_board()
 {
 	hwpinctrl.PinSetup(2, 12, PINCFG_OUTPUT | PINCFG_AF_0);  // D2: GPIO_1_12, pad B9
 	hwpinctrl.PinSetup(2, 11, PINCFG_OUTPUT | PINCFG_AF_0);  // D3: GPIO_1_11, pad A9
-
 	led1pin.Setup(PINCFG_OUTPUT | PINCFG_GPIO_INIT_1);
 	led2pin.Setup(PINCFG_OUTPUT | PINCFG_GPIO_INIT_1);
 }
 ```
+GPIO Usage:
+```C++
+++hbcounter;
+led1pin.SetTo(hbcounter >> 0);
+led1pin.Set0();  // fast inline code on most MCUs
+led1pin.Set1();
+```
+UART Setup (STM32F103) and Usage:
+```C++
+hwpinctrl.PinSetup(PORTNUM_A,  9,  PINCFG_OUTPUT | PINCFG_AF_0);  // USART1_TX
+hwpinctrl.PinSetup(PORTNUM_A, 10,  PINCFG_INPUT  | PINCFG_AF_0);  // USART1_RX
+
+THwUart   conuart;
+conuart.Init(1);  // USART1, use default settings: 115200, 8, 1, n
+conuart.printf("Hello World %i !\r\n", 1);
+```
+
 
 ## Quick Start
 
-There are several examples which reside in a separate repository: [https://github.com/nvitya/nvcmtests].
+There are several multi-board examples which reside in a separate repository: [https://github.com/nvitya/nvcmtests].
 Download/clone this repository and follow the instructions there.
 
 ## Microcontroller Support
@@ -58,7 +69,7 @@ The NVCM has a set of built-in microcontrollers and there is a clear way how to 
 
 The microcontroller vendors produce a lot of different microcontrollers. They might differ in RAM size, Flash size, Package, Pin count, Periperals etc. Those microcontrollers, that share the same drivers belong to the same NVCM microcontroller family.
 
-## Currently Included MCU Families
+### Currently Included MCU Families
 
 __Family__ | __Sub-Family__
 -----------|------------------------
