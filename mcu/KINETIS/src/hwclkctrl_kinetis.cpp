@@ -85,18 +85,16 @@ bool THwClkCtrl_kinetis::SetupPlls(bool aextosc, unsigned abasespeed, unsigned a
   return false;
 }
 
-#elif defined(MCUSF_K20) // || defined(MCUSF_KV30)
+#elif defined(MCUSF_KV30)
 
 bool THwClkCtrl_kinetis::ExtOscReady()
 {
-	return ((MCG->S & MCG_S_OSCINIT0_MASK) == 0);
+  return true;
 }
 
 void THwClkCtrl_kinetis::StartExtOsc()
 {
-	MCG->C2 = MCG_C2_EREFS0_MASK | MCG_C2_HGO_MASK | MCG_C2_RANGE0(2);  // prepare for high speed crystal (16MHz)
 
-	OSC->CR = (OSC_CR_ERCLKEN_MASK | OSC_CR_EREFSTEN_MASK | OSC_CR_SC8P_MASK);
 }
 
 bool THwClkCtrl_kinetis::IntHSOscReady()
@@ -107,6 +105,115 @@ bool THwClkCtrl_kinetis::IntHSOscReady()
 void THwClkCtrl_kinetis::StartIntHSOsc()
 {
 
+}
+
+void THwClkCtrl_kinetis::PrepareHiSpeed(unsigned acpuspeed)
+{
+	// ???
+}
+
+bool THwClkCtrl_kinetis::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed)
+{
+	if (aextosc)
+	{
+		// TODO: implement external oscillator
+		return false;
+	}
+
+	uint8_t tmp;
+
+	// select a safe clock first
+	MCG->C1 |= (1 << 2); // select the internal slow clock (already selected)
+
+	MCG->C7 = 2; // select the IRC48M oscillator
+
+	uint32_t tmp32;
+
+	SIM->SOPT2 |= (3 << 16); // PLLFLLSEL: select IRC48M
+
+	// set up divisors for 96 MHz
+	SIM->CLKDIV1 = 0
+		| (7 << 16)  // OUTDIV4: flash, 7 = /8  ?????
+		| (1 << 24)  // OUTDIV2: bus, 1 = /2
+		| (0 << 28)  // OUTDIV1: core, 0 = /1
+	;
+
+	// set CLKS until we change che FLL settings
+	tmp = MCG->C1;
+	tmp &= 0x3F;
+	tmp |= 0x80;  // select IRC48, bypass the FLL
+	MCG->C1 = tmp;
+
+	if (acpuspeed == 48000000)
+	{
+		// correct divisors
+		SIM->CLKDIV1 = 0
+			| (3 << 16)  // OUTDIV4: flash, 1 = /4
+			| (0 << 24)  // OUTDIV2: bus, 0 = /1
+			| (0 << 28)  // OUTDIV1: core, 0 = /1
+		;
+		return true;
+	}
+
+	if (acpuspeed == 96000000)  // the highest clock speed using the internal RC clock
+	{
+		tmp = MCG->C2;
+		tmp &= 0xCF;
+		tmp |= 0x20; // RANGE, 2 = Select high freq range
+		MCG->C2 = tmp;
+
+		tmp = MCG->C1;
+		tmp &= ~(7 << 3);
+		tmp |=  (6 << 3);  // FRDIV = divide by 1280 when RANGE >= 2
+		MCG->C1 = tmp;
+
+		tmp = MCG->C4;
+		tmp &= ~(7 << 5);
+		tmp |=  (3 << 5); // select DCO multiplication for 96 MHz
+		MCG->C4 = tmp;
+
+		tmp = MCG->C1;
+		tmp &= ~(1 << 2);  // clear IREFS
+		MCG->C1 = tmp;
+
+		tmp = MCG->C1;
+		tmp &= ~(3 << 6);
+		tmp |=  (0 << 6);  // select FLL as clock
+		MCG->C1 = tmp;
+
+		while ((MCG->S & (3 << 2)) != 0)
+		{
+			// wait until FLL is selected
+		}
+
+		return true;
+	}
+
+  return false;
+}
+
+#elif defined(MCUSF_K20)
+
+bool THwClkCtrl_kinetis::ExtOscReady()
+{
+	return ((MCG->S & MCG_S_OSCINIT0_MASK) == 0);
+}
+
+void THwClkCtrl_kinetis::StartExtOsc()
+{
+	//MCG->C2 = MCG_C2_EREFS0_MASK | MCG_C2_HGO_MASK | MCG_C2_RANGE0(2);  // prepare for high speed crystal (16MHz)
+
+	OSC->CR = (OSC_CR_ERCLKEN_MASK | OSC_CR_EREFSTEN_MASK); // | OSC_CR_SC8P_MASK);
+}
+
+bool THwClkCtrl_kinetis::IntHSOscReady()
+{
+	return true;
+}
+
+void THwClkCtrl_kinetis::StartIntHSOsc()
+{
+	MCG->MC |= MCG_MC_HIRCEN_MASK;
 }
 
 void THwClkCtrl_kinetis::PrepareHiSpeed(unsigned acpuspeed)

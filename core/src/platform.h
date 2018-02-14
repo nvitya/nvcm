@@ -72,6 +72,10 @@
   #error "MCU Maximal clock speed is not defined!"
 #endif
 
+#ifndef MCU_CLOCK_SPEED
+  #define MCU_CLOCK_SPEED  MAX_CLOCK_SPEED
+#endif
+
 #ifndef HW_DMA_MAX_COUNT
   // usually this is the maximum amount that the DMA can transfer
   #define HW_DMA_MAX_COUNT  32768
