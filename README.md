@@ -70,26 +70,27 @@ The microcontroller vendors produce a lot of different microcontrollers. They mi
 
 ### Currently Included MCU Families
 
-__Family__ | __Sub-Family__
------------|------------------------
-__ATSAM__  | 3X, 4S, E70/S70/V70
-__LPC__    | LPC43xx
-__LPC_V3__ | LPC546xx
-__STM32__  | F0, L0, F1, F3, F4, F7
-
-From a former (unpublished) state of the project these families will come soon:
- * ATSAM_V2 (D10, D20, D51/E5x)
- * KINETIS (K20, KL03)
- * XMC (XMC1xxx)
+__Family__   | __Sub-Family__
+-------------|------------------------
+__ATSAM__    | 3X, 4S, E70/S70/V70
+__ATSAM_V2__ | D51/E5x, D10
+__KINETIS__  | K20, KL03, KV30
+__LPC__      | LPC43xx
+__LPC_V3__   | LPC546xx
+__STM32__    | F0, L0, F1, F3, F4, F7
+__XMC__      | XMC1xxx
 
 ### Current Driver Status
 
-  Family   | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __UART__ | __DMA__ | __SPI__ | __QSPI__
------------|-----------------------|-------------------|----------|---------|---------|---------
-__ATSAM__  | OK                    | OK                | OK       | OK      | OK      | OK
-__LPC__    | OK                    | OK                | OK       | OK      | OK      | OK
-__LPC_V3__ | OK                    | OK                | OK       | OK      | OK      | -
-__STM32__  | OK                    | OK                | OK       | OK      | OK      | -
+  Family     | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __UART__ | __DMA__ | __SPI__ | __QSPI__
+-------------|-----------------------|-------------------|----------|---------|---------|---------
+__ATSAM__    | OK                    | OK                | OK       | OK      | OK      | OK
+__ATSAM_V2__ | OK                    | OK                | OK       | -       | -       | -
+__KINETIS__  | OK                    | partial           | partial  | -       | -       | -
+__LPC__      | OK                    | OK                | OK       | OK      | OK      | OK
+__LPC_V3__   | OK                    | OK                | OK       | OK      | OK      | -
+__STM32__    | OK                    | OK                | OK       | OK      | OK      | -
+__XMC__      | OK                    | OK                | OK       | -       | -       | -
 
 ### Planned Drivers
  * i2c
@@ -101,4 +102,25 @@ This NVCM core project contains some useful external module drivers as well. Cur
  * SPI, QSPI flash memories
  * Led and Key module
 
+### Built-In Boards
 
+__Family__ | __Board Id.__          | __Name__
+-----------|------------------------|-------------------------------------
+ATSAM      | BOARD_ARDUINO_DUE      | [Arduino DUE (ATSAM3X8E)](https://store.arduino.cc/usa/arduino-due)
+ATSAM      | BOARD_XPLAINED_SAME70  | [SAM E70 Xplained Evaluation Kit](http://www.microchip.com/DevelopmentTools/ProductDetails.aspx?PartNO=ATSAME70-XPLD)
+ATSAM      | BOARD_MIBO100_ATSAME70 | MIBO-100 ATSAME70N by nvitya
+ATSAM      | BOARD_MIBO64_ATSAM4S   | MIBO-64 ATSAM4S by nvitya
+ATSAM_V2   | BOARD_MIBO64_ATSAME5X  | MIBO-64 ATSAME5x/D51 by nvitya
+LPC        | BOARD_XPRESSO_LPC4337  | [LPCXpresso4337](https://www.nxp.com/support/developer-resources/hardware-development-tools/lpcxpresso-boards/lpcxpresso4337-development-board:OM13070)
+LPC        | BOARD_XPLORER_LPC4330  | [LPC4330-Xplorer](https://www.nxp.com/support/developer-resources/hardware-development-tools/lpcxpresso-boards/lpc4330-xplorer-board:OM13027)
+LPC_V3     | BOARD_XPRESSO_LPC54608 | [LPCXpresso54608](https://www.nxp.com/support/developer-resources/hardware-development-tools/lpcxpresso-boards/lpcxpresso-development-board-for-lpc5460x-mcus:OM13092)
+LPC_V3     | BOARD_MIBO100_LPC546XX | MIBO-100 LPC546xx by nvitya
+STM32      | BOARD_MIN_F103         | [STM32F103C8 Minimum Development Board (breadboard friendly)](https://www.aliexpress.com/w/wholesale-stm32f103c8t6-minimum.html)
+STM32      | BOARD_NUCLEO_F746      | [NUCLEO-F746ZG](http://www.st.com/en/evaluation-tools/nucleo-f746zg.html)
+STM32      | BOARD_NUCLEO_F446      | [NUCLEO-F446RE](http://www.st.com/en/evaluation-tools/nucleo-f446re.html)
+STM32      | BOARD_DISCOVERY_F072   | [Discovery kit with STM32F072RB MCU](http://www.st.com/en/evaluation-tools/32f072bdiscovery.html)
+STM32      | BOARD_DEV_STM32F407VG  | [STM32F407VG Minimal Board](https://www.aliexpress.com/item/STM32F4Discovery-STM32F407VGT6-ARM-Cortex-M4-32bit-MCU-Core-Development-Board/32757497307.html)
+STM32      | BOARD_DEV_STM32F407ZE  | [STM32F407ZE Development Board](https://www.aliexpress.com/item/Free-shipping-STM32F407ZET6-development-board-M4-STM32F4-core-board-arm-development-board-cortex-M4/32689262341.html)
+
+
+For these usually there are ready to use examples. It is not so hard to create a project for a custom harware either.
