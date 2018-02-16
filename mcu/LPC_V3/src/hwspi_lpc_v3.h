@@ -19,29 +19,41 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (LPC_V3)
- *  brief:    LPC_V3 list of implemented NVCM core peripherals
+ *  file:     hwspi_lpc_v3.h
+ *  brief:    LPC_V3 SPI (master only)
  *  version:  1.00
  *  date:     2018-02-10
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_lpc_v3.h"
-#endif
+#ifndef HWSPI_LPC_V3_H_
+#define HWSPI_LPC_V3_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_lpc_v3.h"
-#endif
+#define HWSPI_PRE_ONLY
+#include "hwspi.h"
 
-#ifdef HWUART_H_
-  #include "hwuart_lpc_v3.h"
-#endif
+class THwSpi_lpc_v3 : public THwSpi_pre
+{
+public:
+	bool Init(int adevnum);
 
-#ifdef HWDMA_H_
-  #include "hwdma_lpc_v3.h"
-#endif
+	bool TrySendData(uint16_t adata);
+	bool TryRecvData(uint16_t * dstptr);
+	bool SendFinished();
 
-#ifdef HWSPI_H_
-  #include "hwspi_lpc_v3.h"
-#endif
+	void DmaAssign(bool istx, THwDmaChannel * admach);
+
+	bool DmaStartSend(THwDmaTransfer * axfer);
+	bool DmaStartRecv(THwDmaTransfer * axfer);
+	bool DmaSendCompleted();
+	bool DmaRecvCompleted();
+
+public:
+	unsigned  					basespeed;
+	HW_SPI_REGS * 			regs;
+};
+
+
+#define HWSPI_IMPL THwSpi_lpc_v3
+
+#endif // def HWSPI_LPC_V3_H_

@@ -88,7 +88,7 @@ From a former (unpublished) state of the project these families will come soon:
 -----------|-----------------------|-------------------|----------|---------|---------|---------
 __ATSAM__  | OK                    | OK                | OK       | OK      | OK      | OK
 __LPC__    | OK                    | OK                | OK       | OK      | OK      | OK
-__LPC_V3__ | OK                    | OK                | OK       | soon    | soon    | -
+__LPC_V3__ | OK                    | OK                | OK       | OK      | OK      | -
 __STM32__  | OK                    | OK                | OK       | OK      | OK      | -
 
 ### Planned Drivers

@@ -58,6 +58,8 @@ void THwClkCtrl_lpc_v3::PrepareHiSpeed(unsigned acpuspeed)
 
   tmp = SYSCON->FLASHCFG & ~(SYSCON_FLASHCFG_FLASHTIM_MASK);
   SYSCON->FLASHCFG = tmp | (8 << SYSCON_FLASHCFG_FLASHTIM_SHIFT);  // 9 clock wait state
+
+  SYSCON->FLASHCFG |= ((1 << 5) | (1 << 6)); // prefetch enable + prefetch override enable
 }
 
 unsigned lpc54_pll_calc_ndiv(unsigned val)
@@ -221,6 +223,7 @@ bool THwClkCtrl_lpc_v3::SetupPlls(bool aextosc, unsigned abasespeed, unsigned ac
 
 	// switch main clock to the PLL
 	SYSCON->MAINCLKSELB = 2;
+	SYSCON->AHBCLKDIV = 0;
 
 	// Setup FROHS to 48 MHz, it will be used as the source for FLEXCOMM units
 	// by default the FROHS configured to 96 MHz by the boot rom with trimmed values

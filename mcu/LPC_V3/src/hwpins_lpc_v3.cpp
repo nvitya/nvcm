@@ -104,22 +104,22 @@ bool THwPinCtrl_lpc_v3::PinSetup(int aportnum, int apinnum, unsigned flags)
 
 	if (flags & PINCFG_OUTPUT)
 	{
+	  // initial state
+	  if (flags & PINCFG_GPIO_INIT_1)
+	  {
+	  	regs->SET[aportnum] = bm;
+	  }
+	  else
+	  {
+	  	regs->CLR[aportnum] = bm;
+	  }
+
 		regs->DIRSET[aportnum] = bm;
 	}
 	else
 	{
 		regs->DIRCLR[aportnum] = bm;
 	}
-
-  // initial state
-  if (flags & PINCFG_GPIO_INIT_1)
-  {
-  	regs->SET[aportnum] = bm;
-  }
-  else
-  {
-  	regs->CLR[aportnum] = bm;
-  }
 
   return true;
 }
