@@ -51,7 +51,6 @@ conuart.Init(1);  // USART1, use default settings: 115200, 8, 1, n
 conuart.printf("Hello World %i !\r\n", 1);
 ```
 
-
 ## Quick Start
 
 There are several multi-board examples which reside in a separate repository: [https://github.com/nvitya/nvcmtests].
@@ -75,12 +74,12 @@ __Family__ | __Sub-Family__
 -----------|------------------------
 __ATSAM__  | 3X, 4S, E70/S70/V70
 __LPC__    | LPC43xx
+__LPC_V3__ | LPC546xx
 __STM32__  | F0, L0, F1, F3, F4, F7
 
 From a former (unpublished) state of the project these families will come soon:
  * ATSAM_V2 (D10, D20, D51/E5x)
  * KINETIS (K20, KL03)
- * LPC_V3 (LPC546xx)
  * XMC (XMC1xxx)
 
 ### Current Driver Status
@@ -89,17 +88,17 @@ From a former (unpublished) state of the project these families will come soon:
 -----------|-----------------------|-------------------|---------|----------|---------|---------
 __ATSAM__  | OK                    | OK                | OK      | OK       | OK      | OK
 __LPC__    | OK                    | OK                | OK      | OK       | OK      | OK
+__LPC_V3__ | OK                    | OK                | soon    | OK       | soon    | -
 __STM32__  | OK                    | OK                | OK      | OK       | OK      | -
 
 ### Planned Drivers
  * i2c
  * USB Device
 
-## Modules
+## Included HW Module Drivers
 This NVCM core project contains some useful external module drivers as well. Currently these modules are included into the core:
  * TFT LCD displays: SPI, Parallel
  * SPI, QSPI flash memories
  * Led and Key module
 
-Hopefully this list will grow too.
 
