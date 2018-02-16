@@ -64,7 +64,11 @@ public:
 
 #ifndef HWDMACHANNEL_IMPL
 
-#warning "HWDMA is not implemented!"
+#ifdef SKIP_UNIMPLEMENTED_WARNING
+  #undef SKIP_UNIMPLEMENTED_WARNING
+#else
+  #warning "HWDMA is not implemented!"
+#endif
 
 class THwDmaChannel_noimpl : public THwDmaChannel_pre
 {

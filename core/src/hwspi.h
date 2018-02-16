@@ -75,7 +75,11 @@ public:
 
 #ifndef HWSPI_IMPL
 
-#warning "HWSPI is not implemented!"
+#ifdef SKIP_UNIMPLEMENTED_WARNING
+  #undef SKIP_UNIMPLEMENTED_WARNING
+#else
+  #warning "HWSPI is not implemented!"
+#endif
 
 class THwSpi_noimpl : public THwSpi_pre
 {
