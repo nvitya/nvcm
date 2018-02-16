@@ -84,12 +84,12 @@ From a former (unpublished) state of the project these families will come soon:
 
 ### Current Driver Status
 
-  Family   | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __DMA__ | __UART__ | __SPI__ | __QSPI__
------------|-----------------------|-------------------|---------|----------|---------|---------
-__ATSAM__  | OK                    | OK                | OK      | OK       | OK      | OK
-__LPC__    | OK                    | OK                | OK      | OK       | OK      | OK
-__LPC_V3__ | OK                    | OK                | soon    | OK       | soon    | -
-__STM32__  | OK                    | OK                | OK      | OK       | OK      | -
+  Family   | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __UART__ | __DMA__ | __SPI__ | __QSPI__
+-----------|-----------------------|-------------------|----------|---------|---------|---------
+__ATSAM__  | OK                    | OK                | OK       | OK      | OK      | OK
+__LPC__    | OK                    | OK                | OK       | OK      | OK      | OK
+__LPC_V3__ | OK                    | OK                | OK       | soon    | soon    | -
+__STM32__  | OK                    | OK                | OK       | OK      | OK      | -
 
 ### Planned Drivers
  * i2c
