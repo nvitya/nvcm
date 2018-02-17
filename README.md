@@ -123,6 +123,7 @@ STM32      | BOARD_NUCLEO_F446      | [NUCLEO-F446RE](http://www.st.com/en/evalu
 STM32      | BOARD_DISCOVERY_F072   | [Discovery kit with STM32F072RB MCU](http://www.st.com/en/evaluation-tools/32f072bdiscovery.html)
 STM32      | BOARD_DEV_STM32F407VG  | [STM32F407VG Minimal Board](https://www.aliexpress.com/item/STM32F4Discovery-STM32F407VGT6-ARM-Cortex-M4-32bit-MCU-Core-Development-Board/32757497307.html)
 STM32      | BOARD_DEV_STM32F407ZE  | [STM32F407ZE Development Board](https://www.aliexpress.com/item/Free-shipping-STM32F407ZET6-development-board-M4-STM32F4-core-board-arm-development-board-cortex-M4/32689262341.html)
+XMC        | BOARD_BOOT_XMC1200     | [XMC1200 Boot Kit](https://www.infineon.com/cms/de/product/evaluation-boards/kit_xmc12_boot_001/)
 
 
 For these usually there are ready to use examples. It is not so hard to create a project for a custom harware either.
