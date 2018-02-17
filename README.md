@@ -1,5 +1,7 @@
 # NVCM ARM Cortex-M Microcontroller Framework
 
+The project on the Github: (https://github.com/nvitya/nvcm)
+
 The NVCM is an open source, object based, true multi-vendor C++ software framework for ARM Cortex-M microcontrollers. It allows to create easily MCU vendor-independent or multi-MCU software, while the code stays small and very effective.
 
 ## Easy to Use
@@ -53,7 +55,7 @@ conuart.printf("Hello World %i !\r\n", 1);
 
 ## Quick Start
 
-There are several multi-board examples which reside in a separate repository: [https://github.com/nvitya/nvcmtests].
+There are several multi-board examples which reside in a separate repository: (https://github.com/nvitya/nvcmtests).
 Download/clone this repository and follow the instructions there.
 
 ## Microcontroller Support
