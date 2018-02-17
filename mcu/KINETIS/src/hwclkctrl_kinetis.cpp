@@ -131,9 +131,9 @@ bool THwClkCtrl_kinetis::SetupPlls(bool aextosc, unsigned abasespeed, unsigned a
 
 	SIM->SOPT2 |= (3 << 16); // PLLFLLSEL: select IRC48M
 
-	// set up divisors for 96 MHz
+	// set up safe divisors for 96 MHz
 	SIM->CLKDIV1 = 0
-		| (7 << 16)  // OUTDIV4: flash, 7 = /8  ?????
+		| (7 << 16)  // OUTDIV4: flash, 7 = /8
 		| (1 << 24)  // OUTDIV2: bus, 1 = /2
 		| (0 << 28)  // OUTDIV1: core, 0 = /1
 	;
@@ -148,7 +148,7 @@ bool THwClkCtrl_kinetis::SetupPlls(bool aextosc, unsigned abasespeed, unsigned a
 	{
 		// correct divisors
 		SIM->CLKDIV1 = 0
-			| (3 << 16)  // OUTDIV4: flash, 1 = /4
+			| (2 << 16)  // OUTDIV4: flash, 1 = /3
 			| (0 << 24)  // OUTDIV2: bus, 0 = /1
 			| (0 << 28)  // OUTDIV1: core, 0 = /1
 		;
@@ -185,6 +185,18 @@ bool THwClkCtrl_kinetis::SetupPlls(bool aextosc, unsigned abasespeed, unsigned a
 		{
 			// wait until FLL is selected
 		}
+
+		// set the flash divisor to fastest
+
+		// According to specification the maximal speed of the Flash unit is 25 MHz.
+		// It should be run fine with 24 MHz (OUTDIV4 = 3), however the test piece was
+		// not stabile with that. The lowest working divisor was 5 (OUTDIV4 = 4), resulting around 20 MHz.
+
+		SIM->CLKDIV1 = 0
+			| (4 << 16)  // OUTDIV4: flash, 4 = /5
+			| (1 << 24)  // OUTDIV2: bus, 1 = /2
+			| (0 << 28)  // OUTDIV1: core, 0 = /1
+		;
 
 		return true;
 	}
