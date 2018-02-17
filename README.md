@@ -76,6 +76,7 @@ __ATSAM__    | 3X, 4S, E70/S70/V70
 __ATSAM_V2__ | D51/E5x, D10
 __KINETIS__  | K20, KL03, KV30
 __LPC__      | LPC43xx
+__LPC_V2__   | LPC8xx
 __LPC_V3__   | LPC546xx
 __STM32__    | F0, L0, F1, F3, F4, F7
 __XMC__      | XMC1xxx
@@ -88,6 +89,7 @@ __ATSAM__    | OK                    | OK                | OK       | OK      | 
 __ATSAM_V2__ | OK                    | OK                | OK       | -       | -       | -
 __KINETIS__  | OK                    | partial           | partial  | -       | -       | -
 __LPC__      | OK                    | OK                | OK       | OK      | OK      | OK
+__LPC_V2__   | OK                    | restricted        | OK       | -       | -       | -
 __LPC_V3__   | OK                    | OK                | OK       | OK      | OK      | -
 __STM32__    | OK                    | OK                | OK       | OK      | OK      | -
 __XMC__      | OK                    | OK                | OK       | -       | -       | -
