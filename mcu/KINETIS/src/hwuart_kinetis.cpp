@@ -151,75 +151,60 @@ bool THwUart_kinetis::Init(int adevnum)
 		return false;
 	}
 
-#warning "Kinetis UART is not implemented !"
-
-#if 0
 	// disable transmit and receive
-	regs->CTRL &= (3 << 18);
+	regs->C2 &= ~(3 << 2);
 
-	unsigned baseclock = 48000000 >> 4;
-	unsigned sbr = baseclock / baudrate;
+	unsigned baseclock = SystemCoreClock >> 4;  // = /16
+	unsigned sbr = (baseclock << 5) / baudrate;
 
-	// BAUD RATE register
+	regs->C4 = (sbr & 0x1F);
+	regs->BDH = ((sbr >> 13) & 0x1F);
+	regs->BDL = (sbr >> 5);
+
+	// C1
 	x = 0
-	 | (0x0F << 24)  // OSR(5): oversampling, 0x0F = 16
-	 | (0 << 13)     // SBNS: 0 = 1 stop bit
-	 | (sbr << 0)
-	;
-	if (halfstopbits == 4)
-	{
-		x |= (1 << 13);
-	}
-	regs->BAUD = x;
-
-
-	// STAT register
-	x = 0
-	 | (0 << 29)  // MSBF: 0 = LSB first
-	;
-	regs->STAT = x;
-
-	// CTRL register
-	x = 0
-	 | (1 << 19)  // TE: 1 = transmitter enable
-	 | (1 << 18)  // RE: 1 = receiver enable
-	 | (0 <<  4)  // M: 8 bit characters
+	 | (0 << 7)   // LOOPS: loop mode select
+	 | (0 << 4)   // M: 0 = 8 bit mode
 	;
 	if (parity)
 	{
 		x |= (1 << 1);
 		if (oddparity)	x |= (1 << 0);
 	}
-	regs->CTRL = x;  // enables the UART as well
+	regs->C1 = x;
+
+  regs->C2 = 0; // disable interrupts
+
+	regs->S2 = 0
+	  | (0 << 5)  // MSBF: 0 = LSB first
+	  | (0 << 4)  // RXINV: 1 = invert receive data
+	;
+
+  regs->C3 = 0;
+  regs->C5 = 0; // disable DMA
+
+	regs->C2 |= (3 << 2); // enable transmit and receive
 
 	initialized = true;
 
 	return true;
-#endif
-
-	return false;
 }
 
 bool THwUart_kinetis::TrySendChar(char ach)
 {
-#if 0
-	if ((regs->S1 & LPUART_STAT_TDRE_MASK) == 0)
+	if ((regs->S1 & UART_S1_TDRE_MASK) == 0)
 	{
 		return false;
 	}
 
-	regs->DATA = ach;
+	regs->D = ach;
 
 	return true;
-#else
-	return false;
-#endif
 }
 
 bool THwUart_kinetis::SendFinished()
 {
-#if 0
-	if (regs->STAT & LPUART_STAT_TC_MASK)
+	if (regs->S1 & UART_S1_TC_MASK)
 	{
 		return true;
 	}
@@ -227,9 +212,6 @@ bool THwUart_kinetis::SendFinished()
 	{
 		return false;
 	}
-#else
-	return false;
-#endif
 }
 
 
