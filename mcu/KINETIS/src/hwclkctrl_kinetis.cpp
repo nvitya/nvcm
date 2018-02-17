@@ -109,11 +109,18 @@ void THwClkCtrl_kinetis::StartIntHSOsc()
 
 void THwClkCtrl_kinetis::PrepareHiSpeed(unsigned acpuspeed)
 {
-	// ???
+	SMC->PMPROT = 0x80;
+  SMC->PMCTRL = (3 << 5); // set High Speed Run Mode
+  while (SMC->PMSTAT != 0x80)
+  {
+  	// wait until High Speed Power mode set
+  }
 }
 
 bool THwClkCtrl_kinetis::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed)
 {
+	unsigned n;
+
 	if (aextosc)
 	{
 		// TODO: implement external oscillator
@@ -126,6 +133,7 @@ bool THwClkCtrl_kinetis::SetupPlls(bool aextosc, unsigned abasespeed, unsigned a
 	MCG->C1 |= (1 << 2); // select the internal slow clock (already selected)
 
 	MCG->C7 = 2; // select the IRC48M oscillator
+	for (n = 0; n < 5000; ++n)  __NOP();
 
 	uint32_t tmp32;
 
@@ -186,17 +194,21 @@ bool THwClkCtrl_kinetis::SetupPlls(bool aextosc, unsigned abasespeed, unsigned a
 			// wait until FLL is selected
 		}
 
+		// wait until it is stable
+		for (n = 0; n < 5000; ++n)  __NOP();
+
+#if 1
 		// set the flash divisor to fastest
 
 		// According to specification the maximal speed of the Flash unit is 25 MHz.
 		// It should be run fine with 24 MHz (OUTDIV4 = 3), however the test piece was
 		// not stabile with that. The lowest working divisor was 5 (OUTDIV4 = 4), resulting around 20 MHz.
-
 		SIM->CLKDIV1 = 0
 			| (4 << 16)  // OUTDIV4: flash, 4 = /5
 			| (1 << 24)  // OUTDIV2: bus, 1 = /2
 			| (0 << 28)  // OUTDIV1: core, 0 = /1
 		;
+#endif
 
 		return true;
 	}
