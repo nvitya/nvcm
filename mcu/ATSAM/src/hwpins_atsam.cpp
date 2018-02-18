@@ -121,6 +121,16 @@ bool THwPinCtrl_atsam::PinSetup(int aportnum, int apinnum, unsigned flags)
 		regs->PIO_PER = pinbit;
 		//regs->PIO_IFDR = pinbit;  // disable input filter
 
+	  // 6. initial state
+	  if (flags & PINCFG_GPIO_INIT_1)
+	  {
+	  	regs->PIO_SODR = pinbit;
+	  }
+	  else
+	  {
+	  	regs->PIO_CODR = pinbit;
+	  }
+
 		if (flags & PINCFG_OUTPUT)
 		{
 			regs->PIO_OER = pinbit;
@@ -153,16 +163,6 @@ bool THwPinCtrl_atsam::PinSetup(int aportnum, int apinnum, unsigned flags)
 
   // 5. set speed
   // no speed options for SAM3
-
-  // 6. initial state
-  if (flags & PINCFG_GPIO_INIT_1)
-  {
-  	regs->PIO_SODR = pinbit;
-  }
-  else
-  {
-  	regs->PIO_CODR = pinbit;
-  }
 
   return true;
 }

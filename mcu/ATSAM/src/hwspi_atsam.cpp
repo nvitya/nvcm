@@ -121,7 +121,7 @@ bool THwSpi_atsam::Init(int adevnum)  // 0..1 = SPI0..1, 0x100 .. 0x103 = USART0
 			| (1 << 0)   // Master Mode
 			| (0 << 1)   // Fixed Chip Select
 			| (0 << 2)   // do not use CS decoder
-			| (0 << 4)   // enable mode fault detection
+			| (1 << 4)   // 1 = diasble mode fault detection
 			| (0 << 5)   // do not wait for rx empty
 			| (0 << 7)   // loopback disabled
 			| (0 << 16)  // PCS0 is used

@@ -35,6 +35,8 @@
 
 bool THwDmaChannel_atsam::InitPeriphDma(bool aistx, void * aregs, void * aaltregs)  // special function for Atmel PDMA
 {
+	initialized = false;
+
 	if (aregs)
 	{
 		altregs = (HW_DMA_ALT_REGS *)(unsigned(aregs) + 0x100);
@@ -50,10 +52,79 @@ bool THwDmaChannel_atsam::InitPeriphDma(bool aistx, void * aregs, void * aaltreg
 
 	istx = aistx;
 
+	initialized = true;
+
+	return true;
+}
+
+void THwDmaChannel_atsam::Disable()
+{
+	if (istx)
+	{
+		altregs->PTCR = 0x200;
+	}
+	else
+	{
+		altregs->PTCR = 0x002;
+	}
+}
+
+void THwDmaChannel_atsam::Enable()
+{
+	// start the channel
+	if (istx)
+	{
+		altregs->PTCR = 0x100;
+	}
+	else
+	{
+		altregs->PTCR = 0x001;
+	}
+}
+
+bool THwDmaChannel_atsam::Enabled()
+{
+	if (istx)
+	{
+		return (altregs->TCR > 0);
+		//return ((altregs->PTSR & 0x100) != 0);
+	}
+	else
+	{
+		return (altregs->RCR > 0);
+		//return ((altregs->PTSR & 0x001) != 0);
+	}
+}
+
+bool THwDmaChannel_atsam::StartTransfer(THwDmaTransfer * axfer)
+{
+	if (istx)
+	{
+		altregs->TPR = (uint32_t)axfer->srcaddr;
+		altregs->TCR = axfer->count;
+		altregs->TNCR = 0;
+		altregs->TNPR = 0;
+	}
+	else
+	{
+		altregs->RPR = (uint32_t)axfer->dstaddr;
+		altregs->RCR = axfer->count;
+		altregs->RNCR = 0;
+		altregs->RNPR = 0;
+	}
+
+	Enable();
+
 	return true;
 }
 
 #endif
+
+void THwDmaChannel_atsam::Prepare(bool aistx, void * aperiphaddr, unsigned aflags)
+{
+	istx = aistx;
+	periphaddr = aperiphaddr;
+}
 
 #ifdef XDMAC
 
@@ -86,12 +157,6 @@ bool THwDmaChannel_atsam::Init(int achnum, int aperid)  // perid = peripheral re
 	initialized = true;
 
 	return true;
-}
-
-void THwDmaChannel_atsam::Prepare(bool aistx, void * aperiphaddr, unsigned aflags)
-{
-	istx = aistx;
-	periphaddr = aperiphaddr;
 }
 
 void THwDmaChannel_atsam::Disable()
