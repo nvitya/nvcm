@@ -85,16 +85,16 @@ __XMC__      | [XMC1xxx](https://github.com/nvitya/nvcm/blob/master/mcu/XMC/src/
 
 ### Current Driver Status
 
-  Family     | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __UART__ | __DMA__ | __SPI__ | __QSPI__
--------------|-----------------------|-------------------|----------|---------|---------|---------
-__ATSAM__    | OK                    | OK                | OK       | OK      | OK      | OK
-__ATSAM_V2__ | OK                    | OK                | OK       | -       | -       | -
-__KINETIS__  | OK                    | partial           | OK       | -       | -       | -
-__LPC__      | OK                    | OK                | OK       | OK      | OK      | OK
-__LPC_V2__   | OK                    | restricted        | OK       | -       | -       | -
-__LPC_V3__   | OK                    | OK                | OK       | OK      | OK      | -
-__STM32__    | OK                    | OK                | OK       | OK      | OK      | -
-__XMC__      | OK                    | OK                | OK       | -       | -       | -
+  Family     | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __UART__ | __DMA__ | __SPI__ | __I2C__ |__QSPI__
+-------------|-----------------------|-------------------|----------|---------|---------|---------|--------
+__ATSAM__    | OK                    | OK                | OK       | OK      | OK      | OK      | OK
+__ATSAM_V2__ | OK                    | OK                | OK       | -       | -       | -       | -
+__KINETIS__  | OK                    | partial           | OK       | -       | -       | -       | -
+__LPC__      | OK                    | OK                | OK       | OK      | OK      | -       | OK
+__LPC_V2__   | OK                    | restricted        | OK       | -       | -       | -       | -
+__LPC_V3__   | OK                    | OK                | OK       | OK      | OK      | -       | -
+__STM32__    | OK                    | OK                | OK       | OK      | OK      | -       | -
+__XMC__      | OK                    | OK                | OK       | -       | -       | -       | -
 
 ### Planned Drivers
  * i2c

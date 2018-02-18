@@ -19,39 +19,34 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (ATSAM)
- *  brief:    ATSAM list of implemented NVCM core peripherals
+ *  file:     hwi2c.cpp
+ *  brief:    Internal I2C / TWI vendor-independent implementations
  *  version:  1.00
  *  date:     2018-02-10
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_atsam.h"
-#endif
+#include "platform.h"
+#include <hwi2c.h>
 
-#ifdef HWPINS_H_
-  #include "hwpins_atsam.h"
-#endif
+bool THwI2c::Finished()
+{
+	Run();
 
-#ifdef HWDMA_H_
-  #include "hwdma_atsam.h"
-#endif
+	return !busy;
+}
 
-#ifdef HWUART_H_
-  #include "hwuart_atsam.h"
-#endif
+int THwI2c::WaitFinish()
+{
+	if (!busy)
+	{
+		return ERROR_OK;
+	}
 
-#ifdef HWSPI_H_
-  #include "hwspi_atsam.h"
-#endif
+	while (!Finished())
+	{
+		// wait
+	}
 
-#ifdef HWI2C_H_
-  #include "hwi2c_atsam.h"
-#endif
-
-#ifdef Qspi
-	#ifdef HWQSPI_H_
-		#include "hwqspi_atsam.h"
-	#endif
-#endif
+	return ERROR_OK;
+}
