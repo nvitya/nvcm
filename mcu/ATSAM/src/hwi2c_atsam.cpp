@@ -157,7 +157,7 @@ int THwI2c_atsam::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 	dmaused = (rxdma.initialized && (len > 2));
 	if (dmaused)
 	{
-		rxdma.Prepare(false, (void *)(regs->RHR), 0);
+		rxdma.Prepare(false, (void *)&(regs->RHR), 0);
 
 		xfer.dstaddr = dataptr;
 		xfer.bytewidth = 1;
@@ -213,7 +213,7 @@ int THwI2c_atsam::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 	dmaused = (txdma.initialized && (len > 1));
 	if (dmaused)
 	{
-		txdma.Prepare(true,  (void *)(regs->THR), 0);
+		txdma.Prepare(true,  (void *)&(regs->THR), 0);
 
 		xfer.srcaddr = dataptr;
 		xfer.bytewidth = 1;
