@@ -125,16 +125,6 @@ bool THwI2c_atsam::Init(int adevnum)
 
 	regs->CR = (1 << 2);  // Master mode enable
 
-	if (txdma.initialized)
-	{
-		txdma.Prepare(true,  (void *)(regs->THR), 0);
-	}
-
-	if (rxdma.initialized)
-	{
-		rxdma.Prepare(false, (void *)(regs->RHR), 0);
-	}
-
 	initialized = true;
 
 	return true;
@@ -164,8 +154,21 @@ int THwI2c_atsam::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 		| (extracnt <<  8)  // IADRSZ: internal address bytes
 	;
 
-	// DMA is not implemented so far
-	dmaused = false;
+	dmaused = (rxdma.initialized && (len > 2));
+	if (dmaused)
+	{
+		rxdma.Prepare(false, (void *)(regs->RHR), 0);
+
+		xfer.dstaddr = dataptr;
+		xfer.bytewidth = 1;
+		xfer.count = remainingbytes - 2;
+		xfer.addrinc = true;
+
+		dataptr += xfer.count;
+		remainingbytes = 2;
+
+		rxdma.StartTransfer(&xfer);
+	}
 
 	// Start
 
@@ -207,8 +210,19 @@ int THwI2c_atsam::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 		| (extracnt <<  8)  // IADRSZ: internal address bytes
 	;
 
-	// DMA is not implemented so far
-	dmaused = false;
+	dmaused = (txdma.initialized && (len > 1));
+	if (dmaused)
+	{
+		txdma.Prepare(true,  (void *)(regs->THR), 0);
+
+		xfer.srcaddr = dataptr;
+		xfer.bytewidth = 1;
+		xfer.count = remainingbytes - 1;
+		xfer.addrinc = true;
+
+		dataptr += xfer.count;
+		remainingbytes = 1;
+	}
 
 	// Start
 
@@ -219,7 +233,14 @@ int THwI2c_atsam::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 	}
 	regs->CR = tmp;
 
+	if (dmaused)
+	{
+		txdma.StartTransfer(&xfer);
+	}
+
 	runstate = 0;
+
+	Run();
 
 	busy = true;
 
@@ -236,12 +257,11 @@ void THwI2c_atsam::Run()
 
 	if (istx)
 	{
-#if 0
 		if (dmaused && txdma.Enabled())
 		{
 			return;
 		}
-#endif
+
 		if (remainingbytes > 0)
 		{
 			if ((regs->SR & (1 << 2)) == 0)  // TX Ready?
@@ -265,12 +285,10 @@ void THwI2c_atsam::Run()
 	}
 	else
 	{
-#if 0
 		if (dmaused && rxdma.Enabled())
 		{
 			return;
 		}
-#endif
 
 		if (remainingbytes > 0)
 		{
@@ -301,4 +319,25 @@ void THwI2c_atsam::Run()
 
 	busy = false;
 }
+
+#ifdef HW_HAS_PDMA
+
+void THwI2c_atsam::PdmaInit(bool istx, THwDmaChannel * admach)
+{
+	THwDmaChannel * dma = admach;
+	if (!dma)
+	{
+		if (istx)
+		{
+			dma = &txdma;
+		}
+		else
+		{
+			dma = &rxdma;
+		}
+	}
+	dma->InitPeriphDma(istx, regs, nullptr);
+}
+
+#endif
 

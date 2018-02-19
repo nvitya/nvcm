@@ -64,6 +64,10 @@ public:
 	int  StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr, unsigned len);
 	void Run();
 
+#ifdef HW_HAS_PDMA
+	void PdmaInit(bool istx, THwDmaChannel * admach); // when called with nullptr, then the local txdma/rxdma will be used
+#endif
+
 	unsigned       runstate = 0;
 };
 

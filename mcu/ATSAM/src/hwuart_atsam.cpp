@@ -282,6 +282,16 @@ bool THwUart_atsam::TryRecvChar(char * ach)
 	}
 }
 
+#ifdef HW_HAS_PDMA
+
+void THwUart_atsam::PdmaInit(bool istx, THwDmaChannel * admach)
+{
+	admach->InitPeriphDma(istx, regs, usartregs);
+	DmaAssign(istx, admach);
+}
+
+#endif
+
 void THwUart_atsam::DmaAssign(bool istx, THwDmaChannel * admach)
 {
 	if (istx)

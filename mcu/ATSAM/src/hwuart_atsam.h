@@ -43,9 +43,11 @@ public:
 	bool SendFinished();
 
 	void DmaAssign(bool istx, THwDmaChannel * admach);
-
 	bool DmaStartSend(THwDmaTransfer * axfer);
 	bool DmaStartRecv(THwDmaTransfer * axfer);
+#ifdef HW_HAS_PDMA
+	void PdmaInit(bool istx, THwDmaChannel * admach);
+#endif
 
 public:
 	HW_UART_REGS *      regs = nullptr;

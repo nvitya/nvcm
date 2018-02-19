@@ -48,6 +48,10 @@ public:
 	bool DmaSendCompleted();
 	bool DmaRecvCompleted();
 
+#ifdef HW_HAS_PDMA
+	void PdmaInit(bool istx, THwDmaChannel * admach);
+#endif
+
 public:
 	unsigned  					basespeed;
 	HW_SPI_REGS * 			regs;

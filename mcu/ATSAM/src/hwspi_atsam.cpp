@@ -254,6 +254,16 @@ bool THwSpi_atsam::TryRecvData(unsigned short * dstptr)
 	}
 }
 
+#ifdef HW_HAS_PDMA
+
+void THwSpi_atsam::PdmaInit(bool istx, THwDmaChannel * admach)
+{
+	admach->InitPeriphDma(istx, regs, usartregs);
+	DmaAssign(istx, admach);
+}
+
+#endif
+
 void THwSpi_atsam::DmaAssign(bool istx, THwDmaChannel * admach)
 {
 	if (istx)
