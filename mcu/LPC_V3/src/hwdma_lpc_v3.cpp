@@ -115,14 +115,20 @@ bool THwDmaChannel_lpc_v3::StartTransfer(THwDmaTransfer * axfer)
 
 	if (istx)
 	{
-		xfercfg |= (1 << 12); // SRC increment with the given width
+		if (axfer->addrinc)
+		{
+			xfercfg |= (1 << 12); // SRC increment with the given width
+		}
 
 		firstdesc->SRCEND = (char *)(unsigned(axfer->srcaddr) + cntm1 * bytewidth);
 		firstdesc->DSTEND = periphaddr;
 	}
 	else
 	{
-		xfercfg |= (1 << 14); // DST increment with the given width
+		if (axfer->addrinc)
+		{
+			xfercfg |= (1 << 14); // DST increment with the given width
+		}
 
 		firstdesc->SRCEND = periphaddr;
 		firstdesc->DSTEND = (char *)(unsigned(axfer->dstaddr) + cntm1 * bytewidth);
