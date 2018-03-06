@@ -161,6 +161,8 @@ static const unsigned lpc_pll_m_table[] =
 
 bool THwClkCtrl_lpc_v3::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed)
 {
+	SYSCON->MAINCLKSELB = 0;  // select a safe clock
+
 	SYSCON->SYSPLLCLKSEL = 1; // select the external clock input
 
 	// Reverse engineered POWER_SetPLL(void):
