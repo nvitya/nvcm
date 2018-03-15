@@ -139,3 +139,14 @@ bool THwUart_lpc_v3::TrySendChar(char ach)
 	return true;
 }
 
+bool THwUart_lpc_v3::TryRecvChar(char * ach)
+{
+	if (regs->FIFOSTAT & USART_FIFOSTAT_RXNOTEMPTY_MASK)
+	{
+		unsigned d = regs->FIFORD;
+		*ach = (d & 0xFF);
+		return true;
+	}
+
+	return false;
+}

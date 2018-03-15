@@ -79,6 +79,8 @@ bool THwPinCtrl_lpc_v3::PinSetup(int aportnum, int apinnum, unsigned flags)
 		n |= (1 << 5);
 	}
 
+	//n |= (1 << 9); // disable input filter
+
 	if ((flags & PINCFG_ANALOGUE) == 0)
 	{
 		n |= (1 << 8);
@@ -185,9 +187,9 @@ void TGpioPin_lpc_v3::Assign(int aportnum, int apinnum, bool ainvert)
 
 	setbitvalue = (1 << pinnum);
 	clrbitvalue = (1 << pinnum);
-  getbitptr = (unsigned *)&(regs->PIN);
+  getbitptr = (unsigned *)&(regs->PIN[aportnum]);
   getbitshift = apinnum;
-  togglebitptr = (unsigned *)&(regs->NOT[portnum]);
+  togglebitptr = (unsigned *)&(regs->NOT[aportnum]);
 
   if (ainvert)
   {
