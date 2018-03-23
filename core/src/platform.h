@@ -68,6 +68,14 @@
 
 // handle some required definitions
 
+#if !defined(MAX_IRQ_HANDLER_COUNT)
+	#if defined(NUMBER_OF_INT_VECTORS)
+		#define MAX_IRQ_HANDLER_COUNT  (NUMBER_OF_INT_VECTORS - 16)
+	#else
+		#define MAX_IRQ_HANDLER_COUNT  72
+	#endif
+#endif
+
 #if !defined(MAX_CLOCK_SPEED)
   #error "MCU Maximal clock speed is not defined!"
 #endif
