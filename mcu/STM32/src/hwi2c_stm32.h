@@ -19,33 +19,39 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwi2c_stm32.h
+ *  brief:    STM32 I2C / TWI
  *  version:  1.00
  *  date:     2018-02-10
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
-#endif
+#ifndef HWI2C_STM32_H_
+#define HWI2C_STM32_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
+#define HWI2C_PRE_ONLY
+#include "hwi2c.h"
 
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
+#define HW_I2C_REGS  I2C_TypeDef
 
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
+class THwI2c_stm32 : public THwI2c_pre
+{
+public:
+	HW_I2C_REGS * regs = nullptr;
 
-#ifdef HWI2C_H_
-  #include "hwi2c_stm32.h"
-#endif
+	bool Init(int adevnum);
 
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
+	int  StartReadData(uint8_t  adaddr, unsigned aextra, void * dstptr, unsigned len);
+	int  StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr, unsigned len);
+	void Run();
+
+	unsigned       runstate = 0;
+	uint8_t        devaddr = 0;
+	uint8_t        extradata[4];
+	unsigned       extracnt = 0;
+	unsigned       extraremaining = 0;
+};
+
+#define HWI2C_IMPL THwI2c_stm32
+
+#endif // def HWI2C_STM32_H_

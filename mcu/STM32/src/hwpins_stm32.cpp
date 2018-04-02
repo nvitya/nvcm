@@ -81,6 +81,11 @@ bool THwPinCtrl_stm32::PinSetup(int aportnum, int apinnum, unsigned flags)
 #if defined(MCUSF_F1)
   unsigned pinconf = 0;
 
+	if (flags & PINCFG_AF_MASK)  // for alternate functions the pin must be configured as output
+	{
+		flags |= PINCFG_OUTPUT;
+	}
+
   if (flags & PINCFG_OUTPUT)
   {
   	if ((flags & PINCFG_SPEED_MASK) == PINCFG_SPEED_SLOW)
