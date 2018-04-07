@@ -94,11 +94,14 @@ bool THwI2c_stm32::Init(int adevnum)
 
 	unsigned periphclock = SystemCoreClock / clockdiv;
 
-	regs->CR2 = 0
+	// CR2
+
+	tmp = 0
 		| (0 << 12)  // LAST: 1 = Last transfer on DMA EOT
 		| (0 << 11)  // DMAEN: 1 = enable DMA
 		| ((periphclock / 1000000) << 0)  // set clock speed in MHz
 	;
+	regs->CR2 = tmp;
 
 	if (speed > 100000)
 	{
@@ -167,6 +170,15 @@ int THwI2c_stm32::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 	runstate = 0;
 	busy = true;  // start the state machine
 
+	if (rxdma.initialized)
+	{
+		regs->CR2 |= I2C_CR2_DMAEN;
+	}
+	else
+	{
+		regs->CR2 &= ~I2C_CR2_DMAEN;
+	}
+
 	Run();
 
 	return ERROR_OK;
@@ -184,7 +196,7 @@ int THwI2c_stm32::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 	dataptr = (uint8_t *)srcptr;
 	datalen = len;
 	remainingbytes = datalen;
-	dmaused = false;
+	dmaused = txdma.initialized;
 
 	extracnt = ((aextra >> 24) & 3);
 	if (extracnt)
@@ -210,6 +222,15 @@ int THwI2c_stm32::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 	extraremaining = extracnt;
 	runstate = 0;
 	busy = true;  // start the state machine
+
+	if (rxdma.initialized)
+	{
+		regs->CR2 |= I2C_CR2_DMAEN;
+	}
+	else
+	{
+		regs->CR2 &= ~I2C_CR2_DMAEN;
+	}
 
 	Run();
 
@@ -294,9 +315,6 @@ void THwI2c_stm32::Run()
 		}
 		break;
 
-	case 3: // send
-		break;
-
 	case 5: // send extra bytes
 		if (sr1 & I2C_SR1_TXE)
 		{
@@ -345,8 +363,31 @@ void THwI2c_stm32::Run()
 		runstate = 20; // receive data bytes
 		break;
 
-	case 10: // sending data bytes
-		if (dmaused && txdma.Enabled())
+	case 10: // start sending data bytes
+		runstate = 11; // continue at sending data check
+		dmaused = ((remainingbytes > 0) && txdma.initialized);
+		if (dmaused)
+		{
+			txdma.Prepare(true, (void *)&(regs->DR), 0);
+
+			xfer.srcaddr = dataptr;
+			xfer.bytewidth = 1;
+			xfer.count = remainingbytes;
+			xfer.addrinc = true;
+
+			dataptr += xfer.count;
+			remainingbytes = 0;
+
+			txdma.StartTransfer(&xfer);
+		}
+		else
+		{
+			Run();  return; // jump to receive data now
+		}
+		break;
+
+	case 11: // continue sending data bytes
+		if (dmaused && txdma.Active())
 		{
 			return;
 		}
@@ -358,11 +399,6 @@ void THwI2c_stm32::Run()
 				return;
 			}
 
-			if (remainingbytes == 1)
-			{
-				//regs->CR1 |= I2C_CR1_STOP;  // send stop condition
-			}
-
 			regs->DR = *dataptr++;
 			--remainingbytes;
 
@@ -370,26 +406,36 @@ void THwI2c_stm32::Run()
 			{
 				return;
 			}
-
-			runstate = 11; // wait until end
-
-			//runstate = 30; // closing
 		}
 
+		runstate = 29; // finish
 		break;
 
-	case 11: // wait for transfer finish
-		if ((sr1 & I2C_SR1_BTF) == 0)
+	case 20: //	start receive
+		runstate = 21; // continue at receive data
+		dmaused = ((remainingbytes > 2) && rxdma.initialized);
+		if (dmaused)
 		{
-			return;
-		}
+			rxdma.Prepare(false, (void *)&(regs->DR), 0);
 
-		regs->CR1 |= I2C_CR1_STOP;  // send stop condition
-		runstate = 30; // closing
+			xfer.dstaddr = dataptr;
+			xfer.bytewidth = 1;
+			xfer.count = remainingbytes - 2;
+			xfer.addrinc = true;
+
+			dataptr += xfer.count;
+			remainingbytes = 2;
+
+			rxdma.StartTransfer(&xfer);
+		}
+		else
+		{
+			Run();  return; // jump to receive data now
+		}
 		break;
 
-	case 20: // receive data bytes
-		if (dmaused && rxdma.Enabled())
+	case 21: // receive data bytes
+		if (dmaused && rxdma.Active())
 		{
 			return;
 		}
@@ -401,10 +447,9 @@ void THwI2c_stm32::Run()
 				return;
 			}
 
-			if (remainingbytes == 2)
+			if (remainingbytes <= 2)
 			{
 				regs->CR1 &= ~I2C_CR1_ACK;  // do not ack the following bytes
-				regs->CR1 |= I2C_CR1_STOP;  // send stop condition
 			}
 
 			*dataptr++ = regs->DR;
@@ -415,8 +460,18 @@ void THwI2c_stm32::Run()
 				return;
 			}
 
-			runstate = 30; // closing
+			runstate = 29; // terminate
 		}
+		break;
+
+	case 29: // wait last transfer to finish and send stop
+		if ((sr1 & I2C_SR1_BTF) == 0)
+		{
+			return;
+		}
+
+		regs->CR1 |= I2C_CR1_STOP;  // send stop condition
+		runstate = 30; // closing
 		break;
 
 	case 30: // closing

@@ -32,19 +32,30 @@
 #define HWDMA_PRE_ONLY
 #include "hwdma.h"
 
+#ifdef DMA1_Stream0_BASE
+  #define DMASTREAMS
+#endif
+
 class THwDmaChannel_stm32 : public THwDmaChannel_pre
 {
 public:
 	HW_DMA_REGS *      regs = nullptr;
 
-	bool Init(int achnum);
+#ifdef DMASTREAMS
+  uint8_t            streamnum;
+
+	bool Init(int admanum, int astream, int achannel);
+#else
+	bool Init(int admanum, int achannel, int arequest);
+#endif
 
 	void Prepare(bool aistx, void * aperiphaddr, unsigned aflags);
 	void Disable();
 	void Enable();
 
-	bool Enabled();
-	bool Active();
+	inline bool Enabled()        { return ((*crreg & 1) != 0); }
+	inline bool Active()         { return (regs->CNDTR != 0); }
+	inline uint16_t Remaining()  { return regs->CNDTR; }
 
 	bool StartTransfer(THwDmaTransfer * axfer);
 	bool StartMemToMem(THwDmaTransfer * axfer);
@@ -55,6 +66,7 @@ public:
   __IO unsigned *    irqstreg;
   __IO unsigned *    irqstclrreg;
   unsigned           irqstshift;
+
 };
 
 #define HWDMACHANNEL_IMPL  THwDmaChannel_stm32

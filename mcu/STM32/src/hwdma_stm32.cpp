@@ -33,17 +33,17 @@
 
 #if defined(MCUSF_F1) || defined(MCUSF_F0) || defined(MCUSF_L0) || defined(MCUSF_F3)
 
-bool THwDmaChannel_stm32::Init(int achnum)  // bits 19..16 = DMA1/2, bits 15..8 = Request number (CSEL), bits 7..0 = channel,
+bool THwDmaChannel_stm32::Init(int admanum, int achannel, int arequest)
 {
 	initialized = false;
 
-	int dma = ((achnum >> 16) & 0x03);
-	unsigned rqnum = ((achnum >>  8) & 0x0F);
-	int ch  = ((achnum >>  0) & 0x07);
+	int      dma   = (admanum  & 0x03);
+	int      ch    = (achannel & 0x07);
+	unsigned rqnum = (arequest & 0x0F);
 
 	if ((ch < 1) || (ch > 7))  return false;
 
-	if ((0 == dma) || (1 == dma))
+	if (1 == dma)
 	{
 		RCC->AHBENR |= RCC_AHBENR_DMA1EN;
 		regs = (HW_DMA_REGS * )(DMA1_Channel1_BASE + (ch-1) * (DMA1_Channel2_BASE - DMA1_Channel1_BASE));
@@ -60,7 +60,7 @@ bool THwDmaChannel_stm32::Init(int achnum)  // bits 19..16 = DMA1/2, bits 15..8 
 		return false;
 	}
 
-	chnum = achnum;
+	chnum = achannel;
 
 	DMA_TypeDef * dmaptr = DMA1;
 #ifdef DMA2
@@ -93,13 +93,13 @@ bool THwDmaChannel_stm32::Init(int achnum)  // bits 19..16 = DMA1/2, bits 15..8 
 
 const unsigned char stm32_dma_irq_status_shifts[8] = {0, 6, 16, 22, 0, 6, 16, 22};
 
-bool THwDmaChannel_stm32::Init(int achnum)  // bits 19..16 = DMA1/2, bits 15..8 = Stream, bits 7..0 = channel
+bool THwDmaChannel_stm32::Init(int admanum, int astream, int achannel)
 {
 	initialized = false;
 
-	int dma = ((achnum >> 16) & 0x03);
-	int st  = ((achnum >>  8) & 0x07);
-	int ch  = ((achnum >>  0) & 0x07);
+	int dma = (admanum & 0x03);
+	int st  = (astream  & 0x07);
+	int ch  = (achannel  & 0x07);
 
 	if (st > 7)  return false;
 	if (ch > 7)  return false;
@@ -118,7 +118,8 @@ bool THwDmaChannel_stm32::Init(int achnum)  // bits 19..16 = DMA1/2, bits 15..8 
 		return false;
 	}
 
-	chnum = achnum;
+	streamnum = st;
+	chnum = ch;
 	crreg = (__IO unsigned *)&regs->CR;
 
 	DMA_TypeDef * dmaptr = (2 == dma ? DMA2 : DMA1);
@@ -174,11 +175,6 @@ void THwDmaChannel_stm32::Enable()
 	*crreg |= 1;
 }
 
-bool THwDmaChannel_stm32::Enabled()
-{
-	return ((*crreg & 1) != 0);
-}
-
 bool THwDmaChannel_stm32::StartTransfer(THwDmaTransfer * axfer)
 {
 	// disable stream, to be able to modify the registers
@@ -221,10 +217,8 @@ bool THwDmaChannel_stm32::StartTransfer(THwDmaTransfer * axfer)
 
 #else
 
-	int ch  = (chnum & 0x7);
-
 	regs->CR = 0
-		| (ch << 25)  // CHSEL(3): set the channel
+		| (chnum << 25)  // CHSEL(3): set the channel
 		| (0  << 23)  // MBURST(2): memory burst, 0 = single transfer
 		| (0  << 21)  // PBURST(2): peripheral burst
 		| (0  << 19)  // CT: current target
