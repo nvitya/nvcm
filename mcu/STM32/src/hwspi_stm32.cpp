@@ -218,7 +218,7 @@ bool THwSpi_stm32::SendFinished()
 
 bool THwSpi_stm32::DmaSendCompleted()
 {
-	if (txdma && txdma->Enabled())
+	if (txdma && txdma->Active())
 	{
 		// Send DMA is still active
 		return false;
@@ -229,7 +229,7 @@ bool THwSpi_stm32::DmaSendCompleted()
 
 bool THwSpi_stm32::DmaRecvCompleted()
 {
-	if (rxdma && rxdma->Enabled())
+	if (rxdma && rxdma->Active())
 	{
 		// Send DMA is still active
 		return false;

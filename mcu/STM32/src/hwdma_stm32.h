@@ -36,6 +36,12 @@
   #define DMASTREAMS
 #endif
 
+#ifdef DMASTREAMS
+  #define DMA_NDTR_REG  NDTR
+#else
+  #define DMA_NDTR_REG  CNDTR
+#endif
+
 class THwDmaChannel_stm32 : public THwDmaChannel_pre
 {
 public:
@@ -54,8 +60,8 @@ public:
 	void Enable();
 
 	inline bool Enabled()        { return ((*crreg & 1) != 0); }
-	inline bool Active()         { return (regs->CNDTR != 0); }
-	inline uint16_t Remaining()  { return regs->CNDTR; }
+	inline bool Active() 				 { return (regs->DMA_NDTR_REG != 0);	}
+	inline uint16_t Remaining()  { return regs->DMA_NDTR_REG; }
 
 	bool StartTransfer(THwDmaTransfer * axfer);
 	bool StartMemToMem(THwDmaTransfer * axfer);
