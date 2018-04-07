@@ -170,20 +170,6 @@ int THwI2c_stm32::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 	Run();
 
 	return ERROR_OK;
-
-#if 0
-	while ((regs->SR1 & 1) == 0) // wait for start bit
-	{
-		// wait
-	}
-
-
-	runstate = 0; // old HW_VER = 1 require complexer state machine
-
-	busy = true;
-
-	return ERROR_OK;
-#endif
 }
 
 int THwI2c_stm32::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr, unsigned len)
@@ -193,7 +179,41 @@ int THwI2c_stm32::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 		return ERROR_BUSY;
 	}
 
-	return ERROR_NOTIMPL;
+	istx = true;
+	devaddr = adaddr;
+	dataptr = (uint8_t *)srcptr;
+	datalen = len;
+	remainingbytes = datalen;
+	dmaused = false;
+
+	extracnt = ((aextra >> 24) & 3);
+	if (extracnt)
+	{
+		// reverse byte order
+		uint32_t edr = __REV(aextra);
+		if (1 == extracnt)
+		{
+			extradata[0] = (aextra & 0xFF);
+		}
+		else if (2 == extracnt)
+		{
+			extradata[0] = ((aextra >> 8) & 0xFF);
+			extradata[1] = ((aextra >> 0) & 0xFF);
+		}
+		else if (3 == extracnt)
+		{
+			extradata[0] = ((aextra >> 16) & 0xFF);
+			extradata[1] = ((aextra >>  8) & 0xFF);
+			extradata[2] = ((aextra >>  0) & 0xFF);
+		}
+	}
+	extraremaining = extracnt;
+	runstate = 0;
+	busy = true;  // start the state machine
+
+	Run();
+
+	return ERROR_OK;
 }
 
 
@@ -220,7 +240,7 @@ void THwI2c_stm32::Run()
 
 		// Start bit
 		cr1 =	(regs->CR1 & 0x00FF);
-		cr1 |= I2C_CR1_ACK;    // !!!
+		if (!istx)	cr1 |= I2C_CR1_ACK;
 		cr1 |= I2C_CR1_START;  // send start condition
 		regs->CR1 = cr1;
 
@@ -304,7 +324,7 @@ void THwI2c_stm32::Run()
 		{
 			// send re-start
 			cr1 =	(regs->CR1 & 0x00FF);
-			cr1 |= I2C_CR1_ACK;    // !!!
+			cr1 |= I2C_CR1_ACK;
 			cr1 |= I2C_CR1_START;  // send start condition
 			regs->CR1 = cr1;
 			runstate = 7;
@@ -340,15 +360,32 @@ void THwI2c_stm32::Run()
 
 			if (remainingbytes == 1)
 			{
-				regs->CR1 |= I2C_CR1_STOP;  // send stop condition
+				//regs->CR1 |= I2C_CR1_STOP;  // send stop condition
 			}
 
 			regs->DR = *dataptr++;
 			--remainingbytes;
 
-			runstate = 30; // closing
+			if (remainingbytes > 0)
+			{
+				return;
+			}
+
+			runstate = 11; // wait until end
+
+			//runstate = 30; // closing
 		}
 
+		break;
+
+	case 11: // wait for transfer finish
+		if ((sr1 & I2C_SR1_BTF) == 0)
+		{
+			return;
+		}
+
+		regs->CR1 |= I2C_CR1_STOP;  // send stop condition
+		runstate = 30; // closing
 		break;
 
 	case 20: // receive data bytes
