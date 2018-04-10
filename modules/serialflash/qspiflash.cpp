@@ -164,6 +164,7 @@ void TQspiFlash::Run()
 				if (qspi.Finished())
 				{
 					// read next chunk
+					address   += chunksize;
 					dataptr   += chunksize;
 					remaining -= chunksize;
 					phase = 2; Run();  // phase jump
