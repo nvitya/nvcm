@@ -32,7 +32,7 @@
 
 #include "traces.h"
 
-#define HW_VER  1
+#if HW_VER == 1
 
 bool THwI2c_stm32::Init(int adevnum)
 {
@@ -490,3 +490,4 @@ void THwI2c_stm32::Run()
 	} // case
 }
 
+#endif
