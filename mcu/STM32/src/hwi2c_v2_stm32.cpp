@@ -180,7 +180,7 @@ int THwI2c_stm32::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 	}
 	extraremaining = extracnt;
 
-	extraremaining = 0;
+	//extraremaining = 0;
 
 	runstate = 0;
 	busy = true;  // start the state machine
@@ -296,8 +296,7 @@ void THwI2c_stm32::Run()
 
 		if (extraremaining > 0)
 		{
-			// start with sending the extra data
-			cr2 |= I2C_CR2_RELOAD;
+			// start with sending the extra data, no autoend, no reload
 			nbytes = extraremaining;
 			runstate = 5;
 		}
@@ -355,14 +354,53 @@ void THwI2c_stm32::Run()
 		break;
 
 	case 6:  // send re-start to read
-		if (isr & I2C_ISR_TCR)
+		if (isr & I2C_ISR_TC)
 		{
 			nbytes = remainingbytes;
 			cr2 = regs->CR2 & 0x3FF; // keep the slave address
-			cr2 |= (nbytes << 16) | I2C_CR2_START | I2C_CR2_AUTOEND;
+			cr2 |= (nbytes << 16) | I2C_CR2_START | I2C_CR2_AUTOEND | I2C_CR2_RD_WRN;
 			regs->CR2 = cr2;
-			runstate = 7;
+			runstate = 20;
 		}
+		break;
+
+	case 10: // sending bytes
+		if (isr & I2C_ISR_TCR) // reload required?
+		{
+			cr2 = regs->CR2 & 0x3FF; // keep the slave address
+			nbytes = remainingbytes;
+			if (nbytes > 255)
+			{
+				nbytes = 255;
+				cr2 |= I2C_CR2_RELOAD;
+			}
+			else
+			{
+				cr2 |= I2C_CR2_AUTOEND;
+			}
+			cr2 |= (nbytes << 16); // I2C_CR2_START;
+			regs->CR2 = cr2;
+			return;
+		}
+		else
+		{
+			if (remainingbytes > 0)
+			{
+				if ((isr & I2C_ISR_TXE) == 0)  // TX Ready?
+				{
+					return;
+				}
+
+				regs->TXDR = *dataptr++;
+				--remainingbytes;
+
+				if (remainingbytes > 0)
+				{
+					return;
+				}
+			}
+		}
+		runstate = 29; // finish
 		break;
 
 	case 20: //	start receive
@@ -386,6 +424,12 @@ void THwI2c_stm32::Run()
 		break;
 
 	case 29: // wait last transfer to finish and send stop
+		if (isr & I2C_ISR_STOPF)
+		{
+			runstate = 30;
+			return;
+		}
+
 		if ((isr & I2C_ISR_TC) == 0)
 		{
 			return;
