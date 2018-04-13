@@ -70,5 +70,18 @@ inline void __attribute__((always_inline)) mcu_enable_dcache()
 	#endif
 }
 
+inline void __attribute__((always_inline)) mcu_disable_icache()
+{
+	#if __ICACHE_PRESENT
+		SCB_DisableICache();  // Instruction cache is always safe to enable, if present
+	#endif
+}
+
+inline void __attribute__((always_inline)) mcu_disable_dcache()
+{
+	#if __DCACHE_PRESENT
+		SCB_DisableDCache();  // Instruction cache is always safe to enable, if present
+	#endif
+}
 
 #endif /* MCU_GENERIC_FUNCTIONS_H_ */
