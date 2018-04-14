@@ -4,6 +4,7 @@
 #define SRC_OLEDDISP_H_
 
 #include "platform.h"
+#include "gfxbase.h"
 
 typedef enum
 {
@@ -12,7 +13,7 @@ typedef enum
 //
 } TOledCtrlType;
 
-class TOledDisp
+class TOledDisp : public TGfxBase
 {
 public:
 	bool            initialized = false;
@@ -28,12 +29,6 @@ public:
 	uint8_t    			rotation = 0;
 	uint8_t         contrast = 0x8F;
 	bool            externalvcc = false;
-
-	uint16_t			 	hwwidth =  0;
-	uint16_t				hwheight = 0;
-
-	uint16_t				width =  0;
-	uint16_t				height = 0;
 
 	uint8_t *       pdispbuf;
 
@@ -64,7 +59,7 @@ public:
 	void FillScreen(uint16_t color);
 	void DrawPixel(int16_t x, int16_t y, uint16_t color);
 
-	void DrawChar(int16_t x, int16_t y, char ch);
+	//void DrawChar(int16_t x, int16_t y, char ch);
 
 	bool UpdateFinished();
 	virtual void Run();
