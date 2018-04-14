@@ -87,22 +87,24 @@ __XMC__      | [XMC1xxx](https://github.com/nvitya/nvcm/blob/master/mcu/XMC/src/
 
   Family     | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __UART__ | __DMA__ | __SPI__ | __I2C__ |__QSPI__
 -------------|-----------------------|-------------------|----------|---------|---------|---------|--------
-__ATSAM__    | OK                    | OK                | OK       | OK      | OK      | OK      | OK
+__ATSAM__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK
 __ATSAM_V2__ | OK                    | OK                | OK       | -       | -       | -       | -
 __KINETIS__  | OK                    | partial           | OK       | -       | -       | -       | -
-__LPC__      | OK                    | OK                | OK       | OK      | OK      | -       | OK
+__LPC__      | OK                    | OK                | OK       | OK      | Master  | -       | OK
 __LPC_V2__   | OK                    | restricted        | OK       | -       | -       | -       | -
-__LPC_V3__   | OK                    | OK                | OK       | OK      | OK      | -       | -
-__STM32__    | OK                    | OK                | OK       | OK      | OK      | -       | -
+__LPC_V3__   | OK                    | OK                | OK       | OK      | Master  | -       | -
+__STM32__    | OK                    | OK                | OK       | OK      | Master  | Master  | -
 __XMC__      | OK                    | OK                | OK       | -       | -       | -       | -
 
 ### Planned Drivers
- * i2c
  * USB Device
+ * Internal Flash
+ * ADC
 
 ## Included HW Module Drivers
 This NVCM core project contains some useful external module drivers as well. Currently these modules are included into the core:
  * TFT LCD displays: SPI, Parallel
+ * I2C OLED displays (SSD1306)
  * SPI, QSPI flash memories
  * Led and Key module
 
@@ -128,4 +130,4 @@ STM32      | BOARD_DEV_STM32F407ZE  | [STM32F407ZE Development Board](https://ww
 XMC        | BOARD_BOOT_XMC1200     | [XMC1200 Boot Kit](https://www.infineon.com/cms/de/product/evaluation-boards/kit_xmc12_boot_001/)
 
 
-For these usually there are ready to use examples. It is not so hard to create a project for a custom harware either.
+For these usually there are ready to use examples. It is not so hard to create a project for a custom hardware either.
