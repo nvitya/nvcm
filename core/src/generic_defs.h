@@ -29,6 +29,8 @@
 #ifndef __GENERIC_DEFS_H
 #define __GENERIC_DEFS_H
 
+#define PROGMEM // some Arduino related stuff might require this
+
 #define WEAK  __attribute__ ((weak))
 
 #if defined(DEBUG)
