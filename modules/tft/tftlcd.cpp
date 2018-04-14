@@ -29,7 +29,6 @@
 #include "tftlcd.h"
 
 #include "clockcnt.h"
-#include "swo.h"
 
 bool TTftLcd::Init(TLcdCtrlType atype, uint16_t awidth, uint16_t aheight)
 {

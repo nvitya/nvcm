@@ -225,7 +225,7 @@ int THwI2c_stm32::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 	runstate = 0;
 	busy = true;  // start the state machine
 
-	if (rxdma.initialized)
+	if (txdma.initialized)
 	{
 		regs->CR2 |= I2C_CR2_DMAEN;
 	}
@@ -393,7 +393,7 @@ void THwI2c_stm32::Run()
 		break;
 
 	case 10: // start sending data bytes
-		runstate = 11; // continue at sending data check
+		runstate = 11; // continue at sending data
 		dmaused = ((remainingbytes > 0) && txdma.initialized);
 		if (dmaused)
 		{
@@ -411,7 +411,7 @@ void THwI2c_stm32::Run()
 		}
 		else
 		{
-			Run();  return; // jump to receive data now
+			Run();  return; // jump to body now
 		}
 		break;
 
