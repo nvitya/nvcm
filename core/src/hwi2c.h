@@ -34,6 +34,12 @@
 #include "hwdma.h"
 #include "errors.h"
 
+#define ERR_I2C_BASE      0x10000
+#define ERR_I2C_ACK       (ERR_I2C_BASE + 1)
+#define ERR_I2C_ARBLOST   (ERR_I2C_BASE + 2)
+#define ERR_I2C_BUS       (ERR_I2C_BASE + 3)
+#define ERR_I2C_OVERRUN   (ERR_I2C_BASE + 4)
+
 #define I2CEX_0           0x00000000  // do not send extra data
 #define I2CEX_1           0x01000000  // send 1 extra byte
 #define I2CEX_2           0x02000000  // send 2 extra bytes
@@ -62,6 +68,7 @@ public: // run state
 	unsigned       remainingbytes = 0;
 
 	bool           busy = false;
+	int            error = 0;
 };
 
 #endif // ndef HWI2C_H_PRE_

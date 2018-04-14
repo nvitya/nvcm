@@ -151,6 +151,7 @@ int THwI2c_stm32::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 	}
 
 	istx = false;
+	error = 0;
 	devaddr = adaddr;
 	dataptr = (uint8_t *)dstptr;
 	datalen = len;
@@ -225,6 +226,7 @@ int THwI2c_stm32::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 	}
 
 	istx = true;
+	error = 0;
 	devaddr = adaddr;
 	dataptr = (uint8_t *)srcptr;
 	datalen = len;
@@ -299,6 +301,33 @@ void THwI2c_stm32::Run()
 	unsigned cr2;
 	unsigned isr = regs->ISR;
 	unsigned nbytes;
+
+	// check error flags
+	if (!error)
+	{
+		if (isr & I2C_ISR_NACKF)
+		{
+			error = ERR_I2C_ACK;
+		}
+		else if (isr & I2C_ISR_ARLO)
+		{
+			error = ERR_I2C_ARBLOST;
+		}
+		else if (isr & I2C_ISR_BERR)
+		{
+			error = ERR_I2C_BUS;
+		}
+		else if (isr & I2C_ISR_OVR)
+		{
+			error = ERR_I2C_OVERRUN;
+		}
+
+		if (error)
+		{
+			// jump to error handling
+			runstate = 90;
+		}
+	}
 
 	switch (runstate)
 	{
@@ -566,6 +595,21 @@ void THwI2c_stm32::Run()
 	  break;
 
 	case 50: // finished
+		break;
+
+	case 90: // handling errors
+		regs->CR2 |= I2C_CR2_STOP;  // send stop condition
+		runstate = 91;
+		break;
+
+	case 91:
+		// todo: reset on timeout
+		if (isr & I2C_ISR_BUSY)   // wait until end of the transfer
+		{
+			return;
+		}
+		busy = false; // finished.
+		runstate = 50;
 		break;
 
 	} // case

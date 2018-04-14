@@ -144,6 +144,7 @@ int THwI2c_stm32::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 	datalen = len;
 	remainingbytes = datalen;
 	dmaused = false;
+	error = 0;
 
 	extracnt = ((aextra >> 24) & 3);
 	if (extracnt)
@@ -197,6 +198,7 @@ int THwI2c_stm32::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 	datalen = len;
 	remainingbytes = datalen;
 	dmaused = txdma.initialized;
+	error = 0;
 
 	extracnt = ((aextra >> 24) & 3);
 	if (extracnt)
@@ -249,6 +251,33 @@ void THwI2c_stm32::Run()
 	unsigned cr1;
 	unsigned sr1 = regs->SR1;
 	unsigned sr2 = regs->SR2;
+
+	// check error flags
+	if (!error)
+	{
+		if (sr1 & I2C_SR1_AF)
+		{
+			error = ERR_I2C_ACK;
+		}
+		else if (sr1 & I2C_SR1_ARLO)
+		{
+			error = ERR_I2C_ARBLOST;
+		}
+		else if (sr1 & I2C_SR1_BERR)
+		{
+			error = ERR_I2C_BUS;
+		}
+		else if (sr1 & I2C_SR1_OVR)
+		{
+			error = ERR_I2C_OVERRUN;
+		}
+
+		if (error)
+		{
+			// jump to error handling
+			runstate = 90;
+		}
+	}
 
 	switch (runstate)
 	{
@@ -309,7 +338,7 @@ void THwI2c_stm32::Run()
 				}
 			}
 		}
-		else
+		else if (sr1 & I2C_SR1_ARLO)
 		{
 			// todo: timeout for receiving addr
 		}
@@ -485,6 +514,21 @@ void THwI2c_stm32::Run()
 	  break;
 
 	case 50: // finished
+		break;
+
+	case 90: // handling errors
+		regs->CR1 |= I2C_CR1_STOP;  // send stop condition
+		runstate = 91;
+		break;
+
+	case 91:
+		// todo: reset on timeout
+		if (sr2 & I2C_SR2_BUSY)   // wait until end of the transfer
+		{
+			return;
+		}
+		busy = false; // finished.
+		runstate = 50;
 		break;
 
 	} // case
