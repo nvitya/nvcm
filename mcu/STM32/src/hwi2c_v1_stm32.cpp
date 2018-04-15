@@ -32,7 +32,7 @@
 
 #include "traces.h"
 
-#if HW_VER == 1
+#if I2C_HW_VER == 1
 
 bool THwI2c_stm32::Init(int adevnum)
 {

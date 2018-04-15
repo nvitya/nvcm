@@ -32,6 +32,7 @@
 #if defined(MCUSF_F0)
 
   #define MAX_CLOCK_SPEED  48000000
+  #define MCU_INTRC_SPEED   8000000
 
 #elif	defined(MCUSF_L0)
 

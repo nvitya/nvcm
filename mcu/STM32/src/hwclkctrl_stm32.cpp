@@ -53,6 +53,10 @@ void THwClkCtrl_stm32::StartIntHSOsc()
 #endif
 }
 
+#if !defined(RCC_CFGR_PLLMUL) && defined(RCC_CFGR_PLLMULL)
+  #define RCC_CFGR_PLLMUL RCC_CFGR_PLLMULL
+#endif
+
 #if defined(MCUSF_F0) || defined(MCUSF_L0)
 
 void THwClkCtrl_stm32::PrepareHiSpeed(unsigned acpuspeed)
@@ -65,7 +69,7 @@ void THwClkCtrl_stm32::PrepareHiSpeed(unsigned acpuspeed)
 #endif
 }
 
-bool THwClkCtrl::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed)
+bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed)
 {
 	// select the HSI as clock source
   RCC->CFGR &= ~3;
@@ -128,12 +132,12 @@ bool THwClkCtrl::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed
   /* PCLK = HCLK */
   RCC->CFGR |= (uint32_t)RCC_CFGR_PPRE_DIV1;
 
-  RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLMULL));
+  RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLMUL));
   RCC->CFGR |= (uint32_t)(pllmul << 18);
 
   if (aextosc)
   {
-  	RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_PREDIV1 | RCC_CFGR_PLLXTPRE_PREDIV1);
+  	RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSE_PREDIV | RCC_CFGR_PLLXTPRE_HSE_PREDIV_DIV1);
   }
   else
   {
@@ -234,10 +238,6 @@ bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acp
   tmp |= RCC_CFGR_PPRE1_DIV2;
 
   RCC->CFGR = tmp;
-
-#if !defined(RCC_CFGR_PLLMUL) && defined(RCC_CFGR_PLLMULL)
-  #define RCC_CFGR_PLLMUL RCC_CFGR_PLLMULL
-#endif
 
   RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE |  RCC_CFGR_PLLMUL));
 

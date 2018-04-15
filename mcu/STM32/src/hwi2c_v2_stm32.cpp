@@ -32,7 +32,7 @@
 
 #include "traces.h"
 
-#if HW_VER == 2
+#if I2C_HW_VER == 2
 
 bool THwI2c_stm32::Init(int adevnum)
 {
@@ -53,6 +53,10 @@ bool THwI2c_stm32::Init(int adevnum)
 	{
 		regs = I2C1;
 		RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
+
+		#ifdef RCC_CFGR3_I2C1SW
+			RCC->CFGR3 |= RCC_CFGR3_I2C1SW; // select system clock for the source instead of the HSI
+		#endif
 	}
 #endif
 #ifdef I2C2
