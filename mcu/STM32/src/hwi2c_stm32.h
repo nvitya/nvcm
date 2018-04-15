@@ -55,6 +55,7 @@ public:
 	uint8_t        extradata[4];
 	unsigned       extracnt = 0;
 	unsigned       extraremaining = 0;
+	bool           waitreload = false;
 };
 
 #define HWI2C_IMPL THwI2c_stm32

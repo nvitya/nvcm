@@ -156,6 +156,7 @@ int THwI2c_stm32::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 	dataptr = (uint8_t *)dstptr;
 	datalen = len;
 	remainingbytes = datalen;
+	waitreload = false;
 
 	extracnt = ((aextra >> 24) & 3);
 	if (extracnt)
@@ -192,6 +193,9 @@ int THwI2c_stm32::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 	{
 		regs->CR1 &= ~I2C_CR1_RXDMAEN;
 	}
+
+	// clear all interrupt flags
+	regs->ICR = 0x3F38;
 
 	cr2 = 0
 		| (0 << 26)     // PECBYTE
@@ -231,6 +235,7 @@ int THwI2c_stm32::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 	dataptr = (uint8_t *)srcptr;
 	datalen = len;
 	remainingbytes = datalen;
+	waitreload = false;
 
 	extracnt = ((aextra >> 24) & 3);
 	if (extracnt)
@@ -265,6 +270,9 @@ int THwI2c_stm32::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 	{
 		regs->CR1 &= ~I2C_CR1_TXDMAEN;
 	}
+
+	// clear all interrupt flags
+	regs->ICR = 0x3F38;
 
 	cr2 = 0
 		| (0 << 26)     // PECBYTE
@@ -301,6 +309,13 @@ void THwI2c_stm32::Run()
 	unsigned cr2;
 	unsigned isr = regs->ISR;
 	unsigned nbytes;
+
+#if 0
+	if (isr & I2C_ISR_TCR)
+	{
+		TRACE("TCR FLAG detected!\r\n");
+	}
+#endif
 
 	// check error flags
 	if (!error)
@@ -346,17 +361,10 @@ void THwI2c_stm32::Run()
 			nbytes = extraremaining;
 			if (istx)
 			{
-				nbytes += remainingbytes;
-				if (nbytes > 255)
-				{
-					nbytes = 255;
-					cr2 |= I2C_CR2_RELOAD;
-				}
-				else
-				{
-					cr2 |= I2C_CR2_AUTOEND;
-				}
+				cr2 |= I2C_CR2_RELOAD;
+				cr2 |= I2C_CR2_AUTOEND;
 			}
+			waitreload = true;
 			runstate = 5;
 		}
 		else if (istx)
@@ -367,10 +375,7 @@ void THwI2c_stm32::Run()
 				nbytes = 255;
 				cr2 |= I2C_CR2_RELOAD;
 			}
-			else
-			{
-				cr2 |= I2C_CR2_AUTOEND;
-			}
+			cr2 |= I2C_CR2_AUTOEND;
 			runstate = 10;
 		}
 		else // rx
@@ -382,10 +387,7 @@ void THwI2c_stm32::Run()
 				nbytes = 255;
 				cr2 |= I2C_CR2_RELOAD;
 			}
-			else
-			{
-				cr2 |= I2C_CR2_AUTOEND;
-			}
+			cr2 |= I2C_CR2_AUTOEND;
 			runstate = 20;
 		}
 
@@ -394,7 +396,7 @@ void THwI2c_stm32::Run()
 		break;
 
 	case 5: // send extra bytes
-		if (isr & I2C_ISR_TXE)
+		if (isr & I2C_ISR_TXIS)
 		{
 			regs->TXDR = extradata[extracnt - extraremaining];
 			--extraremaining;
@@ -423,70 +425,79 @@ void THwI2c_stm32::Run()
 				nbytes = 255;
 				cr2 |= I2C_CR2_RELOAD;
 			}
-			else
-			{
-				cr2 |= I2C_CR2_AUTOEND;
-			}
+			cr2 |= I2C_CR2_AUTOEND;
 
 			cr2 |= (nbytes << 16) | I2C_CR2_START | I2C_CR2_RD_WRN;
 			regs->CR2 = cr2;
+			waitreload = false;
 			runstate = 20;
 		}
 		break;
 
 	case 10: // sending bytes
-		if (dmaused && txdma.Active())
+
+		if (isr & I2C_ISR_TCR) // reload required?
 		{
-			return; // wait until DMA finishes
+			cr2 = regs->CR2 & 0x3FF; // keep the slave address
+			nbytes = remainingbytes;
+			if (nbytes > 255)
+			{
+				nbytes = 255;
+				cr2 |= I2C_CR2_RELOAD;
+			}
+			cr2 |= I2C_CR2_AUTOEND;
+			cr2 |= (nbytes << 16);
+			regs->CR2 = cr2;
+			waitreload = false;
 		}
+
+		if (dmaused)
+		{
+			if (txdma.Active())
+			{
+				return; // wait until DMA finishes
+			}
+
+			if (remainingbytes > 0)
+			{
+				if (waitreload)
+				{
+					return;
+				}
+
+				if ((isr & I2C_ISR_TXIS) == 0)  // there were stop problems when this was not here ... if someone nows better, please tell
+				{
+					return;
+				}
+
+				// (re-)start DMA
+
+				xfer.srcaddr = dataptr;
+				xfer.bytewidth = 1;
+				cr2 = regs->CR2;
+				xfer.count = ((cr2 >> 16) & 0xFF); // todo: check count zero
+				xfer.addrinc = true;
+				dataptr += xfer.count;
+				remainingbytes -= xfer.count;
+
+				txdma.StartTransfer(&xfer);
+
+				waitreload = (remainingbytes > 0);
+			}
+			else
+			{
+				runstate = 29; // finish
+			}
+			return;
+		}
+
+		// else manual mode
 
 		if (remainingbytes > 0)
 		{
-			if (isr & I2C_ISR_TCR) // reload required?
-			{
-				cr2 = regs->CR2 & 0x3FF; // keep the slave address
-				nbytes = remainingbytes;
-				if (nbytes > 255)
-				{
-					nbytes = 255;
-					cr2 |= I2C_CR2_RELOAD;
-				}
-				else
-				{
-					cr2 |= I2C_CR2_AUTOEND;
-				}
-				cr2 |= (nbytes << 16); // I2C_CR2_START;
-				regs->CR2 = cr2;
-			}
-
-			if (dmaused)
-			{
-				if (!txdma.Active())
-				{
-					if ((isr & I2C_ISR_TXE) == 0)  // there were stop problems when this was not here ... if someone nows better, please tell
-					{
-						return;
-					}
-
-					// (re-)start DMA
-
-					xfer.srcaddr = dataptr;
-					xfer.bytewidth = 1;
-					cr2 = regs->CR2;
-					xfer.count = ((cr2 >> 16) & 0xFF) - extracnt; // todo: check count zero
-					extracnt = 0;
-					xfer.addrinc = true;
-					dataptr += xfer.count;
-					remainingbytes -= xfer.count;
-
-					txdma.StartTransfer(&xfer);
-				}
-				return;
-			}
-
 			// manual sending
 
-			if ((isr & I2C_ISR_TXE) == 0)  // TX Ready?
+			if ((isr & I2C_ISR_TXIS) == 0)  // TX Ready?
 			{
 				return;
 			}
@@ -503,62 +514,69 @@ void THwI2c_stm32::Run()
 		break;
 
 	case 20: //	receiving bytes
-		if (dmaused && rxdma.Active())
+		if (isr & I2C_ISR_TCR) // reload required?
 		{
-			return; // wait until DMA finishes
+			cr2 = regs->CR2 & 0x3FF; // keep the slave address
+			nbytes = remainingbytes;
+			if (nbytes > 255)
+			{
+				nbytes = 255;
+				cr2 |= I2C_CR2_RELOAD;
+			}
+			cr2 |= I2C_CR2_AUTOEND;
+			cr2 |= (nbytes << 16); // I2C_CR2_START;
+			regs->CR2 = cr2;
+			waitreload = false;
 		}
 
-		if (remainingbytes > 0)
+		if (dmaused)
 		{
-			if (isr & I2C_ISR_TCR) // reload required?
+			if (rxdma.Active())
 			{
-				cr2 = regs->CR2 & 0x3FF; // keep the slave address
-				nbytes = remainingbytes;
-				if (nbytes > 255)
-				{
-					nbytes = 255;
-					cr2 |= I2C_CR2_RELOAD;
-				}
-				else
-				{
-					cr2 |= I2C_CR2_AUTOEND;
-				}
-				cr2 |= (nbytes << 16); // I2C_CR2_START;
-				regs->CR2 = cr2;
+				return; // wait until DMA finishes
 			}
-
-			if (dmaused)
-			{
-				if (!rxdma.Active())
-				{
-					// (re-)start DMA
-					xfer.dstaddr = dataptr;
-					xfer.bytewidth = 1;
-					cr2 = regs->CR2;
-					xfer.count = ((cr2 >> 16) & 0xFF); // todo: check count zero
-					xfer.addrinc = true;
-					dataptr += xfer.count;
-					remainingbytes -= xfer.count;
-
-					rxdma.StartTransfer(&xfer);
-				}
-				return;
-			}
-
-			// working without DMA
-
-			if ((isr & I2C_ISR_RXNE) == 0)  // RX Ready?
-			{
-				return;
-			}
-
-			*dataptr++ = regs->RXDR;
-			--remainingbytes;
 
 			if (remainingbytes > 0)
 			{
-				return;
+				if (waitreload)
+				{
+					return;
+				}
+
+				// (re-)start DMA
+
+				xfer.dstaddr = dataptr;
+				xfer.bytewidth = 1;
+				cr2 = regs->CR2;
+				xfer.count = ((cr2 >> 16) & 0xFF); // todo: check count zero
+				xfer.addrinc = true;
+				dataptr += xfer.count;
+				remainingbytes -= xfer.count;
+
+				rxdma.StartTransfer(&xfer);
+
+				waitreload = (remainingbytes > 0);
 			}
+			else
+			{
+				runstate = 29; // finish
+			}
+			return;
+		}
+
+		// working without DMA
+
+		if ((isr & I2C_ISR_RXNE) == 0)  // RX Ready?
+		{
+			return;
+		}
+
+		*dataptr++ = regs->RXDR;
+		--remainingbytes;
+
+		if (remainingbytes > 0)
+		{
+			return;
 		}
 		runstate = 29; // terminate
 		break;

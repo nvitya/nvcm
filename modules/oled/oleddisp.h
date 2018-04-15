@@ -52,14 +52,13 @@ public:
 	bool Init(TOledCtrlType atype, uint16_t awidth, uint16_t aheight, uint8_t * adispbuf);
 
 	void InitPanel();
+	void SetDisplayOn(bool aon);
 
 	void SetRotation(uint8_t m);
 
-	void FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
-	void FillScreen(uint16_t color);
-	void DrawPixel(int16_t x, int16_t y, uint16_t color);
-
-	//void DrawChar(int16_t x, int16_t y, char ch);
+	virtual void FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
+	virtual void FillScreen(uint16_t color);
+	virtual void DrawPixel(int16_t x, int16_t y, uint16_t color);
 
 	bool UpdateFinished();
 	virtual void Run();

@@ -85,10 +85,17 @@ public:
 	virtual ~TGfxBase() { } // virtual destructor
 
 	virtual void DrawPixel(int16_t x, int16_t y, uint16_t color);
+	virtual void FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
+	virtual void FillScreen(uint16_t color);
+
+	void         DrawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1);
+	void         DrawRect(int16_t x0, int16_t y0, int16_t w, int16_t h);
 
 public:
   void SetFont(const GFXfont * afont);
+
   uint16_t GetFontHeight();
+  uint8_t  GetFontMetrics(const GFXfont * afont, uint8_t * rascend, uint8_t * rdescend);
 
   void SetCursor(int16_t x, int16_t y)  { cursor_x = x; cursor_y = y; }
 

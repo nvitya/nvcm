@@ -45,6 +45,18 @@ void TOledDisp::Run()
 	// should be overridden
 }
 
+void TOledDisp::SetDisplayOn(bool aon)
+{
+	if (aon)
+	{
+		WriteCmd(0xAF); // display on
+	}
+	else
+	{
+		WriteCmd(0xAE); // display off
+	}
+}
+
 void TOledDisp::InitPanel()
 {
 	WriteCmd(0xAE); // display off

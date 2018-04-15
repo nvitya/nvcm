@@ -59,10 +59,21 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <stdarg.h>
 #include "gfxbase.h"
+#include "math.h"
 
 void TGfxBase::DrawPixel(int16_t x, int16_t y, uint16_t color)
 {
 	// must be overridden
+}
+
+void TGfxBase::FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
+{
+	// must be overridden
+}
+
+void TGfxBase::FillScreen(uint16_t color) // can be overridden
+{
+	FillRect(0, 0, width, height, color);
 }
 
 void TGfxBase::SetFont(const GFXfont * afont)
@@ -162,6 +173,81 @@ void TGfxBase::printf(const char * fmt, ...)
 	va_end(arglist);
 }
 
+uint8_t TGfxBase::GetFontMetrics(const GFXfont * afont, uint8_t * rascend, uint8_t * rdescend)
+{
+	uint8_t  charcode = afont->first;
+	GFXglyph * glyph = &afont->glyph[0];
+
+	uint8_t maxascend = 0;
+	uint8_t maxdescend = 0;
+
+	while (charcode <= afont->last)
+	{
+		int8_t ascend   = -glyph->yOffset;
+		int8_t descend  = glyph->height - ascend;
+		if (ascend > maxascend)    maxascend = ascend;
+		if (descend > maxdescend)  maxdescend = descend;
+		++glyph;
+		++charcode;
+	}
+
+	*rascend = maxascend;
+	*rdescend = maxdescend;
+	return afont->yAdvance;
+}
+
+void TGfxBase::DrawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
+{
+  int16_t steep = abs(y1 - y0) > abs(x1 - x0);
+
+  int16_t t;
+  if (steep)
+  {
+  	t = x0; x0 = y0; y0 = t; // swap x0, y0
+  	t = x1; x1 = y1; y1 = t; // swap x1, y1
+  }
+
+  if (x0 > x1)
+  {
+  	t = x0; x0 = x1; x1 = t; // swap x0, x1
+  	t = y0; y0 = y1; y1 = t; // swap y0, y1
+  }
+
+  int16_t dx, dy;
+  dx = x1 - x0;
+  dy = abs(y1 - y0);
+
+  int16_t err = dx / 2;
+  int16_t ystep;
+
+  if (y0 < y1)
+  {
+    ystep = 1;
+  }
+  else
+  {
+    ystep = -1;
+  }
+
+  for (; x0<=x1; x0++)
+  {
+		if (steep)
+		{
+			DrawPixel(y0, x0, color);
+		}
+		else
+		{
+			DrawPixel(x0, y0, color);
+		}
+		err -= dy;
+		if (err < 0)
+		{
+			y0 += ystep;
+			err += dx;
+		}
+  }
+}
+
 void TGfxBase::DrawGlyph(GFXglyph * glyph)
 {
   uint8_t  * bitmap = pfont->bitmap;
@@ -187,7 +273,10 @@ void TGfxBase::DrawGlyph(GFXglyph * glyph)
 				bits = bitmap[bo++];
 			}
 
-			DrawPixel(cursor_x + xo + xx, cursor_y + yo + yy, carr[bits >> 7]);
+			if (bits & 0x80)
+			{
+				DrawPixel(cursor_x + xo + xx, cursor_y + yo + yy, color);
+			}
 
 			++bit;
 			bits <<= 1;
@@ -195,4 +284,14 @@ void TGfxBase::DrawGlyph(GFXglyph * glyph)
   }
 
   cursor_x += glyph->xAdvance;
+}
+
+void TGfxBase::DrawRect(int16_t x0, int16_t y0, int16_t w, int16_t h)
+{
+	int16_t x1 = x0 + w - 1;
+	int16_t y1 = y0 + h - 1;
+	DrawLine(x0, y0, x1, y0);
+	DrawLine(x1, y0, x1, y1);
+	DrawLine(x0, y0, x0, y1);
+	DrawLine(x0, y1, x1, y1);
 }
