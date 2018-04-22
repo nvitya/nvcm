@@ -69,29 +69,6 @@ void TTftLcd::WriteData16(uint16_t adata)
 	// should be overridden
 }
 
-void TTftLcd::SetAddrWindow(uint16_t x0, uint16_t y0, uint16_t w,  uint16_t h)
-{
-	// should be overridden
-}
-
-void TTftLcd::FillColor(uint16_t acolor, unsigned acount)
-{
-	// should be overridden
-}
-
-void TTftLcd::FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
-{
-  // rudimentary clipping (drawChar w/big text requires this)
-  if ((x >= width) || (y >= height))  return;
-
-  if ((x + w - 1) >= width)  w = width  - x;
-  if ((y + h - 1) >= height) h = height - y;
-
-  SetAddrWindow(x, y, w, h);
-
-  FillColor(color, w * h);
-}
-
 #define TFTLCD_DELAY 0xFE
 
 // I found these initialization command lists in several different (Arduino) libraries (credits for Adafruit)
@@ -350,11 +327,6 @@ void TTftLcd::InitLcdPanel()
 	SetAddrWindow(0, 0, width, height);
 }
 
-void TTftLcd::FillScreen(uint16_t color)
-{
-	FillRect(0, 0,  width, height, color);
-}
-
 #define MADCTL_MY  0x80
 #define MADCTL_MX  0x40
 #define MADCTL_MV  0x20
@@ -425,7 +397,7 @@ void TTftLcd::DrawChar(int16_t x, int16_t y, char ch)
 		{
 			if (cp[x] & bm)
 			{
-				FillColor(fgcolor, 1);
+				FillColor(color, 1);
 			}
 			else
 			{

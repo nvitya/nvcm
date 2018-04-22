@@ -70,6 +70,8 @@ class TGfxBase
 public:
 	const GFXfont * pfont = nullptr;
 
+	uint8_t     rotation = 0;
+
 	uint16_t    bgcolor = 0x0000;
 	uint16_t    color   = 0xFFFF;  // actual color
 
