@@ -40,6 +40,55 @@ void TOledDisp::WriteCmd(uint8_t adata)
 	// should be overridden
 }
 
+void TOledDisp::SetAddrWindow(uint16_t x0, uint16_t y0, uint16_t w, uint16_t h)
+{
+	aw_x0 = x0;
+	aw_y0 = y0;
+	aw_x1 = x0 + w - 1;
+	aw_y1 = y0 + h - 1;
+
+	if (aw_x1 > width)   aw_x1 = width;
+	if (aw_y1 > height)  aw_y1 = height;
+
+	aw_x = x0;
+	aw_y = y0;
+}
+
+void TOledDisp::SetAddrWindowStart(uint16_t x0, uint16_t y0)
+{
+	aw_x0 = x0;
+	aw_y0 = y0;
+	aw_x = x0;
+	aw_y = y0;
+}
+
+void TOledDisp::FillColor(uint16_t acolor, unsigned acount)
+{
+	while (acount > 0)
+	{
+		uint32_t byteidx = width * (aw_y >> 3) + aw_x;
+		uint8_t  bit = (1 << (aw_y & 7));
+		if (acolor & 1)
+		{
+			pdispbuf[byteidx] |= bit;
+		}
+		else
+		{
+			pdispbuf[byteidx] &= ~bit;
+		}
+
+		++aw_x;
+		if (aw_x > aw_x1)
+		{
+			aw_x = aw_x0;
+			++aw_y;
+			if (aw_y > aw_y1)  aw_y = aw_y0;
+		}
+		--acount;
+	}
+	++updatecnt;
+}
+
 void TOledDisp::Run()
 {
 	// should be overridden
@@ -118,28 +167,6 @@ void TOledDisp::SetRotation(uint8_t m)
   }
 }
 
-void TOledDisp::FillScreen(uint16_t color)
-{
-	uint32_t n;
-	uint8_t b;
-	if (color & 1)
-	{
-		b = 0xFF;
-	}
-	else
-	{
-		b = 0x00;
-	}
-
-	uint32_t bcnt = width * (height >> 3);
-	for (n = 0; n < bcnt; ++n)
-	{
-		pdispbuf[n] = b;
-	}
-
-	++updatecnt;
-}
-
 void TOledDisp::FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
 {
 	uint16_t endx = x + w;
@@ -191,9 +218,11 @@ void TOledDisp::FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t co
 		}
 		++ly;
 	}
+
+	++updatecnt;
 }
 
-void TOledDisp::DrawPixel(int16_t x, int16_t y, uint16_t color)
+void TOledDisp::DrawPixel(int16_t x, int16_t y, uint16_t color)  // faster draw-pixel
 {
 	if ((x >= width) || (y >= height))
 	{
@@ -209,6 +238,7 @@ void TOledDisp::DrawPixel(int16_t x, int16_t y, uint16_t color)
 	{
 		pdispbuf[byteidx] &= ~bit;
 	}
+	++updatecnt;
 }
 
 bool TOledDisp::UpdateFinished()

@@ -68,7 +68,9 @@ void TGfxBase::DrawPixel(int16_t x, int16_t y, uint16_t color)
 
 void TGfxBase::FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
 {
-	// must be overridden
+	// can be overridden
+	SetAddrWindow(x, y, w, h);
+	FillColor(color, w * h);
 }
 
 void TGfxBase::FillScreen(uint16_t color) // can be overridden
@@ -175,7 +177,7 @@ void TGfxBase::printf(const char * fmt, ...)
 
 uint8_t TGfxBase::GetFontMetrics(const GFXfont * afont, uint8_t * rascend, uint8_t * rdescend)
 {
-	uint8_t  charcode = afont->first;
+	uint16_t  charcode = afont->first;
 	GFXglyph * glyph = &afont->glyph[0];
 
 	uint8_t maxascend = 0;
@@ -199,6 +201,12 @@ uint8_t TGfxBase::GetFontMetrics(const GFXfont * afont, uint8_t * rascend, uint8
 void TGfxBase::DrawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 {
   int16_t steep = abs(y1 - y0) > abs(x1 - x0);
+
+  if ((x0 == x1) || (y0 == y1))
+  {
+  	FillRect(x0, y0, x1 - x0 + 1, y1 - y0 + 1, color);
+  	return;
+  }
 
   int16_t t;
   if (steep)
@@ -248,6 +256,21 @@ void TGfxBase::DrawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
   }
 }
 
+void TGfxBase::SetAddrWindow(uint16_t x0, uint16_t y0, uint16_t w, uint16_t h)
+{
+  // must be overridden
+}
+
+void TGfxBase::SetAddrWindowStart(uint16_t x0, uint16_t y0)
+{
+  // must be overridden
+}
+
+void TGfxBase::FillColor(uint16_t acolor, unsigned acount)
+{
+	 // must be overridden
+}
+
 void TGfxBase::DrawGlyph(GFXglyph * glyph)
 {
   uint8_t  * bitmap = pfont->bitmap;
@@ -260,29 +283,38 @@ void TGfxBase::DrawGlyph(GFXglyph * glyph)
   uint8_t  xx, yy;
   uint8_t  bits = 0, bit = 0;
 
-  uint16_t carr[2];
-  carr[0] = bgcolor;
-  carr[1] = color;
-
-  for (yy = 0; yy < h; ++yy)
+  if ((cursor_x + xo < width) && (cursor_y + yo < height))
   {
-		for (xx = 0; xx < w; ++xx)
+  	uint16_t dw = w;
+  	uint16_t dh = h;
+  	if (cursor_x + xo + w > width)  dw = width - cursor_x - xo;
+  	if (cursor_y + yo + h > height)  dh = height - cursor_y - yo;
+
+		SetAddrWindow(cursor_x + xo, cursor_y + yo, dw, dh);
+
+		uint16_t carr[2];
+		carr[0] = bgcolor;
+		carr[1] = color;
+
+		for (yy = 0; yy < dh; ++yy)
 		{
-			if ((bit & 7) == 0) // load the bits
+			for (xx = 0; xx < w; ++xx)
 			{
-				bits = bitmap[bo++];
-			}
+				if ((bit & 7) == 0) // load the bits
+				{
+					bits = bitmap[bo++];
+				}
 
-			if (bits & 0x80)
-			{
-				DrawPixel(cursor_x + xo + xx, cursor_y + yo + yy, color);
-			}
+				if (xx < dw)
+				{
+				  FillColor(carr[(bits >> 7) & 1], 1);
+				}
 
-			++bit;
-			bits <<= 1;
+				++bit;
+				bits <<= 1;
+			}
 		}
   }
-
   cursor_x += glyph->xAdvance;
 }
 

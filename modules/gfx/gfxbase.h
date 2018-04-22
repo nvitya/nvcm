@@ -25,8 +25,8 @@
  *  date:     2018-04-14
  *  authors:  nvitya, Adafruit Industries
  *  note:
- *    The Implementation is similar to Adafruit_GFX, but not the same.
- *    Font definition it taken from Adafruit_GFX to be able to use the Adafruit fonts directly
+ *    Some ideas and settings were taken from the Adafruit_GFX library.
+ *    Adafruit_GFX fonts can be used directly.
  */
 
 /* Adafruit Copyright message:
@@ -82,11 +82,21 @@ public:
 	uint16_t    cursor_x = 0;
 	uint16_t    cursor_y = 0;
 
+	// last address window settings
+	uint16_t    aw_x0 = 0;
+	uint16_t    aw_y0 = 0;
+	uint16_t    aw_x1 = 0;
+	uint16_t    aw_y1 = 0;
+
 	virtual ~TGfxBase() { } // virtual destructor
 
 	virtual void DrawPixel(int16_t x, int16_t y, uint16_t color);
 	virtual void FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
 	virtual void FillScreen(uint16_t color);
+
+	virtual void SetAddrWindow(uint16_t x0, uint16_t y0, uint16_t w,  uint16_t h);
+	virtual void SetAddrWindowStart(uint16_t x0, uint16_t y0);
+	virtual void FillColor(uint16_t acolor, unsigned acount);
 
 	void         DrawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1);
 	void         DrawRect(int16_t x0, int16_t y0, int16_t w, int16_t h);

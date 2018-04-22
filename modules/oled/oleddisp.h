@@ -30,6 +30,9 @@ public:
 	uint8_t         contrast = 0x8F;
 	bool            externalvcc = false;
 
+	uint16_t        aw_x = 0;
+	uint16_t        aw_y = 0;
+
 	uint8_t *       pdispbuf;
 
 	virtual ~TOledDisp() {} // to avoid warning
@@ -43,9 +46,6 @@ public:
 
 	virtual void WriteCmd(uint8_t adata);
 
-	//virtual void SetAddrWindow(uint16_t x0, uint16_t y0, uint16_t w,  uint16_t h);
-	//virtual void FillColor(uint16_t acolor, unsigned acount);
-
 public:
 	// interface independent functions
 
@@ -57,8 +57,11 @@ public:
 	void SetRotation(uint8_t m);
 
 	virtual void FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
-	virtual void FillScreen(uint16_t color);
 	virtual void DrawPixel(int16_t x, int16_t y, uint16_t color);
+
+	virtual void SetAddrWindow(uint16_t x0, uint16_t y0, uint16_t w,  uint16_t h);
+	virtual void SetAddrWindowStart(uint16_t x0, uint16_t y0);
+	virtual void FillColor(uint16_t acolor, unsigned acount);
 
 	bool UpdateFinished();
 	virtual void Run();
