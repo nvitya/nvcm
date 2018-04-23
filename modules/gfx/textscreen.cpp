@@ -31,15 +31,22 @@
 #include <stdarg.h>
 #include <textscreen.h>
 
-void TTextScreen::Init(TTftLcd * alcd)
+void TTextScreen::Init(TGfxBase * adisp, uint16_t x, uint16_t y, uint16_t w, uint16_t h, TGfxFont * amonofont)
 {
-	lcd = alcd;
+	disp = adisp;
 
-	lineheight = 9;
-	cols = lcd->width / 6;
-	xoffs = (lcd->width % 6) / 2;
-	rows = lcd->height / lineheight;
-	yoffs = (lcd->height % lineheight) / 2;
+	disp_x = x;
+	disp_y = y;
+	disp_w = w;
+	disp_h = h;
+
+	font = amonofont;
+
+	lineheight = font->y_advance;
+	charwidth = font->CharWidth('W');
+
+	cols = disp_w / charwidth;
+	rows = disp->height / lineheight;
 	curcol = 0;
 
 	// fill the text buffer with spaces
@@ -47,7 +54,7 @@ void TTextScreen::Init(TTftLcd * alcd)
 	memset(&changemap[0], 0, (cols * rows + 7) >> 3);
 
 	// initial clear
-	lcd->FillScreen(lcd->bgcolor);
+	disp->FillRect(disp_x, disp_y, disp_w, disp_h, disp->bgcolor);
 }
 
 void TTextScreen::SetScreenBufChar(uint16_t aaddr, char ach)
@@ -123,8 +130,10 @@ void TTextScreen::Update()
 			if (changemap[saddr >> 3] & (1 << (saddr & 0x7)))
 			{
 				// changed, draw the character
-				lcd->DrawChar(xoffs + col * 6, yoffs + lineheight * (rows - row - 1), screenbuf[saddr]);
-
+				disp->SetCursor(disp_x + col * charwidth, disp_y + lineheight * (rows - row - 1));
+				TGfxGlyph * glyph = font->GetGlyph(screenbuf[saddr]);
+				if (!glyph)  glyph = font->GetGlyph('.');  // replace non-existing characters with dot
+				disp->DrawGlyph(font, glyph);
 				changemap[saddr >> 3] &= ~(1 << (saddr & 0x7));
 			}
 		}

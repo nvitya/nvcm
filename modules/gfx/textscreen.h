@@ -30,7 +30,7 @@
 #define TEXTSCREEN_H_
 
 #include "inttypes.h"
-#include "tftlcd.h"
+#include "gfxbase.h"
 
 // max supported screen: 480 * 320
 #define TEXTSCREEN_BUF_SIZE  (80*40)
@@ -51,10 +51,16 @@ protected:
 
 public:
 
-	TTftLcd *		  	lcd;
+	TGfxBase *	  	disp;
+	TGfxFont *      font;
 
-	uint8_t         xoffs;
-	uint8_t         yoffs;
+	uint16_t        disp_x;
+	uint16_t        disp_y;
+	uint16_t        disp_w;
+	uint16_t        disp_h;
+
+	uint8_t         charwidth;
+
 	uint8_t  				cols;
 	uint8_t  				rows;
 
@@ -62,7 +68,7 @@ public:
 
 	uint8_t         curcol;
 
-	void Init(TTftLcd * alcd);
+	void Init(TGfxBase * adisp, uint16_t x, uint16_t y, uint16_t w, uint16_t h, TGfxFont * amonofont);
 
 	void WriteChar(char ach);
 

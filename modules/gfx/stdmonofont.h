@@ -413,7 +413,7 @@ const GFXfont stdmonofont =
   (GFXglyph *)stdmonofont_glyphs,
   0x00, // start char
   0xFF, // end char
-  8     // yadvance
+  9     // yadvance
 };
 
 #endif // STDMONOFONT_H

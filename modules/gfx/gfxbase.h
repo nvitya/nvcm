@@ -68,6 +68,8 @@ POSSIBILITY OF SUCH DAMAGE.
 // Use the Adafruit_GFX font definition
 #include "gfxfont.h"
 
+typedef GFXglyph  TGfxGlyph; // make the naming more conform
+
 // Another font structure was introduced because of the font metrics
 class TGfxFont
 {
@@ -88,8 +90,7 @@ public:
 	uint16_t CharWidth(char achar);
 	uint16_t TextWidth(const char * astr);
 
-	GFXglyph * GetGlyph(char achar);
-
+	TGfxGlyph * GetGlyph(char achar);
 };
 
 class TGfxBase
@@ -141,12 +142,12 @@ public:
   void DrawChar(char achar);
   void DrawString(char * astr);
 	void printf(const char * fmt, ...);
-  void DrawGlyph(GFXglyph * glyph);
+  void DrawGlyph(TGfxFont * afont, TGfxGlyph * glyph);
 
   uint16_t TextWidth(const char * astr)  { return font->TextWidth(astr); }
 };
 
-extern TGfxFont gfx_standard_font;
+extern TGfxFont font_gfx_standard;
 
 
 #endif /* GFXBASE_H_ */
