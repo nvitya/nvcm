@@ -152,8 +152,6 @@ bool THwUart_stm32::Init(int adevnum)
 	}
 #endif
 
-	//clockdiv = ;
-
 	unsigned periphclock;
 	periphclock = SystemCoreClock / clockdiv;
 	unsigned baseclock = periphclock / 16;

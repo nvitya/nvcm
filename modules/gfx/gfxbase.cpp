@@ -61,6 +61,95 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "gfxbase.h"
 #include "math.h"
 
+#include "stdmonofont.h"
+
+TGfxFont gfx_standard_font(&stdmonofont);
+
+bool TGfxFont::Load(const GFXfont * afontdata)
+{
+	bitmap = afontdata->bitmap;
+	glyph = afontdata->glyph;
+	firstchar = afontdata->first;
+	lastchar = afontdata->last;
+	y_advance = afontdata->yAdvance;
+
+	uint16_t  charcode = afontdata->first;
+	GFXglyph * glyph = &afontdata->glyph[0];
+
+	uint8_t maxascend = 0;
+	uint8_t maxdescend = 0;
+
+	while (charcode <= afontdata->last)
+	{
+		int8_t ascend   = -glyph->yOffset;
+		int8_t descend  = glyph->height - ascend;
+		if (ascend > maxascend)    maxascend = ascend;
+		if (descend > maxdescend)  maxdescend = descend;
+		++glyph;
+		++charcode;
+	}
+
+	ascend = maxascend;
+	descend = maxdescend;
+	height = ascend + descend;
+
+	return true;
+}
+
+uint16_t TGfxFont::CharWidth(char achar)
+{
+	GFXglyph * glyph = GetGlyph(achar);
+	if (glyph)
+	{
+	  uint8_t   w  = glyph->width;
+	  int8_t    xo = glyph->xOffset;
+	  uint16_t  cw  = glyph->xAdvance;
+	  if (w + xo > cw)  cw = w + xo;
+	  return cw;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+uint16_t TGfxFont::TextWidth(const char * astr)
+{
+	uint16_t w = 0;
+
+	while (*astr != 0)
+	{
+		w += CharWidth(*astr);
+		++astr;
+	}
+
+	return w;
+}
+
+GFXglyph * TGfxFont::GetGlyph(char achar)
+{
+	uint8_t charcode = uint8_t(achar);
+
+	if (charcode < firstchar)
+	{
+		return nullptr;
+	}
+
+	if (charcode > lastchar)
+	{
+		return nullptr;
+	}
+
+	return &glyph[charcode - firstchar];
+}
+
+//--------------------------------------------------------------------------------------------
+
+void TGfxBase::InitGfx()
+{
+	SetFont(&gfx_standard_font);
+}
+
 void TGfxBase::DrawPixel(int16_t x, int16_t y, uint16_t color)
 {
 	// must be overridden
@@ -84,47 +173,32 @@ void TGfxBase::FillScreen(uint16_t color) // can be overridden
 	FillRect(0, 0, width, height, color);
 }
 
-void TGfxBase::SetFont(const GFXfont * afont)
-{
-	pfont = afont;
-}
-
 void TGfxBase::DrawChar(char achar)
 {
-	if (!pfont)
+	if (!font)
 	{
 		return;
 	}
 
 	uint8_t charcode = uint8_t(achar);
 
-	if (charcode < pfont->first)
+	if (charcode < font->firstchar)
 	{
 		return;
 	}
 
-	if (charcode > pfont->last)
+	if (charcode > font->lastchar)
 	{
 		return;
 	}
 
-	GFXglyph * glyph = &pfont->glyph[charcode - pfont->first];
+	GFXglyph * glyph = &font->glyph[charcode - font->firstchar];
 	DrawGlyph(glyph);
-}
-
-uint16_t TGfxBase::GetFontHeight()
-{
-	if (!pfont)
-	{
-		return 1;
-	}
-
-	return pfont->yAdvance;
 }
 
 void TGfxBase::DrawString(char * astr)
 {
-	if (!pfont)
+	if (!font)
 	{
 		return;
 	}
@@ -139,17 +213,17 @@ void TGfxBase::DrawString(char * astr)
 			return;
 		}
 
-		if (charcode < pfont->first)
+		if (charcode < font->firstchar)
 		{
 			continue;
 		}
 
-		if (charcode > pfont->last)
+		if (charcode > font->lastchar)
 		{
 			continue;
 		}
 
-		GFXglyph * glyph = &pfont->glyph[charcode - pfont->first];
+		GFXglyph * glyph = &font->glyph[charcode - font->firstchar];
 		DrawGlyph(glyph);
 		++astr;
 	}
@@ -179,29 +253,6 @@ void TGfxBase::printf(const char * fmt, ...)
 	}
 
 	va_end(arglist);
-}
-
-uint8_t TGfxBase::GetFontMetrics(const GFXfont * afont, uint8_t * rascend, uint8_t * rdescend)
-{
-	uint16_t  charcode = afont->first;
-	GFXglyph * glyph = &afont->glyph[0];
-
-	uint8_t maxascend = 0;
-	uint8_t maxdescend = 0;
-
-	while (charcode <= afont->last)
-	{
-		int8_t ascend   = -glyph->yOffset;
-		int8_t descend  = glyph->height - ascend;
-		if (ascend > maxascend)    maxascend = ascend;
-		if (descend > maxdescend)  maxdescend = descend;
-		++glyph;
-		++charcode;
-	}
-
-	*rascend = maxascend;
-	*rdescend = maxdescend;
-	return afont->yAdvance;
 }
 
 void TGfxBase::DrawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
@@ -277,15 +328,23 @@ void TGfxBase::FillColor(uint16_t acolor, unsigned acount)
 	 // must be overridden
 }
 
+void TGfxBase::LineTo(int16_t x, int16_t y)
+{
+	DrawLine(cursor_x, cursor_y, x, y);
+	cursor_x = x;
+	cursor_y = y;
+}
+
+#if 0
 void TGfxBase::DrawGlyph(GFXglyph * glyph)
 {
-  uint8_t  * bitmap = pfont->bitmap;
+  uint8_t  * bitmap = font->bitmap;
 
   uint16_t bo = glyph->bitmapOffset;
   uint8_t  w  = glyph->width,
            h  = glyph->height;
   int8_t   xo = glyph->xOffset,
-           yo = glyph->yOffset;
+           yo = glyph->yOffset + font->ascend;
   uint8_t  xx, yy;
   uint8_t  bits = 0, bit = 0;
 
@@ -324,6 +383,74 @@ void TGfxBase::DrawGlyph(GFXglyph * glyph)
   cursor_x += glyph->xAdvance;
 }
 
+#else
+
+void TGfxBase::DrawGlyph(GFXglyph * glyph)
+{
+  uint8_t  w  = glyph->width,
+           h  = glyph->height;
+  int8_t   xo = glyph->xOffset,
+           yo = glyph->yOffset + font->ascend;
+
+  uint8_t  dw  = glyph->xAdvance;
+  uint8_t  dh  = font->height;
+
+  if (w + xo > dw)  dw = w + xo;
+
+  if ((cursor_x < width) && (cursor_y < height))
+  {
+  	if (cursor_x + dw > width)   dw = width - cursor_x;
+  	if (cursor_y + dh > height)  dh = height - cursor_y;
+
+		SetAddrWindow(cursor_x, cursor_y, dw, dh);
+
+	  uint8_t  * bmptr = &font->bitmap[glyph->bitmapOffset];
+	  uint8_t  x, y;
+	  uint8_t  bits = 0, bit = 0;
+
+	  if (xo < 0) xo = 0;
+
+		uint16_t carr[2];
+		carr[0] = bgcolor;
+		carr[1] = color;
+
+		uint8_t endx = (dw < w ? w : dw);
+
+		for (y = 0; y < dh; ++y)
+		{
+			for (x = 0; x < endx; ++x)
+			{
+				if (   (y >= yo) && (y < yo + h)
+				    && (x >= xo) && (x < xo + w) )
+				{
+					if ((bit & 7) == 0) // load the bits
+					{
+						bits = *bmptr++;
+					}
+
+					if (x < dw)
+					{
+						FillColor(carr[(bits >> 7) & 1], 1);
+					}
+
+					++bit;
+					bits <<= 1;
+				}
+				else
+				{
+					if (x < dw)
+					{
+						FillColor(bgcolor, 1);
+					}
+				}
+			}
+		}
+  }
+  cursor_x += dw;
+}
+
+#endif
+
 void TGfxBase::DrawRect(int16_t x0, int16_t y0, int16_t w, int16_t h)
 {
 	int16_t x1 = x0 + w - 1;
@@ -333,3 +460,4 @@ void TGfxBase::DrawRect(int16_t x0, int16_t y0, int16_t w, int16_t h)
 	DrawLine(x0, y0, x0, y1);
 	DrawLine(x0, y1, x1, y1);
 }
+

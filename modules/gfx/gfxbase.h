@@ -62,13 +62,40 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "stdint.h"
 
+// converts R-G-B values from 8-8-8 to 5-6-5 bit format:
+#define RGB16(r,g,b)  ((((r >> 3) & 0x1F) << 11) | (((g >> 2) & 0x3F) << 5) | ((b >> 3) & 0x1F))
+
 // Use the Adafruit_GFX font definition
 #include "gfxfont.h"
+
+// Another font structure was introduced because of the font metrics
+class TGfxFont
+{
+public:
+	uint8_t *   bitmap = nullptr;      // Glyph bitmaps, concatenated
+	GFXglyph *  glyph = nullptr;       // Glyph array
+	uint8_t     firstchar = 0;         // ascii code of the first character in the font
+	uint8_t     lastchar = 0;          // ascii code of the last character in the font
+	uint8_t     height = 0;            // maximal drawn height
+	uint8_t     ascend = 0;            // distance to the font baseline
+	uint8_t     descend = 0;           // bottom to baseline distance (descend = height - ascend)
+	uint8_t     y_advance = 0;         // Newline distance (y axis)
+
+	TGfxFont(const GFXfont * afontdata)  { Load(afontdata); }
+
+	bool Load(const GFXfont * afontdata);    // Loads Adafruit_GFX font
+
+	uint16_t CharWidth(char achar);
+	uint16_t TextWidth(const char * astr);
+
+	GFXglyph * GetGlyph(char achar);
+
+};
 
 class TGfxBase
 {
 public:
-	const GFXfont * pfont = nullptr;
+	TGfxFont *  font = nullptr;
 
 	uint8_t     rotation = 0;
 
@@ -103,20 +130,23 @@ public:
 	void         DrawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1);
 	void         DrawRect(int16_t x0, int16_t y0, int16_t w, int16_t h);
 
+  inline void  SetCursor(int16_t x, int16_t y)  { cursor_x = x; cursor_y = y; }
+	void         LineTo(int16_t x, int16_t y);
+
 public:
-  void SetFont(const GFXfont * afont);
+	void  InitGfx();
 
-  uint16_t GetFontHeight();
-  uint8_t  GetFontMetrics(const GFXfont * afont, uint8_t * rascend, uint8_t * rdescend);
-
-  void SetCursor(int16_t x, int16_t y)  { cursor_x = x; cursor_y = y; }
+  inline void SetFont(TGfxFont * afont)  { font = afont; }
 
   void DrawChar(char achar);
   void DrawString(char * astr);
-
 	void printf(const char * fmt, ...);
-
   void DrawGlyph(GFXglyph * glyph);
+
+  uint16_t TextWidth(const char * astr)  { return font->TextWidth(astr); }
 };
+
+extern TGfxFont gfx_standard_font;
+
 
 #endif /* GFXBASE_H_ */

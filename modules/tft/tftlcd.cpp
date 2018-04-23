@@ -32,6 +32,8 @@
 
 bool TTftLcd::Init(TLcdCtrlType atype, uint16_t awidth, uint16_t aheight)
 {
+	InitGfx();
+
 	ctrltype = atype;
 	hwwidth = awidth;
 	hwheight = aheight;

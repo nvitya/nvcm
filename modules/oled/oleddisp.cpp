@@ -5,6 +5,8 @@
 
 bool TOledDisp::Init(TOledCtrlType atype, uint16_t awidth, uint16_t aheight, uint8_t * adispbuf)
 {
+	InitGfx();
+
 	ctrltype = atype;
 	hwwidth = awidth;
 	hwheight = aheight;
