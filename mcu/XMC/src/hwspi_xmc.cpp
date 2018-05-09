@@ -1,11 +1,38 @@
+/* -----------------------------------------------------------------------------
+ * This file is a part of the NVCM project: https://github.com/nvitya/nvcm
+ * Copyright (c) 2018 Viktor Nagy, nvitya
+ *
+ * This software is provided 'as-is', without any express or implied warranty.
+ * In no event will the authors be held liable for any damages arising from
+ * the use of this software. Permission is granted to anyone to use this
+ * software for any purpose, including commercial applications, and to alter
+ * it and redistribute it freely, subject to the following restrictions:
+ *
+ * 1. The origin of this software must not be misrepresented; you must not
+ *    claim that you wrote the original software. If you use this software in
+ *    a product, an acknowledgment in the product documentation would be
+ *    appreciated but is not required.
+ *
+ * 2. Altered source versions must be plainly marked as such, and must not be
+ *    misrepresented as being the original software.
+ *
+ * 3. This notice may not be removed or altered from any source distribution.
+ * --------------------------------------------------------------------------- */
+/*
+ *  file:     hwspi_xmc.cpp
+ *  brief:    XMC SPI (master only)
+ *  version:  1.00
+ *  date:     2018-05-09
+ *  authors:  nvitya
+*/
 
-#include <stdio.h>
-#include <stdarg.h>
+#include "platform.h"
+//#include "hwclkctrl.h"
+#include "hwspi.h"
 
-#include "hwuart.h"
 #include "xmc_utils.h"
 
-bool THwUart_xmc::Init(int ausicnum, int achnum, int ainputpin)
+bool THwSpi_xmc::Init(int ausicnum, int achnum, int ainputpin)
 {
 	unsigned code;
 	unsigned rv;
@@ -79,7 +106,6 @@ bool THwUart_xmc::Init(int ausicnum, int achnum, int ainputpin)
 	{
 		return false;
 	}
-
   regs->KSCFG = ((1 << 0) | (1 << 1)); // MODEN + BPMODEN
   while ((regs->KSCFG & 1) == 0U)
   {
@@ -88,8 +114,6 @@ bool THwUart_xmc::Init(int ausicnum, int achnum, int ainputpin)
 
 
   // Configure baud rate
-
-	unsigned oversampling = 16;
 
   uint32_t clock_divider;
   uint32_t clock_divider_min;
@@ -102,7 +126,7 @@ bool THwUart_xmc::Init(int ausicnum, int achnum, int ainputpin)
   uint32_t pdiv_frac_min;
 
   uint32_t peripheral_clock = SystemCoreClock / 100;
-  uint32_t rate = baudrate / 100;
+  uint32_t rate = speed / 100;
 
 	clock_divider_min = 1;
 	pdiv_int_min = 1;
@@ -110,7 +134,7 @@ bool THwUart_xmc::Init(int ausicnum, int achnum, int ainputpin)
 
 	for(clock_divider = 1023; clock_divider > 0; --clock_divider)
 	{
-		pdiv = ((peripheral_clock * clock_divider) / (rate * oversampling));
+		pdiv = ((peripheral_clock * clock_divider) / (rate));
 		pdiv_int = pdiv >> 10;
 		pdiv_frac = pdiv & 0x3ff;
 
@@ -125,21 +149,23 @@ bool THwUart_xmc::Init(int ausicnum, int achnum, int ainputpin)
   regs->FDR = ((1 << 15) | (clock_divider_min << 0));
 
   regs->BRG = 0
-  	| (0 << 0)                    // CLKSEL(2): 0 = fractional divider
-    | ((oversampling - 1) << 10)  // DCTQ(5)
+  	| (0 << 0)     // CLKSEL(2): 0 = fractional divider
+    | (0 << 10)    // DCTQ(5)
     | ((pdiv_int_min - 1) << 16); // PDIV(10)
   ;
 
-  /* Configure frame format
-   * Configure the number of stop bits
-   * Pulse length is set to 0 to have standard UART signaling,
-   * i.e. the 0 level is signaled during the complete bit time
-   * Sampling point set equal to the half of the oversampling period
-   * Enable Sample Majority Decision */
-  regs->PCR_ASCMode = 0
-  	| (((halfstopbits-1) >> 1) << 1)    // STPB: stop bits
-  	| (((oversampling >> 1) + 1) << 8)  // SP: sample point = middle
-  	| (1 << 0)  // SMD: 1 = three samples are taken
+  // Configure frame format
+  regs->PCR_SSCMode = 0
+  	| (1 << 0)    // MSLSEN: 1 = MSLS generation enabled (master mode)
+  	| (1 << 1)    // SELCTR: 1 = direct select mode enabled, 0 = coded select mode enabled
+  	| (1 << 2)    // SELINV: 1 = active low select
+  	| (0 << 3)    // FEM: frame end mode, 1 = no automatic CS pull back
+  	| (0 << 4)    // CTQSEL1(2): input freq
+  	| (0 << 6)    // PCTQ1(2)
+  	| (0 << 8)    // DCTQ1(5)
+  	| ((1 << selonum) << 16)   // SELO(8): enabled selection lines
+  	| (0 << 24)    // TIWEN: 1 = enable inter-word delay
+  	| (0 << 31)    // MCLK: 1 = master clock generation enabled
   ;
 
   /* Set passive data level, high
@@ -148,7 +174,7 @@ bool THwUart_xmc::Init(int ausicnum, int achnum, int ainputpin)
      Transmission Mode: The shift control signal is considered active if it
      is at 1-level. This is the setting to be programmed to allow data transfers */
   regs->SCTR = 0
-  	| (0 << 0)  // SDIR: 0 = LSB first
+  	| (1 << 0)  // SDIR: 1 = MSB first
   	| (1 << 1)  // PDL: passive data level
   	| (0 << 2)  // DSM(2): data shift mode
   	| (1 << 8)  // TRM(2): transmission mode
@@ -210,20 +236,8 @@ bool THwUart_xmc::Init(int ausicnum, int achnum, int ainputpin)
   // Channel Control Register
 
   rv = 0
-  	| (2 << 0)  // set UART mode
+  	| (1 << 0)  // set SPI mode
   ;
-
-  if (parity)
-  {
-  	if (oddparity)
-  	{
-  		rv |= (3 < 8);
-  	}
-  	else
-  	{
-  		rv |= (2 < 8);
-  	}
-  }
   regs->CCR = rv;  // this enables the UART
 
 	initialized = true;
@@ -231,8 +245,21 @@ bool THwUart_xmc::Init(int ausicnum, int achnum, int ainputpin)
 	return true;
 }
 
-bool THwUart_xmc::TrySendChar(char ach)
+bool THwSpi_xmc::TrySendData(uint16_t adata)
 {
+	if (regs->TRBSR & (1 << 12))  // is the Transmit FIFO full?
+	{
+		return false;
+	}
+
+	regs->IN[0] = adata; // put the character into the transmit fifo
+
+	return true;
+}
+
+bool THwSpi_xmc::TryRecvData(uint16_t * dstptr)
+{
+#if 0
 	if (regs->TRBSR & (1 << 12))  // is the Transmit FIFO full?
 	{
 		return false;
@@ -241,9 +268,11 @@ bool THwUart_xmc::TrySendChar(char ach)
 	regs->IN[0] = ach; // put the character into the transmit fifo
 
 	return true;
+#endif
+	return false;
 }
 
-bool THwUart_xmc::SendFinished()
+bool THwSpi_xmc::SendFinished()
 {
 	if (regs->TRBSR & (1 << 11))  // Transmit buffer empty?
 	{
@@ -254,4 +283,3 @@ bool THwUart_xmc::SendFinished()
 		return false;
 	}
 }
-

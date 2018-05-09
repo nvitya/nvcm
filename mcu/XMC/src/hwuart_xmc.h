@@ -35,7 +35,7 @@
 class THwUart_xmc : public THwUart_pre
 {
 public:
-	bool Init(int adevnum);
+	bool Init(int ausicnum, int achnum, int ainputpin);
 
 	bool TrySendChar(char ach);
 	bool TryRecvChar(char * ach);
@@ -43,6 +43,10 @@ public:
 	bool SendFinished();
 
 public:
+	int                 usicnum = 0;
+	int                 chnum = 0;
+	int                 inputpin = 0;
+
 	HW_UART_REGS *      regs = nullptr;
 };
 

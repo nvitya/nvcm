@@ -19,29 +19,41 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (XMC)
- *  brief:    XMC list of implemented NVCM core peripherals
+ *  file:     hwspi_xmc.h
+ *  brief:    XMC SPI (master only)
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-05-09
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_xmc.h"
-#endif
+#ifndef HWSPI_XMC_H_
+#define HWSPI_XMC_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_xmc.h"
-#endif
+#define HWSPI_PRE_ONLY
+#include "hwspi.h"
 
-#ifdef HWUART_H_
-  #include "hwuart_xmc.h"
-#endif
+class THwSpi_xmc : public THwSpi_pre
+{
+public:
+	// additional XMC specific settings
+	uint8_t             selonum = 0;
+	int                 inputpin = 0;
 
-#ifdef HWSPI_H_
-  #include "hwspi_xmc.h"
-#endif
+	bool Init(int ausicnum, int achnum, int ainputpin);
 
-#ifdef HWDMA_H_
-  #define SKIP_UNIMPLEMENTED_WARNING
-#endif
+	bool TrySendData(uint16_t adata);
+	bool TryRecvData(uint16_t * dstptr);
+	bool SendFinished();
+
+public:
+	int                 usicnum = 0;
+	int                 chnum = 0;
+
+
+	HW_SPI_REGS * 			regs;
+};
+
+
+#define HWSPI_IMPL THwSpi_xmc
+
+#endif // def HWSPI_XMC_H_

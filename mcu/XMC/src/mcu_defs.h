@@ -66,6 +66,7 @@ typedef struct XMC_GPIO_PORT
 
 #define HW_GPIO_REGS  XMC_GPIO_PORT_t
 #define HW_UART_REGS  USIC_CH_TypeDef
+#define HW_SPI_REGS   USIC_CH_TypeDef
 
 #if __CORTEX_M < 3
   #define CLOCKCNT       (CCU40_CC43->TIMER)

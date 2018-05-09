@@ -48,6 +48,7 @@ class THwSpi_pre
 {
 public:
 	int      				devnum = -1;
+	bool            initialized = false;
 
 	unsigned        speed = 1000000;  // default speed = 1MHz
 	unsigned char   databits = 8; // frame length
