@@ -29,7 +29,7 @@
 #include "hwpins.h"
 #include "hwdma.h"
 
-#include "traces.h"
+//#include "traces.h"
 
 TDmaDesc  dmachtable[32] __attribute__((aligned(512)));  // must be aligned to 512 byte boundary !
 

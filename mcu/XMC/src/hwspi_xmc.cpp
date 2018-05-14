@@ -159,7 +159,7 @@ bool THwSpi_xmc::Init(int ausicnum, int achnum, int ainputpin)
   	| (1 << 0)    // MSLSEN: 1 = MSLS generation enabled (master mode)
   	| (1 << 1)    // SELCTR: 1 = direct select mode enabled, 0 = coded select mode enabled
   	| (1 << 2)    // SELINV: 1 = active low select
-  	| (0 << 3)    // FEM: frame end mode, 1 = no automatic CS pull back
+  	| (1 << 3)    // FEM: frame end mode, 1 = no automatic CS pull back
   	| (0 << 4)    // CTQSEL1(2): input freq
   	| (0 << 6)    // PCTQ1(2)
   	| (0 << 8)    // DCTQ1(5)
@@ -178,7 +178,7 @@ bool THwSpi_xmc::Init(int ausicnum, int achnum, int ainputpin)
   	| (1 << 1)  // PDL: passive data level
   	| (0 << 2)  // DSM(2): data shift mode
   	| (1 << 8)  // TRM(2): transmission mode
-  	| ((databits - 1) << 16) // FLE(6): frame length
+  	| (63 << 16) // FLE(6): frame length
   	| ((databits - 1) << 24) // WLE(4): word length
   ;
 
@@ -187,7 +187,7 @@ bool THwSpi_xmc::Init(int ausicnum, int achnum, int ainputpin)
 
   /*Set input source path*/
   regs->DX0CR = 0
-  	| (inputpin << 0)  // DSEL: DXnB selected
+  	| (inputpin << 0)  // DSEL: DX0n selected
   ;
 
   // Configure FIFO-s
@@ -238,7 +238,7 @@ bool THwSpi_xmc::Init(int ausicnum, int achnum, int ainputpin)
   rv = 0
   	| (1 << 0)  // set SPI mode
   ;
-  regs->CCR = rv;  // this enables the UART
+  regs->CCR = rv;  // this enables the SPI
 
 	initialized = true;
 
@@ -259,17 +259,14 @@ bool THwSpi_xmc::TrySendData(uint16_t adata)
 
 bool THwSpi_xmc::TryRecvData(uint16_t * dstptr)
 {
-#if 0
-	if (regs->TRBSR & (1 << 12))  // is the Transmit FIFO full?
+	if (regs->TRBSR & (1 << 3))  // is the Receive buffer Empty?
 	{
 		return false;
 	}
 
-	regs->IN[0] = ach; // put the character into the transmit fifo
+	*dstptr = regs->OUTR;
 
 	return true;
-#endif
-	return false;
 }
 
 bool THwSpi_xmc::SendFinished()
