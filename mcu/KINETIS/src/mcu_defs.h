@@ -56,8 +56,7 @@
 #endif
 
 #if __CORTEX_M < 3
-  #define CLOCKCNT       (TPM1->CNT)
-  #define CLOCKCNT_BITS  16
+  #define CLOCKCNT16       (TPM1->CNT)
 #endif
 
 inline void __attribute__((always_inline)) mcu_preinit_code()

@@ -47,36 +47,21 @@ void clockcnt_init()
 
 #endif
 
+#if defined(CLOCKCNT16)
+
+  uint32_t clockcnt32_high = 0;
+  uint16_t last_clockcnt16 = 0;
+
+#endif
+
 void delay_clocks(unsigned aclocks)
 {
 	unsigned remaining = aclocks;
 
-#if CLOCKCNT_BITS == 32
 	unsigned t0 = CLOCKCNT;
 	while (CLOCKCNT - t0 < remaining)
 	{
 		// wait
 	}
-#else
-	unsigned clocks = remaining;
-	clockcnt_t t0;
-	clockcnt_t elapsed;
-	if (clocks > 32767)  clocks = 32767;
-
-	do
-	{
-		t0 = CLOCKCNT;
-		do
-		{
-			elapsed = ELAPSEDCLOCKS(CLOCKCNT, t0);
-		//
-		} while (elapsed < clocks);
-
-		remaining -= clocks;
-		if (remaining < clocks)  clocks = remaining;
-	//
-	} while (clocks > 0);
-
-#endif
 }
 

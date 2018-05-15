@@ -149,6 +149,7 @@ bool THwSpi_xmc::Init(int ausicnum, int achnum, int ainputpin)
   regs->FDR = ((1 << 15) | (clock_divider_min << 0));
 
   regs->BRG = 0
+  	| ((idleclk_high ? 1 : 0) << 30)    // SCLKCFG(2): 1 = high idle, no delay
   	| (0 << 0)     // CLKSEL(2): 0 = fractional divider
     | (0 << 10)    // DCTQ(5)
     | ((pdiv_int_min - 1) << 16); // PDIV(10)
@@ -174,7 +175,7 @@ bool THwSpi_xmc::Init(int ausicnum, int achnum, int ainputpin)
      Transmission Mode: The shift control signal is considered active if it
      is at 1-level. This is the setting to be programmed to allow data transfers */
   regs->SCTR = 0
-  	| (1 << 0)  // SDIR: 1 = MSB first
+  	| ((lsb_first ? 0 : 1) << 0)  // SDIR: 1 = MSB first
   	| (1 << 1)  // PDL: passive data level
   	| (0 << 2)  // DSM(2): data shift mode
   	| (1 << 8)  // TRM(2): transmission mode
@@ -188,6 +189,7 @@ bool THwSpi_xmc::Init(int ausicnum, int achnum, int ainputpin)
   /*Set input source path*/
   regs->DX0CR = 0
   	| (inputpin << 0)  // DSEL: DX0n selected
+		| (1 << 4)
   ;
 
   // Configure FIFO-s

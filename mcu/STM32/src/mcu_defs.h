@@ -74,11 +74,10 @@
 
 #if __CORTEX_M < 3
   #if defined(TIM14)
-    #define CLOCKCNT       (TIM14->CNT)      // use the worst timer for clock counting
+    #define CLOCKCNT16       (TIM14->CNT)      // use the worst timer for clock counting
   #else
-    #define CLOCKCNT       (TIM21->CNT)
+    #define CLOCKCNT16       (TIM21->CNT)
   #endif
-  #define CLOCKCNT_BITS  16
 #endif
 
 inline void __attribute__((always_inline)) mcu_preinit_code()

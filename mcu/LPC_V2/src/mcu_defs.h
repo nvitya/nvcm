@@ -42,8 +42,7 @@
 #define HW_DMA_MAX_COUNT  1024  // quite low on this CPU
 
 #if __CORTEX_M < 3
-  #define CLOCKCNT       (LPC_SCT->COUNT_L)
-  #define CLOCKCNT_BITS  16
+  #define CLOCKCNT16       (LPC_SCT->COUNT_L)
 #endif
 
 

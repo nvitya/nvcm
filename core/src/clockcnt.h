@@ -31,6 +31,8 @@
 
 #include "platform.h"
 
+#define clockcnt_t unsigned
+
 #ifndef CLOCKCNT
 
 #if __CORTEX_M >= 3
@@ -38,19 +40,32 @@
   // from Cortex-M3 use the DWT_CYCCNT:
   #define CLOCKCNT (*((volatile unsigned *)0xE0001004))
   #define CLOCKCNT_BITS  32
+
+#elif defined(CLOCKCNT16)
+
+	// the 32 bit clock counter works properly only when it is called repeatedly within 0.683 ms !!!!
+
+	extern uint32_t clockcnt32_high;
+	extern uint16_t last_clockcnt16;
+
+	inline unsigned clockcnt16_to_32()
+	{
+		uint16_t t0 = CLOCKCNT16;
+		if (t0 < last_clockcnt16)
+		{
+			clockcnt32_high += 0x10000;
+		}
+		last_clockcnt16 = t0;
+		return clockcnt32_high + t0;
+	}
+
+  #define CLOCKCNT clockcnt16_to_32()
+
 #else
   // On Cortex-M0 a 16 or 32 bit timer hw required
-  #error "Define CLOCKCNT for Cortex-M0 processors (hw timer required)"
-#endif
-
-#endif
-
-#if CLOCKCNT_BITS == 32
-  #define clockcnt_t unsigned
-#elif CLOCKCNT_BITS == 16
-  #define clockcnt_t unsigned short
-#else
   #error "Define CLOCKCNT_BITS for Cortex-M0 processors (hw timer required)"
+#endif
+
 #endif
 
 #define ELAPSEDCLOCKS(t1, t0) ((clockcnt_t)(t1 - t0))

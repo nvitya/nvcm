@@ -69,8 +69,7 @@ typedef struct XMC_GPIO_PORT
 #define HW_SPI_REGS   USIC_CH_TypeDef
 
 #if __CORTEX_M < 3
-  #define CLOCKCNT       (CCU40_CC43->TIMER)
-  #define CLOCKCNT_BITS  16
+  #define CLOCKCNT16       (CCU40_CC43->TIMER)
 #endif
 
 inline void __attribute__((always_inline)) mcu_preinit_code()
