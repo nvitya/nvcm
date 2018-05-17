@@ -43,7 +43,12 @@
 
 #elif defined(CLOCKCNT16)
 
-	// the 32 bit clock counter works properly only when it is called repeatedly within 0.683 ms !!!!
+  // !!! WARNING !!!
+  // providing the 32 bit CLOCKCNT for the Cortex-M0 platforms has the following disadvantages:
+	//   - works properly only when it is called repeatedly within 0.683 ms
+  //   - not safe to call from interrupt context
+
+	#define ELAPSEDCLOCKS16(t1, t0) ((uint16_t)(t1 - t0))
 
 	extern uint32_t clockcnt32_high;
 	extern uint16_t last_clockcnt16;
