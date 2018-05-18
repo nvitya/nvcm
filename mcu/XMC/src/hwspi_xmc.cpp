@@ -183,6 +183,13 @@ bool THwSpi_xmc::Init(int ausicnum, int achnum, int ainputpin)
   	| ((databits - 1) << 24) // WLE(4): word length
   ;
 
+  /* Enable transfer buffer */
+  regs->TCSR = 0
+  	| (1 << 10) // TDEN
+  	| (1 << 8)  // TDSSM
+		| (0 << 4)  // HPCMD
+  ;
+
   /* Clear protocol status */
   regs->PSCR = 0xFFFFFFFF;
 
@@ -193,6 +200,8 @@ bool THwSpi_xmc::Init(int ausicnum, int achnum, int ainputpin)
   ;
 
   // Configure FIFO-s
+
+  fifo_size = 16;
 
   unsigned fifooffs = chnum * 32;
 
@@ -208,9 +217,11 @@ bool THwSpi_xmc::Init(int ausicnum, int achnum, int ainputpin)
    *  from equal to below the limit, not the fact being below
    */
   regs->TBCTR = 0
-    | ((fifooffs + 16) << 0)  // DPTR(6): data pointer
-    | (1  << 8)  // LIMIT(6) for interrupt generation
+    | ((fifooffs + 0) << 0)  // DPTR(6): data pointer
+    | (0  << 8)  // LIMIT(6) for interrupt generation
     | (4  << 24) // SIZE(3): size code, 4 = 16 entries
+		| (0  << 30) // STBIEN
+		| (0  << 31) // TBERIEN
   ;
 
   // Configure receive FIFO
@@ -223,17 +234,13 @@ bool THwSpi_xmc::Init(int ausicnum, int achnum, int ainputpin)
    *  due to the reception of a new data word
    */
   regs->RBCTR = 0
-      | (fifooffs << 0)  // DPTR(6): data pointer
+      | ((fifooffs + fifo_size) << 0)  // DPTR(6): data pointer
       | (0 << 8)  // LIMIT(6) for interrupt generation
       | (4 << 24) // SIZE(3): size code, 4 = 16 entries
       | (1 << 28) // LOF: event on limit overflow
   ;
 
-  /* Enable transfer buffer */
-  regs->TCSR = 0
-  	| (1 << 10) // TDEN
-  	| (1 << 8)  // TDSSM
-  ;
+  regs->TRBSCR = (3 << 14); // flush FIFOs
 
   // Channel Control Register
 
@@ -247,6 +254,8 @@ bool THwSpi_xmc::Init(int ausicnum, int achnum, int ainputpin)
 	return true;
 }
 
+#if 0
+
 bool THwSpi_xmc::TrySendData(uint16_t adata)
 {
 	if (regs->TRBSR & (1 << 12))  // is the Transmit FIFO full?
@@ -259,21 +268,23 @@ bool THwSpi_xmc::TrySendData(uint16_t adata)
 	return true;
 }
 
+
 bool THwSpi_xmc::TryRecvData(uint16_t * dstptr)
 {
-	if (regs->TRBSR & (1 << 3))  // is the Receive buffer Empty?
+	if (regs->TRBSR & (1 << 3))  // is Receive buffer empty?
 	{
 		return false;
 	}
 
 	*dstptr = regs->OUTR;
-
 	return true;
 }
 
+#endif
+
 bool THwSpi_xmc::SendFinished()
 {
-	if (regs->TRBSR & (1 << 11))  // Transmit buffer empty?
+	if (regs->TRBSR & (1 << 11))  // Is the transmit buffer empty?
 	{
 		return true;
 	}

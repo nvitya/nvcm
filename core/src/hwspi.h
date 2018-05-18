@@ -57,6 +57,8 @@ public:
 	bool            datasample_late = false;
 	bool            inter_frame_pulse = false; // CS pulse between frames
 
+	uint8_t         fifo_size = 1;
+
 	TGpioPin *			manualcspin = nullptr;
 
 	THwDmaChannel * txdma = nullptr;

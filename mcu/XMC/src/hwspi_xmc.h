@@ -30,6 +30,8 @@
 #define HWSPI_XMC_H_
 
 #define HWSPI_PRE_ONLY
+
+#include "hwdma.h"
 #include "hwspi.h"
 
 class THwSpi_xmc : public THwSpi_pre
@@ -41,9 +43,30 @@ public:
 
 	bool Init(int ausicnum, int achnum, int ainputpin);
 
-	bool TrySendData(uint16_t adata);
-	bool TryRecvData(uint16_t * dstptr);
+	inline bool TrySendData(uint16_t adata)
+	{
+		if (regs->TRBSR & (1 << 12))  // is the Transmit FIFO full?
+		{
+			return false;
+		}
+		regs->IN[0] = adata; // put the character into the transmit fifo
+		return true;
+	}
+
+	inline bool TryRecvData(uint16_t * dstptr)
+	{
+		if (regs->TRBSR & (1 << 3))  // is Receive buffer empty?
+		{
+			return false;
+		}
+		*dstptr = regs->OUTR;
+		return true;
+	}
+
 	bool SendFinished();
+
+	bool DmaStartSend(THwDmaTransfer * axfer) { return false; }
+	bool DmaStartRecv(THwDmaTransfer * axfer) { return false; }
 
 public:
 	int                 usicnum = 0;

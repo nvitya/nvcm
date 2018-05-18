@@ -36,6 +36,8 @@ bool THwSpi_stm32::Init(int adevnum)
 
 	unsigned clockdiv = 1;
 
+	initialized = false;
+
 	regs = nullptr;
 	if (false)
 	{
@@ -130,6 +132,8 @@ bool THwSpi_stm32::Init(int adevnum)
 	regs->CR2 = n;
 
 	regs->CR1 |= (1 << 6);  // SPI Enable
+
+	initialized = true;
 
 	return true;
 }
