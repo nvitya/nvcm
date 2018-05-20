@@ -19,37 +19,55 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwusbctrl.h
+ *  brief:    USB Controller (device only) vendor-independent implementations
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-05-18
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
-#endif
+#include "hwusbctrl.h"
+#include "platform.h"
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
+bool THwUsbEndpoint::Init(THwUsbCtrl * ausbctrl, uint8_t aid, uint16_t abufsize, uint32_t aflags)
+{
+	usbctrl = ausbctrl;
+	id = aid;
+	bufsize = abufsize;
+	flags = aflags;
+	dir_hido = ((aflags & USBEF_DIR_HIDO) != 0);
 
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
+	return true;
+}
 
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
+int THwUsbEndpoint::Recv(void* buf, unsigned len, unsigned flags)
+{
+}
 
-#ifdef HWI2C_H_
-  #include "hwi2c_stm32.h"
-#endif
+int THwUsbEndpoint::Send(void* buf, unsigned len, unsigned flags)
+{
+}
 
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
+//-------------------------------------------------------------------------------------------
 
-#ifdef HWUSBCTRL_H_
-  #include "hwusbctrl_stm32.h"
-#endif
+bool THwUsbCtrl::AssignEndpoint(THwUsbEndpoint * aep, uint8_t aid, uint16_t abufsize, uint32_t aflags)
+{
+	if (aid >= USB_MAX_ENDPOINTS)
+	{
+		return false;
+	}
+
+	aep->Init(this, aid, abufsize, aflags);
+
+	//ConfigureEndpoint(aep);
+
+	if (aflags & USBEF_DIR_HIDO)  // only for HIDO can be tested !
+	{
+		ep_hin[aid] = aep;
+	}
+	else
+	{
+		ep_hout[aid] = aep;
+	}
+}
+

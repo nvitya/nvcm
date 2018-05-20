@@ -19,37 +19,31 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwusbctrl_stm32.cpp
+ *  brief:    STM32 USB Controller
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-05-18
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
-#endif
+#include <stdio.h>
+#include <stdarg.h>
+#include <hwusbctrl.h>
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
+bool THwUsbCtrl_stm32::Init(int adevnum)
+{
+	devnum = adevnum;
+	initialized = false;
 
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
+	// ...
 
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
+	initialized = true;
 
-#ifdef HWI2C_H_
-  #include "hwi2c_stm32.h"
-#endif
+	return true;
+}
 
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
+void THwUsbCtrl_stm32::HandleIrq()
+{
 
-#ifdef HWUSBCTRL_H_
-  #include "hwusbctrl_stm32.h"
-#endif
+}
+
