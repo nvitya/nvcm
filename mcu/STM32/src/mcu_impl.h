@@ -53,3 +53,7 @@
 #ifdef HWUSBCTRL_H_
   #include "hwusbctrl_stm32.h"
 #endif
+
+#ifdef HWETH_H_
+  #include "hweth_stm32.h"
+#endif

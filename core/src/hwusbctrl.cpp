@@ -29,45 +29,105 @@
 #include "hwusbctrl.h"
 #include "platform.h"
 
-bool THwUsbEndpoint::Init(THwUsbCtrl * ausbctrl, uint8_t aid, uint16_t abufsize, uint32_t aflags)
+bool THwUsbEndpoint::Init(THwUsbCtrl * ausbctrl, uint8_t aid, uint16_t atxbufsize, uint16_t arxbufsize, uint32_t aflags)
 {
 	usbctrl = ausbctrl;
 	id = aid;
-	bufsize = abufsize;
+	txbufsize = atxbufsize;
+	rxbufsize = atxbufsize;
 	flags = aflags;
-	dir_hido = ((aflags & USBEF_DIR_HIDO) != 0);
 
 	return true;
 }
 
-int THwUsbEndpoint::Recv(void* buf, unsigned len, unsigned flags)
-{
-}
-
-int THwUsbEndpoint::Send(void* buf, unsigned len, unsigned flags)
-{
-}
-
 //-------------------------------------------------------------------------------------------
 
-bool THwUsbCtrl::AssignEndpoint(THwUsbEndpoint * aep, uint8_t aid, uint16_t abufsize, uint32_t aflags)
+bool THwUsbCtrl::Init()
+{
+	int i;
+
+	initialized = false;
+
+	for (i = 0; i < USB_MAX_ENDPOINTS; ++i)
+	{
+		epbyid[i] = nullptr;
+	}
+
+	if (!InitHw())
+	{
+		return false;
+	}
+
+	initialized = true;
+	return true;
+}
+
+bool THwUsbCtrl::AddEndpoint(THwUsbEndpoint * aep, uint8_t aid, uint16_t atxbufsize, uint16_t arxbufsize, uint32_t aflags)
 {
 	if (aid >= USB_MAX_ENDPOINTS)
 	{
 		return false;
 	}
 
-	aep->Init(this, aid, abufsize, aflags);
+	aep->Init(this, aid, atxbufsize, arxbufsize, aflags);
+	aep->Configure(); // sets registers, allocates buffer
 
-	//ConfigureEndpoint(aep);
+  epbyid[aid] = aep;
 
-	if (aflags & USBEF_DIR_HIDO)  // only for HIDO can be tested !
+  return true;
+}
+
+bool THwUsbCtrl::HandleData(uint8_t epid, bool isrx)
+{
+	if (epid >= USB_MAX_ENDPOINTS)
 	{
-		ep_hin[aid] = aep;
+		return false;
+	}
+
+	THwUsbEndpoint * ep = epbyid[epid];
+	if (!ep)
+	{
+		return false;
+	}
+
+	// ...
+
+#if 0
+	if (isrx)
+	{
+		pusbdev->on_data_received(epid);
+
+		clear_epreg_ctr_rx(epdef->preg);
+
+		set_epreg_rx_status(epdef->preg, 3);
 	}
 	else
 	{
-		ep_hout[aid] = aep;
+		clear_epreg_ctr_tx(epdef->preg);
+
+		if (epdef->tx_remaining_len > 0)
+		{
+			//strace("...continue sending: %i rem.\r\n", epdef->tx_remaining_len);
+			ep_send_remaining(epid);
+		}
+		else
+		{
+			// signalize transfer end
+			pusbdev->on_data_sent(epid);
+		}
 	}
+#endif
+
+  return true;
 }
 
+void THwUsbCtrl::HandleReset()
+{
+#if 0
+	ResetEndpoints();
+
+	// enable RX on the EP0:
+	epdef = epbyid[0];
+	set_epreg_rx_status(epdef->preg, 3); // enabled
+#endif
+}

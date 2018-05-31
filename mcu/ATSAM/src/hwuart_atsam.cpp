@@ -169,7 +169,7 @@ bool THwUart_atsam::Init(int adevnum)  // devnum: 0 - 4 = UART0..4, 0x100..0x103
 		unsigned baseclock = periphclock >> 4;
 		unsigned divider = ((((baseclock << 1) / baudrate) + 1) >> 1);  // round up the result
 
-		regs->UART_BRGR = divider;
+		regs->UART_BRGR = divider - 1;
 
 		// Enable:
 		regs->UART_CR = (UART_CR_RXEN | UART_CR_TXEN);

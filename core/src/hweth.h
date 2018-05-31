@@ -19,66 +19,79 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_builtin.h (ATSAM)
- *  brief:    Built-in ATSAM MCU definitions
+ *  file:     hweth.h
+ *  brief:    Ethernet vendor-independent definitions
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-05-30
  *  authors:  nvitya
 */
 
-#ifndef __MCU_BUILTIN_H
-#define __MCU_BUILTIN_H
+#ifndef HWETH_H_PRE_
+#define HWETH_H_PRE_
 
-#if 0
+#include "hwpins.h"
 
-//----------------------------------------------------------------------
-// Atmel
-//----------------------------------------------------------------------
+#define HWETH_MAX_PACKET_SIZE  1524
 
-#elif defined(MCU_ATSAM3X8E)
+class THwEth_pre
+{
+public: // settings
 
-  #define MCUF_ATSAM
-  #define MCUSF_3X
+	uint8_t       phy_address = 0;
 
-  #define __SAM3X8E__
-  #include "sam3xa.h"
+	uint8_t       mac_address[6] = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-#elif defined(MCU_ATSAME70N20)
+public:
 
-  #define MCUF_ATSAM
-  #define MCUSF_E70
+	uint32_t      rx_desc_count = 0;
+	uint32_t      tx_desc_count = 0;
 
-  #define __SAME70N20__
-  #include "same70.h"
+public:
+	bool          initialized = false;
+	bool          link_up = false;
 
-#elif defined(MCU_ATSAME70Q20)
+	uint32_t      recv_count = 0;
+	uint32_t      recv_error_count = 0;
 
-  #define MCUF_ATSAM
-  #define MCUSF_E70
+	uint8_t *     descmem = nullptr;
+	uint32_t      descmemsize = 0;
 
-  #define __SAME70Q20__
-  #include "same70.h"
+	virtual ~THwEth_pre() { }
+};
 
-#elif defined(MCU_ATSAME70Q21)
+#endif // ndef HWETH_H_PRE_
 
-  #define MCUF_ATSAM
-  #define MCUSF_E70
+#ifndef HWETH_PRE_ONLY
 
-  #define __SAME70Q21__
-  #include "same70.h"
+//-----------------------------------------------------------------------------
 
-#elif defined(MCU_ATSAM4S2B) || defined(MCU_ATSAM4S8B)
+#ifndef HWETH_H_
+#define HWETH_H_
 
-  #define MCUF_ATSAM
-  #define MCUSF_4S
+#include "mcu_impl.h"
 
-  #define __SAM4S8B__
-  #include "sam4s.h"
+#if !defined(HWETH_IMPL)
+
+class THwEth_noimpl : public THwEth_pre
+{
+public: // mandatory
+	bool InitHw() { return false; }
+
+};
+
+#define HWETH_IMPL   THwEth_noimpl
+
+#endif // ndef HWETH_IMPL
+
+//-----------------------------------------------------------------------------
+
+class THwEth : public HWETH_IMPL
+{
+
+};
+
+#endif // ndef HWETH_H_ */
 
 #else
-
-  #error "Unknown MCU"
-
-#endif
-
+  #undef HWETH_PRE_ONLY
 #endif

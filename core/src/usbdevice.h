@@ -110,13 +110,12 @@ public:
 	void                  SetDesc(uint8_t aid, void * adataptr, uint8_t adatalen);
 	TUsbDevDescRec *      FindDesc(uint8_t aid);
 
-	THwUsbEndpoint        ep_ctrl_hin;
-	THwUsbEndpoint        ep_ctrl_hout;
+	THwUsbEndpoint        ep_ctrl;
 
 	TUsbDevice();
 	virtual ~TUsbDevice() { }
 
-	bool Init(int ahwusbnum);
+	bool Init();
 
   virtual bool InitDevice();
 };

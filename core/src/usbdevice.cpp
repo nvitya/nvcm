@@ -57,11 +57,11 @@ bool TUsbDevice::InitDevice()  // must be overridden !
 	return false;
 }
 
-bool TUsbDevice::Init(int ahwusbnum)
+bool TUsbDevice::Init()
 {
 	initialized = false;
 
-	if (!usbctrl.Init(ahwusbnum))
+	if (!usbctrl.Init())
 	{
 		return false;
 	}
@@ -69,9 +69,7 @@ bool TUsbDevice::Init(int ahwusbnum)
 	desccount = 0;
 	SetDesc(USB_DESC_TYPE_DEVICE, &devdesc, devdesc.length);  // sets only the pointer so the device initialization can change
 	                                                          // (and must change) the fields of the devdesc
-
-  usbctrl.AssignEndpoint(&ep_ctrl_hin,  0, 64, USBEF_DIR_HIDO | USBEF_TYPE_CONTROL);
-  usbctrl.AssignEndpoint(&ep_ctrl_hout, 0, 64, USBEF_DIR_HODI | USBEF_TYPE_CONTROL);
+  usbctrl.AddEndpoint(&ep_ctrl,  0, 64, 64, USBEF_TYPE_CONTROL);
 
 	if (!InitDevice())
 	{

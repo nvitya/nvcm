@@ -29,6 +29,10 @@
 #ifndef HWUSBCTRL_STM32_H_
 #define HWUSBCTRL_STM32_H_
 
+#include "platform.h"
+
+#if defined(MCUSF_F1) || defined(MCUSF_F0)
+
 #define HWUSBCTRL_PRE_ONLY
 #include "hwusbctrl.h"
 
@@ -75,23 +79,42 @@ typedef TUsbPmaDescriptor *  PUsbPmaDescriptor;
 class THwUsbEndpoint_stm32 : public THwUsbEndpoint_pre
 {
 public:
+	uint16_t             rxbufoffs;
+	uint16_t             txbufoffs;
+
+	uint8_t *            tx_remaining_dataptr;
+	uint16_t             tx_remaining_len;
+
+	__IO uint16_t *      preg;
+	PUsbPmaDescriptor    pdesc;
+
 	int  Recv(void * buf, unsigned len, unsigned flags);
 	int  Send(void * buf, unsigned len, unsigned flags);
+	int  SendRemaining();
+
+	bool Configure();
 };
 
 class THwUsbCtrl_stm32 : public THwUsbCtrl_pre
 {
 public:
 	HWUSBCTRL_REGS *    regs = nullptr;
+	uint32_t            irq_mask;
+	uint16_t       			pma_mem_end;
 
-	bool Init(int adevnum);
+	bool InitHw();
 
 	void HandleIrq();
+
+	inline void DisableIrq() {  regs->CNTR &= ~irq_mask; }
+	inline void EnableIrq()  {  regs->CNTR |=  irq_mask; }
+	inline void SetDeviceAddress(uint8_t aaddr) { regs->DADDR = (USB_DADDR_EF | (aaddr & 0x7F)); }
+
+	void ResetEndpoints();
 
 public:
 
 #if 0
-	void    ep_clear();
 	bool 		ep_add(uint8_t aid, uint16_t atxbufsize, uint16_t arxbufsize, uint16_t aflags);
 
 	int     ep_recv(int epid, void * buf, unsigned len, unsigned flags);
@@ -104,5 +127,7 @@ public:
 
 #define HWUSBENDPOINT_IMPL   THwUsbEndpoint_stm32
 #define HWUSBCTRL_IMPL       THwUsbCtrl_stm32
+
+#endif
 
 #endif // def HWUSBCTRL_STM32_H_
