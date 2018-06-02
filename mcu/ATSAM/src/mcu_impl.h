@@ -55,3 +55,7 @@
 		#include "hwqspi_atsam.h"
 	#endif
 #endif
+
+#ifdef HWETH_H_
+  #include "hweth_atsam.h"
+#endif

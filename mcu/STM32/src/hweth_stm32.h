@@ -254,38 +254,6 @@ typedef struct                      /*!< ETHERNET Structure */
 #define HWETH_DMADES_TER          (1 << 21)  // Transmit End of ring
 #define HWETH_DMADES_CIC(n)     ((n) << 27)  // Checksum Insertion Control, normal descriptor
 
-
-// Generic PHY registers
-#define HWETH_PHY_BCR_REG        0x0	/*!< Basic Control Register */
-#define HWETH_PHY_BSR_REG        0x1	/*!< Basic Status Reg */
-#define HWETH_PHY_PHYID1_REG     0x2	/*!< PHY ID 1 Reg  */
-#define HWETH_PHY_PHYID2_REG     0x3	/*!< PHY ID 2 Reg */
-
-// BCR bit definitions
-#define HWETH_PHY_BCR_RESET          (1 << 15)	/*!< 1= S/W Reset */
-#define HWETH_PHY_BCR_LOOPBACK       (1 << 14)	/*!< 1=loopback Enabled */
-#define HWETH_PHY_BCR_100M_SPEED_SELECT   (1 << 13)	/*!< 1=Select 100MBps */
-#define HWETH_PHY_BCR_AUTONEG        (1 << 12)	/*!< 1=Enable auto-negotiation */
-#define HWETH_PHY_BCR_POWER_DOWN     (1 << 11)	/*!< 1=Power down PHY */
-#define HWETH_PHY_BCR_ISOLATE        (1 << 10)	/*!< 1=Isolate PHY */
-#define HWETH_PHY_BCR_RESTART_AUTONEG (1 << 9)	/*!< 1=Restart auto-negoatiation */
-#define HWETH_PHY_BCR_DUPLEX_MODE    (1 << 8)	/*!< 1=Full duplex mode */
-
-// BSR bit definitions
-#define HWETH_PHY_BSR_AUTONEG_COMP   (1 << 5)	/*!< Auto-negotation complete */
-#define HWETH_PHY_BSR_RMT_FAULT      (1 << 4)	/*!< Fault */
-#define HWETH_PHY_BSR_AUTONEG_ABILITY (1 << 3)	/*!< Auto-negotation supported */
-#define HWETH_PHY_BSR_LINK_STATUS    (1 << 2)	/*!< 1=Link active */
-#define HWETH_PHY_BSR_JABBER_DETECT  (1 << 1)	/*!< Jabber detect */
-#define HWETH_PHY_BSR_EXTEND_CAPAB   (1 << 0)	/*!< Supports extended capabilities */
-
-#define HWETH_PHY_SPEEDINFO_REG       0x1F
-#define HWETH_PHY_SPEEDINFO_100M    0x0008
-#define HWETH_PHY_SPEEDINFO_FULLDX  0x0010
-
-#define HWETH_PHY_SPEEDINFO_MASK    (HWETH_PHY_SPEEDINFO_100M | HWETH_PHY_SPEEDINFO_FULLDX)
-
-
 class THwEth_stm32 : public THwEth_pre
 {
 public:

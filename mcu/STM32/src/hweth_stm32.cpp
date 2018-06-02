@@ -149,7 +149,7 @@ bool THwEth_stm32::Init(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, 
 	return true;
 }
 
-void THwEth_stm32::InitDescList(bool istx, int bufnum, HW_ETH_DMA_DESC * pdesc_list, uint8_t * pbuffer)
+void THwEth_stm32::InitDescList(bool istx, int bufnum, HW_ETH_DMA_DESC * pdesc_list)
 {
 	int i;
 	HW_ETH_DMA_DESC *  pdesc = pdesc_list;
@@ -170,7 +170,7 @@ void THwEth_stm32::InitDescList(bool istx, int bufnum, HW_ETH_DMA_DESC * pdesc_l
 			pdesc->CTRL = HWETH_DMADES_RCH | 0;   // interrupt enabled, to disable add ETH_DMARXDESC_DIC
 		}
 
-		pdesc->B1ADD = (uint32_t)pbuffer;
+		pdesc->B1ADD = 0; // do not assign data yet
 		pdesc->B2ADD = (uint32_t)(pdesc + 1);
 
 		if (i == bufnum - 1)
@@ -338,6 +338,8 @@ uint32_t THwEth_stm32::CalcMdcClock(void)
 
 void THwEth_stm32::SetMacAddress(uint8_t * amacaddr)
 {
+	memcpy(&mac_address, amacaddr, 6);
+
 	regs->MAC_ADDR0_LOW = ((uint32_t) amacaddr[3] << 24) | ((uint32_t) amacaddr[2] << 16)
 			                  | ((uint32_t) amacaddr[1] << 8) | ((uint32_t) amacaddr[0]);
 
