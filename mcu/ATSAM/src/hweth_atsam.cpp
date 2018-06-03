@@ -81,13 +81,12 @@ bool THwEth_atsam::Init(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, 
   regs->GMAC_DCFGR = 0
   	| (0 << 24)  // DDRP: 1 = Discard Receive Packets when no free descriptors are available
   	| (24 << 16)  // DRBS(8): DMA Receive Buffer Size in 64 byte units, 24 x 64 = 1536
-  	| (0 << 11)  // TXCOEN: 1 = IP Checksum offload enable for sending
+  	| (1 << 11)  // TXCOEN: 1 = IP Checksum offload enable for sending
   	| (1 << 10)  // TXPBMS: 4K TX Buffer Memory
   	| (3 <<  8)  // RXBMS(2): 4K RX buffer memory
   	| (0 <<  7)  // ESPA: 0 = LSB endian mode for packet data
   	| (0 <<  6)  // ESMA: 0 = LSB endian mode for descriptor data
   	| (4 <<  0)  // FBLDO(5): DMA Burst (default = 4)
-
   ;
 
   SetMacAddress(&mac_address[0]);
@@ -118,6 +117,7 @@ bool THwEth_atsam::Init(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, 
 	InitDescList(false, rx_desc_count, rx_desc_list);
 	regs->GMAC_RBQB = (uint32_t)&rx_desc_list[0];
 
+	actual_tx_idx = 0;
 	actual_rx_desc = &rx_desc_list[0];
 
 	initialized = true;
@@ -197,7 +197,28 @@ void THwEth_atsam::ReleaseRxBuf(uint32_t idx)
 
 bool THwEth_atsam::TrySend(uint32_t * pidx, void * pdata, uint32_t datalen)
 {
-	return false;
+	// we need to find the next inactive decriptor, otherwise the sending won't happen
+
+	HW_ETH_DMA_DESC * pdesc = &tx_desc_list[actual_tx_idx];
+	if (pdesc->STATUS & (1u << 31)) // OWN bit set = the descriptor is not used by the HW
+	{
+		pdesc->ADDR = (uint32_t)pdata;
+		uint32_t tmp = pdesc->STATUS;
+		tmp &= 0x40000000; // keep the WRAP bit only
+		tmp |= (datalen & 0x1FFF) | (1 << 15); // set length and last, OWN=0
+		pdesc->STATUS = tmp;
+
+		regs->GMAC_NCR |= GMAC_NCR_TSTART; // start the transmission
+
+		*pidx = actual_tx_idx;
+		++actual_tx_idx;
+		if (actual_tx_idx >= tx_desc_count)  actual_tx_idx = 0;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 void THwEth_atsam::Start(void)

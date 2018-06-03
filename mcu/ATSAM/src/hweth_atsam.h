@@ -90,8 +90,8 @@ public:
 	void               ReleaseRxBuf(uint32_t idx);
 	bool               TrySend(uint32_t * pidx, void * pdata, uint32_t datalen);
 
-
 	HW_ETH_DMA_DESC *  actual_rx_desc;
+	uint32_t           actual_tx_idx;
 
 	uint32_t           phy_config;
 	uint16_t           phy_speedinfo;
