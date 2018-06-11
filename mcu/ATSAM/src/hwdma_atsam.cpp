@@ -181,6 +181,11 @@ bool THwDmaChannel_atsam::Enabled()
 	return ((XDMAC->XDMAC_GS & chbit) != 0);
 }
 
+bool THwDmaChannel_atsam::Active()
+{
+	return ((XDMAC->XDMAC_GS & chbit) != 0);
+}
+
 bool THwDmaChannel_atsam::StartTransfer(THwDmaTransfer * axfer)
 {
 	unsigned sizecode = 0;

@@ -46,10 +46,10 @@ class THwSdcard_pre
 {
 public:
 	int      devnum = -1;
-	uint8_t  bus_width = 1;
 	bool     high_speed = false;
 
-	uint32_t clockspeed = 400000; // 20 MHz by default
+	uint8_t  bus_width = 4;
+	uint32_t clockspeed = 20000000; // 20 MHz by default
 
 	bool     initialized = false;
 
@@ -60,6 +60,8 @@ public:
 
 	uint32_t after_error_delay_clocks = 1;
 
+	THwDmaChannel  dma; // must be initialized by the user
+	THwDmaTransfer dmaxfer;
 };
 
 #endif // ndef HWSDCARD_H_PRE_
@@ -102,14 +104,29 @@ class THwSdcard : public HWSDCARD_IMPL
 public:
 	int         state = 0;
 
+	bool        card_v2 = false;
 	bool        card_present = false;
+	bool        high_capacity = false;
 
-	uint32_t    reg_ocr = 0;
-	uint8_t     reg_cid[8];
+	uint32_t    rca = 0;      // relative card address, required for point-to-point communication
+	uint32_t    reg_ocr = 0;  // Card Operating Condition + status register
 
-  bool Init();
+	uint8_t     reg_cid[16]  __attribute__((aligned(4)));  // Card Identification Register
+	uint8_t     reg_csd[16]  __attribute__((aligned(4)));  // Card Specific Data Register
+	uint8_t     reg_scr[8]   __attribute__((aligned(4)));  // SD Configuration Register
 
-  void Run(); // operate the state machine
+	uint8_t     bbuf[512]  __attribute__((aligned(4)));
+
+	uint8_t     csd_ver = 0;
+	uint32_t    csd_max_speed = 0;
+
+	uint32_t    card_megabytes = 0;
+
+  bool        Init();
+  void        Run(); // operate the state machine
+  uint32_t    GetRegBits(void * adata, uint32_t startpos, uint8_t bitlen);
+
+  void        ProcessCsd();
 };
 
 #endif /* HWSDCARD_H_ */

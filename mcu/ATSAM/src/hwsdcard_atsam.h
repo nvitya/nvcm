@@ -49,6 +49,8 @@ public:
 	void SendCmd(uint8_t acmd, uint32_t cmdarg, uint32_t cmdflags);
 	bool CmdFinished();
 
+	void StartDataReadCmd(uint8_t acmd, uint32_t cmdarg, uint32_t cmdflags, void * dataptr, uint32_t datalen);
+
 	uint32_t GetCmdResult32();
 	void GetCmdResult128(void * adataptr);
 };

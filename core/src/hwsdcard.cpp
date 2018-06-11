@@ -37,6 +37,11 @@ bool THwSdcard::Init()
 {
 	initialized = false;
 
+	if (!dma.initialized)
+	{
+		return false;
+	}
+
 	if (!HwInit())
 	{
 		return false;
@@ -54,6 +59,7 @@ bool THwSdcard::Init()
 void THwSdcard::Run()
 {
 	int i;
+	uint32_t carg;
 
 	if (!initialized)
 	{
@@ -67,6 +73,8 @@ void THwSdcard::Run()
 
 	cmdrunning = false;
 
+	//TRACE("SD state = %i\r\n", state);
+
 	switch (state)
 	{
 	case 0: // send init clocks
@@ -76,6 +84,8 @@ void THwSdcard::Run()
 		SetBusWidth(1);
 
 		card_present = false;
+		high_capacity = false;
+		card_v2 = false;
 
 		SendSpecialCmd(SD_SPECIAL_CMD_INIT); // never fails
 		++state;
@@ -86,21 +96,28 @@ void THwSdcard::Run()
 		++state;
 		break;
 
-	case 2: // process reset command
-		// reset ok
-		//TRACE("SDCARD reset ok.\r\n");
+	case 2:
+		SendCmd(8, 0x1AA, SDCMD_RES_48BIT | SDCMD_OPENDRAIN);  // test for V2
 		++state;
+		break;
+
+	case 3:
+		if (!cmderror && (0xFFFFFFFF != GetCmdResult32()))
+		{
+			card_v2 = true;
+		}
+		state = 5;
 		break;
 
 	// Wait until the card is ready
 
-	case 3:
+	case 5:
 		// prepare application specific command
 		SendCmd(55, 0, SDCMD_RES_48BIT | SDCMD_OPENDRAIN);
 		++state;
 		break;
 
-	case 4:
+	case 6:
 		if (cmderror)
 		{
 			// no card available
@@ -110,24 +127,28 @@ void THwSdcard::Run()
 		else
 		{
 			// get operating status
-			SendCmd(41, 0x001f8000 | 0x40000000, SDCMD_RES_48BIT | SDCMD_OPENDRAIN);
+			carg = 0x001f8000;
+			if (card_v2)  carg |= (1u << 30);
+			SendCmd(41, carg, SDCMD_RES_48BIT | SDCMD_OPENDRAIN);
 			++state;
 		}
 		break;
 
-	case 5:
+	case 7:
 		if (cmderror)	 state = 100;
 		else
 		{
 			reg_ocr = GetCmdResult32();
 			if (reg_ocr & 0x80000000)
 			{
+				TRACE("SDCARD OCR = %08X\r\n", reg_ocr);
+				high_capacity = (reg_ocr & (1u << 30) ? true : false);
 				state = 10;
 			}
 			else
 			{
 				// repeat OCR register read
-				state = 3;
+				state = 5;
 			}
 		}
 		break;
@@ -155,7 +176,157 @@ void THwSdcard::Run()
 		}
 		break;
 
-	case 20:  // todo: continue...
+	// Ask for a Relative Card Address (RCA)
+	case 20:
+		SendCmd(3, 0, SDCMD_RES_48BIT | SDCMD_OPENDRAIN);
+		++state;
+		break;
+
+	case 21:
+		if (cmderror)  state = 100;
+		else
+		{
+			rca = (GetCmdResult32() & 0xFFFF0000);  // keep it high-shifted to spare later shiftings
+			TRACE("SDCARD RCA = %08X\r\n", rca);
+			++state;
+		}
+		break;
+
+	// get the Card Specific Data (CSD)
+	case 22:
+		SendCmd(9, rca, SDCMD_RES_136BIT | SDCMD_OPENDRAIN);
+		++state;
+		break;
+
+	case 23:
+		if (cmderror)  state = 100;
+		else
+		{
+			GetCmdResult128(&reg_csd[0]);
+
+			TRACE("SDCARD CSD = ");
+			for (i = 0; i < 16; ++i)
+			{
+				TRACE(" %02X", reg_csd[i]);
+			}
+			TRACE("\r\n");
+			++state;
+
+			ProcessCsd();
+		}
+		break;
+
+	// Select the card and put into transfer mode
+	case 24:
+		SendCmd(7, rca, SDCMD_RES_R1B);
+		++state;
+		break;
+
+	case 25:
+		if (cmderror)
+		{
+			TRACE("Error selecting card!\r\n");
+			state = 100;
+		}
+		else
+		{
+			++state;
+		}
+		break;
+
+  // get the SCR register
+	case 26:
+		// prepare application specific command
+		SendCmd(55, rca, SDCMD_RES_48BIT);
+		++state;
+		break;
+
+	case 27:
+		StartDataReadCmd(51, 0, SDCMD_RES_48BIT, &reg_scr[0], sizeof(reg_scr));
+		++state;
+		break;
+	case 28:
+		if (cmderror)
+		{
+			TRACE("SCR register read error!\r\n");
+			state = 100;
+		}
+		else if (!dma.Active())
+		{
+			TRACE("SDCARD SCR = ");
+			for (i = 0; i < 8; ++i)
+			{
+				TRACE(" %02X", reg_scr[i]);
+			}
+			TRACE("\r\n");
+
+			++state;
+		}
+		break;
+
+  // set bus width to 4 bit
+	case 29:
+		// prepare application specific command
+		SendCmd(55, rca, SDCMD_RES_48BIT);
+		++state;
+		break;
+
+	case 30:
+		SendCmd(6, 2, SDCMD_RES_48BIT);  // Switch command, 2 = 4 bit bus
+		++state;
+		break;
+
+	case 31:
+		if (cmderror)		state = 100;
+		else
+		{
+			SetSpeed(clockspeed);
+			SetBusWidth(4); // always 4 bit bus
+			++state;
+		}
+		break;
+
+	case 32:
+		SendCmd(16, 512, SDCMD_RES_48BIT); // set block size
+		++state;
+		break;
+
+	case 33:
+		if (cmderror)		state = 100;
+		else
+		{
+			TRACE("SDCARD initialized, ready to accept transfer commands.\r\n");
+			state = 50;
+		}
+		break;
+
+	case 50:
+		// ready to accept transfer commands
+		StartDataReadCmd(17, 0, SDCMD_RES_48BIT, &bbuf[0], sizeof(bbuf));
+		++state;
+		break;
+
+	case 51:
+		if (cmderror)
+		{
+			TRACE("Error reading block.\r\n");
+			state = 90;
+		}
+		else
+		{
+			TRACE("Block read successful.\r\n");
+			TRACE("Block data:\r\n");
+			for (i = 0; i < 512; ++i)
+			{
+				if ((i != 0) && ((i % 16) == 0))  TRACE("\r\n");
+				TRACE(" %02X", bbuf[i]);
+			}
+			TRACE("\r\n");
+			state = 90;
+		}
+		break;
+
+	case 90: // the end
 		break;
 
 	case 100: // delay after error
@@ -165,4 +336,87 @@ void THwSdcard::Run()
 		}
 		break;
 	}
+}
+
+uint32_t THwSdcard::GetRegBits(void * adata, uint32_t startpos, uint8_t bitlen)
+{
+
+	uint32_t * d32p = (uint32_t *)adata;
+	uint32_t widx = (startpos >> 5);
+	d32p += widx;
+	uint8_t bitidx = (startpos & 31);
+
+	uint32_t result = (*d32p >> bitidx);
+
+	if (bitidx + bitlen > 32)
+	{
+		++d32p;
+		result |= (*d32p << (32 - bitidx));
+	}
+
+	if (bitlen < 32)
+	{
+		result &= ((1 << bitlen) - 1);
+	}
+
+	return result;
+}
+
+//! SD/MMC transfer rate unit codes (10K) list
+static const uint32_t sd_trans_units[8] = { 10, 100, 1000, 10000, 0, 0, 0, 0 };
+//! SD transfer multiplier factor codes (1/10) list
+static const uint32_t sd_trans_values[16] = {	0, 10, 12, 13, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80 };
+
+void THwSdcard::ProcessCsd()
+{
+/* CSD bits:
+
+     126(2): Version
+     122(4): Spec. version
+      96(8): Tran speed
+V1:
+      47(3): V1 C size mult.
+     62(12): V1 C size
+      80(4): V1 Read BL Len
+v2:
+     48(22): V2 C. Size
+*/
+	csd_ver = GetRegBits(&reg_csd[0], 126, 2);
+
+	uint32_t transunit = sd_trans_units[GetRegBits(&reg_csd[0], 96, 3)];
+	uint32_t transval  = sd_trans_values[GetRegBits(&reg_csd[0], 99, 4)];
+	csd_max_speed = 1000 * transunit * transval;
+
+	// decode card size
+
+	/*
+	 * Get card capacity.
+	 * ----------------------------------------------------
+	 * For normal SD/MMC card:
+	 * memory capacity = BLOCKNR * BLOCK_LEN
+	 * Where
+	 * BLOCKNR = (C_SIZE+1) * MULT
+	 * MULT = 2 ^ (C_SIZE_MULT+2)       (C_SIZE_MULT < 8)
+	 * BLOCK_LEN = 2 ^ READ_BL_LEN      (READ_BL_LEN < 12)
+	 * ----------------------------------------------------
+	 * For high capacity SD card:
+	 * memory capacity = (C_SIZE+1) * 512K byte
+	 */
+
+	if (csd_ver >= 1)
+	{
+		card_megabytes = ((GetRegBits(&reg_csd[0], 48, 22) + 1) >> 1);
+	}
+	else
+	{
+		uint32_t c_size = GetRegBits(&reg_csd[0], 62, 12);
+		uint32_t c_size_mult = GetRegBits(&reg_csd[0], 47, 3);
+		uint32_t block_len = (1 << GetRegBits(&reg_csd[0], 80, 4));
+
+		uint32_t blocknr = (c_size + 1) * (1 << (c_size_mult + 2));
+
+		card_megabytes = ((blocknr * block_len) >> 20);
+	}
+
+	TRACE("SD card max speed = %u MHz, size = %u MBytes\r\n", csd_max_speed / 1000000, card_megabytes);
 }

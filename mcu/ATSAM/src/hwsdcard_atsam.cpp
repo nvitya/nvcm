@@ -54,6 +54,8 @@ bool THwSdcard_atsam::HwInit()
 	// Enable the HSMCI and the Power Saving
 	regs->HSMCI_CR = HSMCI_CR_MCIEN | HSMCI_CR_PWSEN;
 
+	regs->HSMCI_DMA = 0;
+
 	if (high_speed)
 	{
 		HSMCI->HSMCI_CFG |= HSMCI_CFG_HSMODE;
@@ -175,6 +177,7 @@ void THwSdcard_atsam::SendSpecialCmd(uint32_t aspecialcmd)
 
 	// Configure command
 	regs->HSMCI_MR &= ~(HSMCI_MR_WRPROOF | HSMCI_MR_RDPROOF | HSMCI_MR_FBYTE);
+	regs->HSMCI_DMA = 0;
 	// Write argument
 	regs->HSMCI_ARGR = 0;
 	regs->HSMCI_CMDR = cmdr; // start the execution
@@ -234,13 +237,81 @@ bool THwSdcard_atsam::CmdFinished()
 void THwSdcard_atsam::GetCmdResult128(void * adataptr)
 {
 	uint32_t * dst = (uint32_t *)adataptr;
+	dst += 3;
 	for (int n = 0; n < 4; ++n)
 	{
-		*dst++ = regs->HSMCI_RSPR[n];
+		*dst = regs->HSMCI_RSPR[0];
+		--dst;
 	}
 }
 
 uint32_t THwSdcard_atsam::GetCmdResult32()
 {
 	return regs->HSMCI_RSPR[0];
+}
+
+void THwSdcard_atsam::StartDataReadCmd(uint8_t acmd, uint32_t cmdarg, uint32_t cmdflags, void * dataptr, uint32_t datalen)
+{
+	// Enabling Read/Write Proof allows to stop the HSMCI Clock during
+	// read/write  access if the internal FIFO is full.
+	// This will guarantee data integrity, not bandwidth.
+	regs->HSMCI_MR |= HSMCI_MR_WRPROOF | HSMCI_MR_RDPROOF;
+
+	if (datalen & 0x3)
+	{
+		regs->HSMCI_MR |= HSMCI_MR_FBYTE;
+	}
+	else
+	{
+		regs->HSMCI_MR &= ~HSMCI_MR_FBYTE;
+	}
+
+#ifdef HSMCI_MR_PDCMODE
+	regs->HSMCI_MR |= HSMCI_MR_PDCMODE;
+#endif
+	regs->HSMCI_DMA = HSMCI_DMA_DMAEN;
+
+	uint32_t cmdr = (acmd & 0x3F);
+	uint8_t restype = (cmdflags & SDCMD_RES_MASK);
+	if (restype)
+	{
+		// response present
+		cmdr |= HSMCI_CMDR_MAXLAT; // increase latency for commands with response
+		if (restype == SDCMD_RES_48BIT)  cmdr |= HSMCI_CMDR_RSPTYP_48_BIT;
+		else if (restype == SDCMD_RES_136BIT)  cmdr |= HSMCI_CMDR_RSPTYP_136_BIT;
+		else if (restype == SDCMD_RES_R1B)  cmdr |= HSMCI_CMDR_RSPTYP_R1B;
+	}
+	if (cmdflags & SDCMD_OPENDRAIN)
+	{
+		cmdr |= HSMCI_CMDR_OPDCMD_OPENDRAIN;
+	}
+
+	// add data transfer flags
+	cmdr |= HSMCI_CMDR_TRCMD_START_DATA | HSMCI_CMDR_TRDIR_READ;
+	if (datalen <= 512)
+	{
+		cmdr |= HSMCI_CMDR_TRTYP_SINGLE;
+		regs->HSMCI_BLKR = (datalen << 16) | (1 << 0);
+	}
+	else
+	{
+		cmdr |= HSMCI_CMDR_TRTYP_MULTIPLE;
+		regs->HSMCI_BLKR = (512 << 16) | (datalen >> 9);  // fix 512 byte blocks
+	}
+
+	cmderror = false;
+
+	// start the DMA channel
+	dma.Prepare(false, (void *)&regs->HSMCI_RDR, 0);
+	dmaxfer.addrinc = true;
+	dmaxfer.bytewidth = 4;  // destination must be aligned !!!
+	dmaxfer.count = (datalen >> 2);
+	dmaxfer.dstaddr = dataptr;
+	dma.StartTransfer(&dmaxfer);
+
+	regs->HSMCI_ARGR = cmdarg;
+	regs->HSMCI_CMDR = cmdr; // start the execution
+
+	lastcmdtime = CLOCKCNT;
+	cmdrunning = true;
 }
