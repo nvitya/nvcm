@@ -19,47 +19,33 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (ATSAM)
- *  brief:    ATSAM list of implemented NVCM core peripherals
+ *  file:     atsam_utils.cpp
+ *  brief:    ATSAM Utilities
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-06-07
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_atsam.h"
-#endif
+#include "platform.h"
 
-#ifdef HWPINS_H_
-  #include "hwpins_atsam.h"
-#endif
+uint32_t atsam_peripheral_clock()
+{
+	uint32_t result = SystemCoreClock;
+	uint32_t div = (PMC->PMC_MCKR >> PMC_MCKR_MDIV_Pos) & 3;
+	if (div == 1)  return (result >> 1);
+	if (div == 2)  return (result / 3);
+	if (div == 3)  return (result >> 2);
+	return result;
+}
 
-#ifdef HWDMA_H_
-  #include "hwdma_atsam.h"
-#endif
-
-#ifdef HWUART_H_
-  #include "hwuart_atsam.h"
-#endif
-
-#ifdef HWSPI_H_
-  #include "hwspi_atsam.h"
-#endif
-
-#ifdef HWI2C_H_
-  #include "hwi2c_atsam.h"
-#endif
-
-#ifdef Qspi
-	#ifdef HWQSPI_H_
-		#include "hwqspi_atsam.h"
-	#endif
-#endif
-
-#ifdef HWETH_H_
-  #include "hweth_atsam.h"
-#endif
-
-#if defined(HSMCI) && defined(HWSDCARD_H_)
-  #include "hwsdcard_atsam.h"
-#endif
+void atsam_enable_peripheral(uint32_t perid)
+{
+	if (perid < 32)
+	{
+		PMC->PMC_PCER0 = (1 << perid);
+	}
+	else
+	{
+		PMC->PMC_PCER1 = (1 << (perid-32));
+	}
+}

@@ -105,8 +105,8 @@ inline void __attribute__((always_inline)) mcu_preinit_code()
     // enable the TCM in the core
     __DSB();
     __ISB();
-    SCB->ITCMCR = (SCB_ITCMCR_EN_Msk | SCB_ITCMCR_RMW_Msk | SCB_ITCMCR_RETEN_Msk);
-    SCB->DTCMCR = (SCB_DTCMCR_EN_Msk | SCB_DTCMCR_RMW_Msk	| SCB_DTCMCR_RETEN_Msk);
+    SCB->ITCMCR = (SCB_ITCMCR_EN_Msk | SCB_ITCMCR_RMW_Msk | SCB_ITCMCR_RETEN_Msk | (8 << 3));  // 8 = 128k
+    SCB->DTCMCR = (SCB_DTCMCR_EN_Msk | SCB_DTCMCR_RMW_Msk	| SCB_DTCMCR_RETEN_Msk | (8 << 3));  // 8 = 128k
     __DSB();
     __ISB();
 

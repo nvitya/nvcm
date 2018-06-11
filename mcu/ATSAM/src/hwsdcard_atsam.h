@@ -19,47 +19,40 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (ATSAM)
- *  brief:    ATSAM list of implemented NVCM core peripherals
+ *  file:     hwsdcard_atsam.cpp
+ *  brief:    ATSAM SDCARD driver
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-06-07
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_atsam.h"
-#endif
+#ifndef HWSDCARD_ATSAM_H_
+#define HWSDCARD_ATSAM_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_atsam.h"
-#endif
+#define HWSDCARD_PRE_ONLY
+#include "hwsdcard.h"
 
-#ifdef HWDMA_H_
-  #include "hwdma_atsam.h"
-#endif
+#define HW_SDCARD_REGS  Hsmci
 
-#ifdef HWUART_H_
-  #include "hwuart_atsam.h"
-#endif
+class THwSdcard_atsam : public THwSdcard_pre
+{
+public:
 
-#ifdef HWSPI_H_
-  #include "hwspi_atsam.h"
-#endif
+	HW_SDCARD_REGS * regs = nullptr;
 
-#ifdef HWI2C_H_
-  #include "hwi2c_atsam.h"
-#endif
+	bool HwInit();
 
-#ifdef Qspi
-	#ifdef HWQSPI_H_
-		#include "hwqspi_atsam.h"
-	#endif
-#endif
+	void SetSpeed(uint32_t speed);
+	void SetBusWidth(uint8_t abuswidth);
 
-#ifdef HWETH_H_
-  #include "hweth_atsam.h"
-#endif
+	void SendSpecialCmd(uint32_t aspecialcmd);
+	void SendCmd(uint8_t acmd, uint32_t cmdarg, uint32_t cmdflags);
+	bool CmdFinished();
 
-#if defined(HSMCI) && defined(HWSDCARD_H_)
-  #include "hwsdcard_atsam.h"
-#endif
+	uint32_t GetCmdResult32();
+	void GetCmdResult128(void * adataptr);
+};
+
+#define HWSDCARD_IMPL THwSdcard_atsam
+
+#endif // def HWSDCARD_ATSAM_H_
