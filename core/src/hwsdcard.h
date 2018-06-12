@@ -106,6 +106,7 @@ public:
 
 	bool        card_v2 = false;
 	bool        card_present = false;
+	bool        card_initialized = false;
 	bool        high_capacity = false;
 
 	uint32_t    rca = 0;      // relative card address, required for point-to-point communication
@@ -115,8 +116,6 @@ public:
 	uint8_t     reg_csd[16]  __attribute__((aligned(4)));  // Card Specific Data Register
 	uint8_t     reg_scr[8]   __attribute__((aligned(4)));  // SD Configuration Register
 
-	uint8_t     bbuf[512]  __attribute__((aligned(4)));
-
 	uint8_t     csd_ver = 0;
 	uint32_t    csd_max_speed = 0;
 
@@ -124,9 +123,21 @@ public:
 
   bool        Init();
   void        Run(); // operate the state machine
-  uint32_t    GetRegBits(void * adata, uint32_t startpos, uint8_t bitlen);
+  void        RunInitialization();
 
+public:
+  uint32_t    GetRegBits(void * adata, uint32_t startpos, uint8_t bitlen);
   void        ProcessCsd();
+
+public:
+
+	bool        completed = true;
+  int         errorcode = 0;
+  uint8_t *   dataptr = nullptr;
+  uint32_t    datalen = 0;
+  uint32_t    startblock = 0;
+  bool        StartReadBlocks(uint32_t astartblock, void * adataptr, uint32_t adatalen);
+	void 				WaitForComplete();
 };
 
 #endif /* HWSDCARD_H_ */

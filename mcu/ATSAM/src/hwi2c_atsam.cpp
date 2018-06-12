@@ -162,7 +162,7 @@ int THwI2c_atsam::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 		xfer.dstaddr = dataptr;
 		xfer.bytewidth = 1;
 		xfer.count = remainingbytes - 2;
-		xfer.addrinc = true;
+		xfer.flags = 0; // peripheral transfer with defaults
 
 		dataptr += xfer.count;
 		remainingbytes = 2;
@@ -218,7 +218,7 @@ int THwI2c_atsam::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 		xfer.srcaddr = dataptr;
 		xfer.bytewidth = 1;
 		xfer.count = remainingbytes - 1;
-		xfer.addrinc = true;
+		xfer.flags = 0; // peripheral transfer with defaults
 
 		dataptr += xfer.count;
 		remainingbytes = 1;

@@ -38,22 +38,29 @@ public:
 	unsigned           chbit = 0;
 	int                perid = -1;
 	HW_DMA_REGS *      regs = nullptr;
-#ifdef HW_DMA_ALT_REGS
-  HW_DMA_ALT_REGS *  altregs = nullptr;  // Some Atmel systems have two different DMA system
-#endif
 
 	bool Init(int achnum, int aperid);
-	bool InitPeriphDma(bool aistx, void * aregs, void * aaltregs);  // special function for Atmel PDMA
 
 	void Prepare(bool aistx, void * aperiphaddr, unsigned aflags);
 	void Disable();
+
+#if defined(HW_DMA_ALT_REGS)
+  HW_DMA_ALT_REGS *  altregs = nullptr;  // Some Atmel systems have two different DMA system
+
+	bool InitPeriphDma(bool aistx, void * aregs, void * aaltregs);  // special function for Atmel PDMA
+
 	void Enable();
-
 	bool Enabled();
-	bool Active();
 
-	bool StartTransfer(THwDmaTransfer * axfer);
-	bool StartMemToMem(THwDmaTransfer * axfer);
+#else
+	inline void Enable()  { XDMAC->XDMAC_GE = chbit; }
+	inline bool Enabled() { return ((XDMAC->XDMAC_GS & chbit) != 0); }
+#endif
+
+	inline bool Active()  { return Enabled(); }
+
+	void PrepareTransfer(THwDmaTransfer * axfer);
+	inline void StartPreparedTransfer() { Enable(); }
 };
 
 #define HWDMACHANNEL_IMPL  THwDmaChannel_atsam

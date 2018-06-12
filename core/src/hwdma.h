@@ -31,6 +31,12 @@
 
 #include "platform.h"
 
+// DMA Transfer Flags
+
+#define DMATR_NO_ADDR_INC   0x0001  // do not in
+#define DMATR_MEM_TO_MEM    0x0002
+#define DMATR_IRQ           0x0010
+
 class THwDmaTransfer
 {
 public:
@@ -38,7 +44,7 @@ public:
 	void *      dstaddr = nullptr;
 	uint8_t     bytewidth = 1;  // 1, 2 or 4
 	uint32_t    count = 0;
-	bool        addrinc = true;
+	uint32_t    flags = 0;
 };
 
 class THwDmaChannel_pre
@@ -82,8 +88,8 @@ public: // mandatory
 	bool Enabled() { return false; }
 	bool Active()  { return false; }
 
-	bool StartTransfer(THwDmaTransfer * axfer)  { return false; }
-	bool StartMemToMem(THwDmaTransfer * axfer)  { return false; }
+	void PrepareTransfer(THwDmaTransfer * axfer)  { }
+	void StartPreparedTransfer()  { }
 };
 
 #define HWDMACHANNEL_IMPL THwDmaChannel_noimpl
@@ -94,7 +100,12 @@ public: // mandatory
 
 class THwDmaChannel : public HWDMACHANNEL_IMPL
 {
-
+public:
+	inline void StartTransfer(THwDmaTransfer * axfer)
+	{
+		PrepareTransfer(axfer);
+		StartPreparedTransfer();
+	}
 };
 
 #endif /* HWDMA_H_ */

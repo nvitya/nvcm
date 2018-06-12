@@ -96,7 +96,7 @@ bool THwDmaChannel_atsam::Enabled()
 	}
 }
 
-bool THwDmaChannel_atsam::StartTransfer(THwDmaTransfer * axfer)
+void THwDmaChannel_atsam::PrepareTransfer(THwDmaTransfer * axfer)
 {
 	if (istx)
 	{
@@ -112,10 +112,6 @@ bool THwDmaChannel_atsam::StartTransfer(THwDmaTransfer * axfer)
 		altregs->RNCR = 0;
 		altregs->RNPR = 0;
 	}
-
-	Enable();
-
-	return true;
 }
 
 #endif
@@ -170,109 +166,90 @@ void THwDmaChannel_atsam::Disable()
 	}
 }
 
-void THwDmaChannel_atsam::Enable()
+void THwDmaChannel_atsam::PrepareTransfer(THwDmaTransfer * axfer)
 {
-	// start the channel
-	XDMAC->XDMAC_GE = chbit;
-}
+	// prepare all bits with 0
+	uint32_t ccreg = 0
+			| (0  <<  0)  // TYPE: 1 = Peripheral - Memory transfer, 0 = MEM2MEM
+			| (0  <<  1)  // MBSIZE(2): burst size
+			| (0  <<  4)  // DSYNC
+			| (0  <<  6)  // SWREQ
+			| (0  <<  7)  // MEMSET, 1 = zero memory
+			| (0  <<  8)  // CSIZE(3): chunk size
+			| (0  << 11)  // DWIDTH(2): data width, 0 = 1 byte by default
+			| (0  << 13)  // SIF: 1 = APB/RAM, 0 = CCM/RAM
+			| (0  << 14)  // DIF: 1 = APB/RAM, 0 = CCM/RAM
+			| (0  << 16)  // SAM(2)
+			| (0  << 18)  // DAM(2)
+			| (perid << 24)
+  ;
 
-bool THwDmaChannel_atsam::Enabled()
-{
-	return ((XDMAC->XDMAC_GS & chbit) != 0);
-}
+	if      (axfer->bytewidth == 4)  ccreg |= (2 << 11);
+	else if (axfer->bytewidth == 2)  ccreg |= (1 << 11);
 
-bool THwDmaChannel_atsam::Active()
-{
-	return ((XDMAC->XDMAC_GS & chbit) != 0);
-}
-
-bool THwDmaChannel_atsam::StartTransfer(THwDmaTransfer * axfer)
-{
-	unsigned sizecode = 0;
-	if (axfer->bytewidth == 2)  sizecode = 1;
-	else if (axfer->bytewidth == 4)  sizecode = 2;
-
-	unsigned dsync, sam, dam, sif, dif;
-
-	if (istx)
+	if (axfer->flags & DMATR_MEM_TO_MEM)
 	{
-		dsync = 1;
-		sam = (axfer->addrinc ? 3 : 0);
-		dam = 0;
-		sif = 0;
-		dif = 1;  // IF1 required for peripheral bus access
-		regs->XDMAC_CSA = (uint32_t)axfer->srcaddr;
-		regs->XDMAC_CDA = (uint32_t)periphaddr;
+		ccreg |= (0
+			| (1 <<  0)   // TYPE: 1 = Peripheral - Memory transfer
+		  | (1 <<  4)   // DSYNC = 1
+			| (1 <<  6)   // SWREQ = 1 to start without HW signal
+		);
+		ccreg |= (1 << 16); // SAM = 1
+		ccreg |= (1 << 18); // DAM = 1
+
+	  // auto detect interface based on the address
+		unsigned addr;
+		addr = (uint32_t)axfer->srcaddr;
+		regs->XDMAC_CSA = addr;
+		if (((addr >> 20) != 0x200) && ((addr >> 20) != 0x000))  ccreg |= (1 << 13); // SIF = 1
+		addr = (uint32_t)axfer->dstaddr;
+		regs->XDMAC_CDA = addr;
+		if (((addr >> 20) != 0x200) && ((addr >> 20) != 0x000))  ccreg |= (1 << 14); // DIF = 1
+
+		regs->XDMAC_CUBC = axfer->count;
 	}
 	else
 	{
-		dsync = 0;
-		sam = 0;
-		dam = (axfer->addrinc ? 3 : 0);
-		sif = 1;  // IF1 required for peripheral bus access
-		dif = 0;
-		regs->XDMAC_CSA = (uint32_t)periphaddr;
-		regs->XDMAC_CDA = (uint32_t)axfer->dstaddr;
+		// PER <-> MEM transfer
+
+		if (istx)
+		{
+			ccreg |= (0
+				| (1  <<  0)  // TYPE: 1 = Peripheral - Memory transfer
+			  | (1 << 4)    // DSYNC = 1;
+			  | (1 << 14)   // DIF = 1, IF1 required for peripheral bus access
+			  | (0 << 13)   // SIF = 0
+			);
+
+			if ((axfer->flags & DMATR_NO_ADDR_INC) == 0)
+			{
+				ccreg |= (3 << 16); // SAM == 3
+			}
+			regs->XDMAC_CSA = (uint32_t)axfer->srcaddr;
+			regs->XDMAC_CDA = (uint32_t)periphaddr;
+		}
+		else
+		{
+			ccreg |= (0
+  			| (1 <<  0)  // TYPE: 1 = Peripheral - Memory transfer
+			  | (0 <<  4)  // DSYNC = 0;
+			  | (0 << 14)  // DIF = 0
+			  | (1 << 13)  // SIF = 1, IF1 required for peripheral bus access
+			);
+
+			if ((axfer->flags & DMATR_NO_ADDR_INC) == 0)
+			{
+				ccreg |= (3 << 18); // DAM == 3
+			}
+			regs->XDMAC_CSA = (uint32_t)periphaddr;
+			regs->XDMAC_CDA = (uint32_t)axfer->dstaddr;
+		}
 	}
 
-	regs->XDMAC_CUBC = axfer->count;
-	regs->XDMAC_CBC = 0;
-
-	regs->XDMAC_CC = 0
-		| (1  <<  0)  // TYPE: 1 = Peripheral - Memory transfer, 0 = MEM2MEM
-		| (0  <<  1)  // MBSIZE(2): burst size
-		| (dsync <<  4)  // DSYNC
-		| (0  <<  6)  // SWREQ
-		| (0  <<  7)  // MEMSET, 1 = zero memory
-		| (0  <<  8)  // CSIZE(3): chunk size
-		| (sizecode << 11)  // DWIDTH(2): data width
-		| (sif  << 13)  // SIF: 1 = APB/RAM, 0 = CCM/RAM
-		| (dif  << 14)  // DIF: 1 = APB/RAM, 0 = CCM/RAM
-		| (sam  << 16)  // SAM(2)
-		| (dam  << 18)  // DAM(2)
-		| (perid << 24)
-	;
-
-	Enable();
-
-	return true;
-}
-
-bool THwDmaChannel_atsam::StartMemToMem(THwDmaTransfer * axfer)
-{
-	int sizecode = 0;
-	if (axfer->bytewidth == 2)  sizecode = 1;
-	else if (axfer->bytewidth == 4)  sizecode = 2;
-
-	// auto detect interface based on the address
-	unsigned sif, dif;
-	unsigned addr;
-	addr = (uint32_t)axfer->srcaddr;
-	regs->XDMAC_CSA = addr;
-	if (((addr >> 20) == 0x200) || ((addr >> 20) == 0x000))  sif = 0;  else sif = 1;
-	addr = (uint32_t)axfer->dstaddr;
-	regs->XDMAC_CDA = addr;
-	if (((addr >> 20) == 0x200) || ((addr >> 20) == 0x000))  dif = 0;  else dif = 1;
+	//regs->XDMAC_CBC = 0; // already set to 0 at the Init()
 
 	regs->XDMAC_CUBC = axfer->count;
-
-	regs->XDMAC_CC = 0
-		| (0  <<  0)  // TYPE: 1 = Peripheral - Memory transfer, 0 = MEM2MEM
-		| (0  <<  1)  // MBSIZE(2): burst size
-		| (0  <<  4)  // DSYNC
-		| (1  <<  6)  // SWREQ
-		| (0  <<  7)  // MEMSET, 1 = zero memory
-		| (0  <<  8)  // CSIZE(3): chunk size
-		| (sizecode << 11)  // DWIDTH(2): data width
-		| (sif << 13)  // SIF: 1 = APB/RAM, 0 = CCM/RAM
-		| (dif << 14)  // DIF: 1 = APB/RAM, 0 = CCM/RAM
-		| (1  << 16)  // SAM(2)
-		| (1  << 18)  // DAM(2)
-	;
-
-	Enable();  // start the transfer
-
-	return true;
+	regs->XDMAC_CC = ccreg;
 }
 
 #endif

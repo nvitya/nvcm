@@ -36,6 +36,8 @@
 #define ERROR_NOTIMPL  -3   // not implemented
 #define ERROR_BUSY     -4   // unit busy
 #define ERROR_UNKNOWN  -5   // unknown hardware
+#define ERROR_READ     -6   // read error
+#define ERROR_WRITE    -7   // write error
 
 
 #endif /* ERRORS_H_ */

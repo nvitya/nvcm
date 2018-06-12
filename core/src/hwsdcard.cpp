@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#include "errors.h"
 #include "hwsdcard.h"
 #include "traces.h"
 #include "clockcnt.h"
@@ -47,6 +48,8 @@ bool THwSdcard::Init()
 		return false;
 	}
 
+	completed = true;
+	card_initialized = false;
 	state = 0; // set the state machine to start position
 
 	after_error_delay_clocks = (SystemCoreClock / 20); // = 50 ms
@@ -58,8 +61,7 @@ bool THwSdcard::Init()
 
 void THwSdcard::Run()
 {
-	int i;
-	uint32_t carg;
+  uint32_t carg;
 
 	if (!initialized)
 	{
@@ -72,6 +74,66 @@ void THwSdcard::Run()
 	}
 
 	cmdrunning = false;
+
+	if (!card_initialized)
+	{
+		RunInitialization();
+		return;
+	}
+
+	// run normal transfer commands
+	switch (state)
+	{
+	case 0: // idle
+		break;
+
+	case 1: // start read blocks
+		carg = startblock;
+		if (!high_capacity)  carg <<= 9; // byte addressing for low capacity cards
+		StartDataReadCmd(17, carg, SDCMD_RES_48BIT, dataptr, datalen);
+		++state;
+		break;
+
+	case 2:
+		if (cmderror)
+		{
+			errorcode = ERROR_READ;
+			state = 90;
+		}
+		else
+		{
+			errorcode = 0;
+			TRACE("HSMCI->SR = %08X\r\n", regs->HSMCI_SR);
+			while ((regs->HSMCI_SR & (1 << 27)) == 0)
+			{
+				// wait until the transfer is done.
+			}
+			TRACE("HSMCI->SR = %08X\r\n", regs->HSMCI_SR);
+#if 0
+			TRACE("Block read successful.\r\n");
+			TRACE("Block data:\r\n");
+			for (i = 0; i < 512; ++i)
+			{
+				if ((i != 0) && ((i % 16) == 0))  TRACE("\r\n");
+				TRACE(" %02X", bbuf[i]);
+			}
+			TRACE("\r\n");
+#endif
+			state = 90;
+		}
+		break;
+
+	case 90: // finish the command
+		completed = true;
+		state = 0;
+		break;
+	}
+}
+
+void THwSdcard::RunInitialization()
+{
+	int i;
+	uint32_t carg;
 
 	//TRACE("SD state = %i\r\n", state);
 
@@ -301,32 +363,10 @@ void THwSdcard::Run()
 		break;
 
 	case 50:
-		// ready to accept transfer commands
-		StartDataReadCmd(17, 0, SDCMD_RES_48BIT, &bbuf[0], sizeof(bbuf));
-		++state;
-		break;
-
-	case 51:
-		if (cmderror)
-		{
-			TRACE("Error reading block.\r\n");
-			state = 90;
-		}
-		else
-		{
-			TRACE("Block read successful.\r\n");
-			TRACE("Block data:\r\n");
-			for (i = 0; i < 512; ++i)
-			{
-				if ((i != 0) && ((i % 16) == 0))  TRACE("\r\n");
-				TRACE(" %02X", bbuf[i]);
-			}
-			TRACE("\r\n");
-			state = 90;
-		}
-		break;
-
-	case 90: // the end
+		// ready to accept transfer commands, go to normal state
+		card_initialized = true;
+		completed = true;
+		state = 0;
 		break;
 
 	case 100: // delay after error
@@ -419,4 +459,41 @@ v2:
 	}
 
 	TRACE("SD card max speed = %u MHz, size = %u MBytes\r\n", csd_max_speed / 1000000, card_megabytes);
+}
+
+bool THwSdcard::StartReadBlocks(uint32_t astartblock, void * adataptr, uint32_t adatalen)
+{
+	if (!initialized)
+	{
+		errorcode = ERROR_NOTINIT;
+		completed = true;
+		return false;
+	}
+
+	if (!completed)
+	{
+		errorcode = ERROR_BUSY;  // this might be overwriten later
+		return false;
+	}
+
+	dataptr = (uint8_t *)adataptr;
+	datalen = adatalen;
+	startblock = astartblock;
+
+	state = 1; // read blocks
+
+	errorcode = 0;
+	completed = false;
+
+	Run();
+
+	return (errorcode == 0);
+}
+
+void THwSdcard::WaitForComplete()
+{
+	while (!completed)
+	{
+		Run();
+	}
 }

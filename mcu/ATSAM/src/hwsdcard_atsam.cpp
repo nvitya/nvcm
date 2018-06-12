@@ -47,7 +47,8 @@ bool THwSdcard_atsam::HwInit()
 	// Set Completion Signal Timeout to 2 Mega Cycles
 	regs->HSMCI_CSTOR = HSMCI_CSTOR_CSTOMUL_1048576 | HSMCI_CSTOR_CSTOCYC(2);
 	// Set Configuration Register
-	regs->HSMCI_CFG = HSMCI_CFG_FIFOMODE | HSMCI_CFG_FERRCTRL;
+	regs->HSMCI_CFG = HSMCI_CFG_FIFOMODE | HSMCI_CFG_FERRCTRL; // | HSMCI_CFG_LSYNC;
+
 	// Set power saving to maximum value
 	regs->HSMCI_MR = HSMCI_MR_PWSDIV_Msk;
 
@@ -302,8 +303,8 @@ void THwSdcard_atsam::StartDataReadCmd(uint8_t acmd, uint32_t cmdarg, uint32_t c
 	cmderror = false;
 
 	// start the DMA channel
-	dma.Prepare(false, (void *)&regs->HSMCI_RDR, 0);
-	dmaxfer.addrinc = true;
+	dma.Prepare(false, (void *)&regs->HSMCI_FIFO[0], 0);
+	dmaxfer.flags = 0; // use defaults
 	dmaxfer.bytewidth = 4;  // destination must be aligned !!!
 	dmaxfer.count = (datalen >> 2);
 	dmaxfer.dstaddr = dataptr;
