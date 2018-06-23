@@ -31,9 +31,15 @@
 
 #include "hwusbctrl.h"
 
-#define USBDEV_CTRL_BUF_SIZE   64
-#define USBDEV_MAX_STRINGS     16
-#define USBDEV_MAX_DESCREC     8
+#define USBDEV_CTRL_BUF_SIZE   128
+#define USBDEV_MAX_STRINGS      16
+#define USBDEV_MAX_INTERFACES    6
+#define USBDEV_MAX_DESCREC       8
+#define USBDEV_MAX_ENDPOINTS     8
+#define USBINTF_MAX_DESCREC      8
+#define USBINTF_MAX_ENDPOINTS    4
+
+#define USBDESCF_CONFIG    1
 
 #define USB_DESC_TYPE_DEVICE                           1
 #define USB_DESC_TYPE_CONFIGURATION                    2
@@ -61,7 +67,7 @@
 #define USBD_STRIDX_CONFIG        0x04
 #define USBD_STRIDX_INTERFACE     0x05
 
-typedef struct TUsbDeviceDescriptor
+typedef struct TUsbDeviceDesc
 {
 	uint8_t		length;
 	uint8_t 	descriptor_type;
@@ -78,19 +84,126 @@ typedef struct TUsbDeviceDescriptor
 	uint8_t  	stri_serial_number;
 	uint8_t  	num_configurations;
 //
-} __attribute__((__packed__)) TUsbDeviceDescriptor;
+} __attribute__((__packed__)) TUsbDeviceDesc;
+
+typedef struct TUsbConfigDesc
+{
+	uint8_t		length; // = 9
+	uint8_t 	descriptor_type; // = 1
+	uint16_t 	total_length;     // total length of all descriptors including interface descriptors
+	uint8_t  	num_interfaces;
+	uint8_t  	configuration_value;
+	uint8_t  	stri_configuration;
+	uint8_t  	attributes;
+	uint8_t  	max_power;
+//
+} __attribute__((__packed__)) TUsbConfigDesc;
+
+typedef struct TUsbInterfaceDesc
+{
+	uint8_t		length; // = 9
+	uint8_t 	descriptor_type; // = 4
+	uint8_t  	interface_number;
+	uint8_t  	alternate_setting;
+	uint8_t  	num_endpoints;
+	uint8_t  	interface_class;
+	uint8_t  	interface_subclass;
+	uint8_t  	interface_protocol;
+	uint8_t  	stri_interface;
+//
+} __attribute__((__packed__)) TUsbInterfaceDesc;
+
+typedef struct TUsbEndpointDesc
+{
+	uint8_t		length; // = 7
+	uint8_t 	descriptor_type; // = 5
+	uint8_t  	endpoint_address;  // including direction
+	uint8_t  	attributes;
+	uint16_t 	max_packet_size;
+	uint8_t  	interval;  // polling interval
+//
+} __attribute__((__packed__)) TUsbEndpointDesc;
+
+
 
 typedef struct TUsbDevDescRec
 {
 	uint8_t					id;
-	uint8_t      		datalen;
+	uint8_t         flags;
+	uint16_t     		datalen;
 	uint8_t  *      dataptr;
 //
 } TUsbDevDescRec;
 
+class TUsbEndpoint
+{
+public:
+	uint8_t              index = 0xFF;
+
+	TUsbEndpointDesc     epdesc_dtoh =
+	{
+		.length = 7,
+		.descriptor_type = USB_DESC_TYPE_ENDPOINT,
+		.endpoint_address = 0,  // including direction
+		.attributes = 0,
+		.max_packet_size = 0,
+		.interval = 10  // polling interval
+	};
+
+	TUsbEndpointDesc     epdesc_htod =
+	{
+		.length = 7,
+		.descriptor_type = USB_DESC_TYPE_ENDPOINT,
+		.endpoint_address = 0,  // including direction
+		.attributes = 0,
+		.max_packet_size = 0,
+		.interval = 10  // polling interval
+	};
+
+	uint16_t             htod_len = 0;  // host -> device max packet length
+	uint16_t             dtoh_len = 0;  // device -> host max packet length
+
+	bool Init(uint8_t aattr, uint16_t ahtod_len, uint16_t adtoh_len);
+	void SetIndex(uint8_t aindex);
+};
+
 class TUsbInterface
 {
-//public:
+public:
+	uint8_t              index = 0xFF;
+
+	TUsbInterfaceDesc    intfdesc =
+	{
+		.length = 9,
+		.descriptor_type = USB_DESC_TYPE_INTERFACE,
+		.interface_number = 0,  // will be set automatically
+		.alternate_setting = 0,
+		.num_endpoints = 0,  // will be set automatically
+		.interface_class = 0xFF, // invalid
+		.interface_subclass = 0,
+		.interface_protocol = 0,
+		.stri_interface = 0  // will be set automatically
+	};
+
+	TUsbDevDescRec       desclist[USBINTF_MAX_DESCREC];
+	int                  desccount = 0;
+
+	const char *         interface_name = nullptr;
+
+	TUsbEndpoint *       eplist[USBINTF_MAX_ENDPOINTS];
+	int                  epcount = 0;
+
+public:
+  virtual ~TUsbInterface() {} // to avoid warnings
+
+	bool                 Init();
+	virtual bool         InitInterface(); // should be overridden
+
+	bool                 AddDesc(uint8_t atype, void * adataptr, uint16_t alen, uint8_t aflags);
+	TUsbDevDescRec *     FindDesc(uint8_t aid);
+
+	void                 AddEndpoint(TUsbEndpoint * aep);
+	int                  AppendConfigDesc(uint8_t * dptr, uint16_t maxlen);
 };
 
 class TUsbDevice
@@ -100,17 +213,53 @@ public:
 
 	bool                  initialized = false;
 
-	TUsbDeviceDescriptor  devdesc;
+	TUsbDeviceDesc        devdesc =
+	{
+		.length = 18,
+		.descriptor_type = USB_DESC_TYPE_DEVICE,
+		.usb_version = 0x0200,
+		.device_class = 0,
+		.device_sub_class = 0,
+		.device_protocol = 0,
+		.max_packet_size = 64,
+		.vendor_id = 0, // must be overridden !
+		.product_id = 0,
+		.device_version = 0x0200,
+		.stri_manufacturer = 0,
+		.stri_product = 0,
+		.stri_serial_number = 0,
+		.num_configurations = 1
+	};
+
+	// only one configuration is supported
+
+	TUsbConfigDesc        confdesc =
+	{
+		.length = 9,
+		.descriptor_type = USB_DESC_TYPE_CONFIGURATION,
+		.total_length = 0,     // calculated automatically (total length of all descriptors)
+		.num_interfaces = 0,   // calculated automatically
+		.configuration_value = 0,
+		.stri_configuration = 0,
+		.attributes = 0xE0, // bus powered, supports wakeup
+		.max_power = 0x32 // 100 mA
+	};
+
+	const char *          manufacturer_name = "Unknown Manufacturer";
+	const char *          device_name = "Unknown Device";
+	const char *          device_serial_number = "12345678";
+
+	TUsbInterface *       interfaces[USBDEV_MAX_INTERFACES];
+	uint8_t               interface_count = 0;
+
+	TUsbEndpoint *        eplist[USBDEV_MAX_ENDPOINTS];
+	uint8_t               epcount = 0;
 
 	char *          			stringtable[USBDEV_MAX_STRINGS];
+	uint8_t               stringcount = 0;
 
-	TUsbDevDescRec        desclist[USBDEV_MAX_DESCREC];
-	int                   desccount = 0;
-
-	void                  SetDesc(uint8_t aid, void * adataptr, uint8_t adatalen);
-	TUsbDevDescRec *      FindDesc(uint8_t aid);
-
-	THwUsbEndpoint        ep_ctrl;
+	TUsbEndpoint          ep_ctrl;
+	uint8_t               ctrlbuf[USBDEV_CTRL_BUF_SIZE];
 
 	TUsbDevice();
 	virtual ~TUsbDevice() { }
@@ -118,6 +267,13 @@ public:
 	bool Init();
 
   virtual bool InitDevice();
+
+public:
+  void AddInterface(TUsbInterface * aintf);
+  uint8_t AddString(const char * astr); // returned string index + 1 as id
+  void AddEndpoint(TUsbEndpoint * aep);
+
+  bool PrepareInterface(uint8_t ifidx, TUsbInterface * pif);
 };
 
 #endif /* USBDEVICE_H_ */

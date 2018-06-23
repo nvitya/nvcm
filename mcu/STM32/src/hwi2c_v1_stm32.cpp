@@ -402,7 +402,7 @@ void THwI2c_stm32::Run()
 			xfer.srcaddr = dataptr;
 			xfer.bytewidth = 1;
 			xfer.count = remainingbytes;
-			xfer.addrinc = true;
+			xfer.flags = 0;
 
 			dataptr += xfer.count;
 			remainingbytes = 0;
@@ -450,7 +450,7 @@ void THwI2c_stm32::Run()
 			xfer.dstaddr = dataptr;
 			xfer.bytewidth = 1;
 			xfer.count = remainingbytes - 2;
-			xfer.addrinc = true;
+			xfer.flags = 0;
 
 			dataptr += xfer.count;
 			remainingbytes = 2;

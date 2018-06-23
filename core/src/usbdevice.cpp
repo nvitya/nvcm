@@ -26,77 +26,136 @@
  *  authors:  nvitya
 */
 
+#include "string.h"
 #include "usbdevice.h"
 
-TUsbDevice::TUsbDevice()
+// -----------------------------------------------------------------------------------------
+// TUsbEndpoint
+// -----------------------------------------------------------------------------------------
+
+bool TUsbEndpoint::Init(uint8_t aattr, uint16_t ahtod_len, uint16_t adtoh_len)
 {
-	for (int i = 0; i < USBDEV_MAX_STRINGS; ++i)
-	{
-		stringtable[i] = nullptr;
-	}
+	index = 0xFF; // invalid index
 
-	// device descriptor
-	devdesc.length = 18; // fix value
-	devdesc.descriptor_type = USB_DESC_TYPE_DEVICE;
-	devdesc.usb_version = 0x0200;
-	devdesc.device_class = 0;
-	devdesc.device_sub_class = 0;
-	devdesc.device_protocol = 0;
-	devdesc.max_packet_size = 64;
-	devdesc.vendor_id = 0; // must be overridden !
-	devdesc.product_id = 0;
-	devdesc.device_version = 0x0200;
-	devdesc.stri_manufacturer = USBD_STRIDX_MANUFACTURER;
-	devdesc.stri_product = USBD_STRIDX_PRODUCT;
-	devdesc.stri_serial_number = USBD_STRIDX_SERIAL;
-	devdesc.num_configurations = 1;
-}
+	htod_len = ahtod_len;
+	dtoh_len = adtoh_len;
 
-bool TUsbDevice::InitDevice()  // must be overridden !
-{
-	return false;
-}
+	epdesc_dtoh.attributes = aattr;
+	epdesc_dtoh.max_packet_size = dtoh_len;
 
-bool TUsbDevice::Init()
-{
-	initialized = false;
-
-	if (!usbctrl.Init())
-	{
-		return false;
-	}
-
-	desccount = 0;
-	SetDesc(USB_DESC_TYPE_DEVICE, &devdesc, devdesc.length);  // sets only the pointer so the device initialization can change
-	                                                          // (and must change) the fields of the devdesc
-  usbctrl.AddEndpoint(&ep_ctrl,  0, 64, 64, USBEF_TYPE_CONTROL);
-
-	if (!InitDevice())
-	{
-		return false;
-	}
-
-	initialized = true;
+	epdesc_htod.attributes = aattr;
+	epdesc_htod.max_packet_size = htod_len;
 
 	return true;
 }
 
-
-void TUsbDevice::SetDesc(uint8_t aid, void * adataptr, uint8_t adatalen)
+void TUsbEndpoint::SetIndex(uint8_t aindex)
 {
-	TUsbDevDescRec * dd = FindDesc(aid);
+	index = aindex;
+	if (htod_len > 0)  epdesc_htod.endpoint_address = aindex;
+	if (dtoh_len > 0)  epdesc_dtoh.endpoint_address = (aindex | 0x80);
+}
+
+// -----------------------------------------------------------------------------------------
+// TUsbInterface
+// -----------------------------------------------------------------------------------------
+
+int TUsbInterface::AppendConfigDesc(uint8_t * dptr, uint16_t maxlen)
+{
+	uint8_t i;
+	uint8_t *  dp = dptr;
+	uint16_t   remaining = maxlen;
+	uint16_t   result = 0;
+	uint16_t   dsize;
+
+	// first add the interface descriptor
+	dsize = sizeof(intfdesc);
+	if (remaining < sizeof(intfdesc)) 	return 0;
+	memcpy(dp, &intfdesc, dsize);
+	dp += dsize;
+	remaining -= dsize;
+
+	// then the other descriptors marked as USBDESCF_CONFIG
+	for (i = 0; i < desclist; ++i)
+	{
+		TUsbDevDescRec * ddp = &desclist[i];
+		if (ddp->flags & USBDESCF_CONFIG)
+		{
+			dsize = ddp->datalen;
+			if (remaining < dsize)		return 0;
+			memcpy(dp, ddp->dataptr, dsize);
+			dp += dsize;
+			remaining -= dsize;
+		}
+	}
+
+	// and then the endpoint descriptors
+
+	for (i = 0; i < eplist; ++i)
+	{
+		TUsbEndpoint * ep = &eplist[i];
+		if (ep->dtoh_len > 0)
+		{
+			dsize = sizeof(ep->epdesc_dtoh);
+			if (remaining < dsize)		return 0;
+			memcpy(dp, &ep->epdesc_dtoh, dsize);
+			dp += dsize;
+			remaining -= dsize;
+		}
+
+		if (ep->htod_len > 0)
+		{
+			dsize = sizeof(ep->epdesc_htod);
+			if (remaining < dsize)		return 0;
+			memcpy(dp, &ep->epdesc_htod, dsize);
+			dp += dsize;
+			remaining -= dsize;
+		}
+	}
+
+	return (dp - dptr);
+}
+
+bool TUsbInterface::InitInterface() // must be overridden
+{
+	return false;
+}
+
+bool TUsbInterface::Init()
+{
+	if (!InitInterface())
+	{
+		return false;
+	}
+
+	// now should be everything prepared
+
+
+	return true;
+}
+
+bool TUsbInterface::AddDesc(uint8_t atype, void * adataptr, uint16_t alen, uint8_t aflags)
+{
+	TUsbDevDescRec * dd = FindDesc(atype);
 	if (!dd)
 	{
+		if (desccount >= USBINTF_MAX_DESCREC)
+		{
+			return false;
+		}
+
 		dd = &desclist[desccount];
-		dd->id = aid;
+		dd->id = atype;
 		++desccount;
 	}
 
 	dd->dataptr = (uint8_t *)adataptr;
-	dd->datalen = adatalen;
+	dd->datalen = alen;
+
+	return true;
 }
 
-TUsbDevDescRec * TUsbDevice::FindDesc(uint8_t aid)
+TUsbDevDescRec * TUsbInterface::FindDesc(uint8_t aid)
 {
 	for (int i = 0; i < desccount; ++i)
 	{
@@ -108,3 +167,166 @@ TUsbDevDescRec * TUsbDevice::FindDesc(uint8_t aid)
 	return nullptr;
 }
 
+void TUsbInterface::AddEndpoint(TUsbEndpoint * aep)
+{
+	if (epcount >= USBINTF_MAX_ENDPOINTS)
+	{
+		return;
+	}
+
+	eplist[epcount] = aep;
+	++epcount;
+}
+
+
+// -----------------------------------------------------------------------------------------
+// TUsbDevice
+// -----------------------------------------------------------------------------------------
+
+TUsbDevice::TUsbDevice()
+{
+	for (int i = 0; i < USBDEV_MAX_STRINGS; ++i)
+	{
+		stringtable[i] = nullptr;
+	}
+
+}
+
+bool TUsbDevice::InitDevice()  // must be overridden !
+{
+	return false;
+}
+
+bool TUsbDevice::Init()
+{
+	uint8_t i;
+	int len;
+
+	initialized = false;
+
+	if (!usbctrl.Init())
+	{
+		return false;
+	}
+
+	// check device descriptor
+	if (devdesc.vendor_id == 0)
+	{
+		return false;
+	}
+
+	if (interface_count <= 0)
+	{
+		return false;
+	}
+
+	// build up internal structures
+
+	epcount = 0;
+	ep_ctrl.Init(USB_EP_TYPE_CONTROL, 64, 64);  // this must be always the first one
+  AddEndpoint(&ep_ctrl);
+
+	// prepare the descriptors
+
+	stringcount = 0;
+
+	// device descriptor
+	devdesc.stri_manufacturer = AddString(manufacturer_name);
+	devdesc.stri_product = AddString(device_name);
+	devdesc.stri_serial_number = AddString(device_serial_number);
+
+	// configuration descriptor (first)
+
+	confdesc.total_length = confdesc.length;
+	confdesc.num_interfaces = interface_count;
+
+	for (i = 0; i < interface_count; ++i)
+	{
+		if (!PrepareInterface(i, interfaces[i]))
+		{
+			return false;
+		}
+
+		// calculate the config descriptor length
+
+		len = interfaces[i]->AppendConfigDesc(&ctrlbuf[0], sizeof(ctrlbuf));
+		if (len <= 0)
+		{
+			return false;
+		}
+
+		confdesc.total_length += len;
+	}
+
+/*
+
+	if (!InitDevice())
+	{
+		return false;
+	}
+*/
+
+	initialized = true;
+
+	return true;
+}
+
+void TUsbDevice::AddInterface(TUsbInterface * aintf)
+{
+	if (interface_count >= USBDEV_MAX_INTERFACES)
+	{
+		return;
+	}
+
+	interfaces[interface_count] = aintf;
+	++interface_count;
+}
+
+uint8_t TUsbDevice::AddString(const char * astr)
+{
+	if (stringcount >= USBDEV_MAX_STRINGS)
+	{
+		return 0xFF;
+	}
+
+	stringtable[stringcount] = (char *)astr;
+	++stringcount;
+
+	return stringcount;  // index + 1 !
+}
+
+void TUsbDevice::AddEndpoint(TUsbEndpoint * aep)
+{
+	if (epcount >= USBDEV_MAX_ENDPOINTS)
+	{
+		aep->index = 0xFF;
+		return;
+	}
+
+	aep->SetIndex(epcount);
+
+	eplist[epcount] = aep;
+	++epcount;
+}
+
+bool TUsbDevice::PrepareInterface(uint8_t ifidx, TUsbInterface * pif)
+{
+	if ((pif->intfdesc.interface_class == 0xFF) || (pif->epcount == 0))
+	{
+		return false;
+	}
+
+	pif->index = ifidx;
+	pif->intfdesc.interface_number = ifidx;
+	pif->intfdesc.stri_interface = AddString(pif->interface_name);
+	pif->intfdesc.num_endpoints = pif->epcount;
+
+	// add endpoints
+	uint8_t i;
+	for (i = 0; i < pif->epcount; ++i)
+	{
+		AddEndpoint(pif->eplist[i]); // updates the endpoint descriptors too
+	}
+
+	return true;
+}

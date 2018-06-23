@@ -175,22 +175,20 @@ void THwDmaChannel_stm32::Enable()
 	*crreg |= 1;
 }
 
-bool THwDmaChannel_stm32::StartTransfer(THwDmaTransfer * axfer)
+void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 {
-	// disable stream, to be able to modify the registers
-	Disable();
-
 	int sizecode = 0;
 	if (axfer->bytewidth == 2)  sizecode = 1;
 	else if (axfer->bytewidth == 4)  sizecode = 2;
 
 	int dircode = (istx ? 1 : 0);
-	int meminc = (axfer->addrinc ? 1 : 0);
+	int meminc = (axfer->flags & DMATR_NO_ADDR_INC ? 0 : 1);
+	uint32_t mem2mem = (axfer->flags & DMATR_MEM_TO_MEM ? 1 : 0);
 
 #ifndef DMASTREAMS
 
 	regs->CCR = 0
-		| (0  << 14)  // MEM2MEM: 1 = memory to memory mode
+		| (mem2mem << 14)  // MEM2MEM: 1 = memory to memory mode
 		| (0  << 12)  // PL(2): priority level
 		| (sizecode << 10)  // MSIZE(2): Memory data size, 8 bit
 		| (sizecode <<  8)  // PSIZE(2): Periph data size, 8 bit
@@ -251,8 +249,5 @@ bool THwDmaChannel_stm32::StartTransfer(THwDmaTransfer * axfer)
 
 #endif
 
-	Enable();
-
-	return true;
 }
 

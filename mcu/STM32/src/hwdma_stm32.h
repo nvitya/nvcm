@@ -66,6 +66,9 @@ public:
 	bool StartTransfer(THwDmaTransfer * axfer);
 	bool StartMemToMem(THwDmaTransfer * axfer);
 
+	void PrepareTransfer(THwDmaTransfer * axfer);
+	inline void StartPreparedTransfer() { Enable(); }
+
 public:
   __IO unsigned *    crreg;
 
