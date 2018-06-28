@@ -76,7 +76,7 @@ int TUsbInterface::AppendConfigDesc(uint8_t * dptr, uint16_t maxlen)
 	remaining -= dsize;
 
 	// then the other descriptors marked as USBDESCF_CONFIG
-	for (i = 0; i < desclist; ++i)
+	for (i = 0; i < desccount; ++i)
 	{
 		TUsbDevDescRec * ddp = &desclist[i];
 		if (ddp->flags & USBDESCF_CONFIG)
@@ -91,9 +91,9 @@ int TUsbInterface::AppendConfigDesc(uint8_t * dptr, uint16_t maxlen)
 
 	// and then the endpoint descriptors
 
-	for (i = 0; i < eplist; ++i)
+	for (i = 0; i < epcount; ++i)
 	{
-		TUsbEndpoint * ep = &eplist[i];
+		TUsbEndpoint * ep = eplist[i];
 		if (ep->dtoh_len > 0)
 		{
 			dsize = sizeof(ep->epdesc_dtoh);

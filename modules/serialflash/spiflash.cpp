@@ -79,11 +79,11 @@ void TSpiFlash::StartCmd(unsigned acmdlen)
 	txfer.srcaddr = &txbuf[0];
 	txfer.bytewidth = 1;
 	txfer.count = curcmdlen;
-	txfer.addrinc = true;
+	txfer.flags = 0;
 
 	rxfer.dstaddr = &rxbuf[0];
 	rxfer.bytewidth = 1;
-	rxfer.addrinc = true;
+	rxfer.flags = 0;
 	rxfer.count = txfer.count;
 
 	pin_cs.Set0();  // activate CS
@@ -149,11 +149,11 @@ void TSpiFlash::Run()
 				txfer.srcaddr = &txbuf[0];
 				txfer.bytewidth = 1;
 				txfer.count = chunksize;
-				txfer.addrinc = false;    // sending the same zero character
+				txfer.flags = DMATR_NO_ADDR_INC;    // sending the same zero character
 
 				rxfer.dstaddr = dataptr;
 				rxfer.bytewidth = 1;
-				rxfer.addrinc = true;
+				rxfer.flags = 0;
 				rxfer.count = chunksize;
 
 				spi.DmaStartRecv(&rxfer);
@@ -240,11 +240,11 @@ void TSpiFlash::Run()
 				txfer.srcaddr = dataptr;
 				txfer.bytewidth = 1;
 				txfer.count = chunksize;
-				txfer.addrinc = true;
+				txfer.flags = 0;
 
 				rxfer.dstaddr = &rxbuf[0];
 				rxfer.bytewidth = 1;
-				rxfer.addrinc = false;  // ignore the received data
+				rxfer.flags = DMATR_NO_ADDR_INC;  // ignore the received data
 				rxfer.count = chunksize;
 
 				spi.DmaStartRecv(&rxfer);

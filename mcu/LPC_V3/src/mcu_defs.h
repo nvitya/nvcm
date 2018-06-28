@@ -29,7 +29,7 @@
 #ifndef __MCU_DEFS_H
 #define __MCU_DEFS_H
 
-#if defined(MCUSF_546XX)
+#if defined(MCUSF_546XX) || defined(MCUSF_540XX)
 
   #define MAX_CLOCK_SPEED  180000000
 
