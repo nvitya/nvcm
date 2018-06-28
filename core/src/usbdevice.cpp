@@ -223,7 +223,7 @@ bool TUsbDevice::Init()
 	// build up internal structures
 
 	epcount = 0;
-	ep_ctrl.Init(USB_EP_TYPE_CONTROL, 64, 64);  // this must be always the first one
+	ep_ctrl.Init(USB_EP_TYPE_CONTROL, 64, 64);  // this must be always the first endpoint (id = 0)
   AddEndpoint(&ep_ctrl);
 
 	// prepare the descriptors
