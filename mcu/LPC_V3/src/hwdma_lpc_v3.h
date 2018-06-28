@@ -121,8 +121,8 @@ public:
 	bool Enabled() { return ((HW_DMA->ENABLESET & chbit) != 0); }
 	bool Active()  { return ((HW_DMA->ACTIVE & chbit) != 0); }
 
-	bool StartTransfer(THwDmaTransfer * axfer);
-	bool StartMemToMem(THwDmaTransfer * axfer);
+	bool PrepareTransfer(THwDmaTransfer * axfer);
+	inline void StartPreparedTransfer() { Enable(); }
 };
 
 #define HWDMACHANNEL_IMPL  THwDmaChannel_lpc_v3

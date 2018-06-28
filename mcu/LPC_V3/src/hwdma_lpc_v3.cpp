@@ -82,10 +82,8 @@ void THwDmaChannel_lpc_v3::Prepare(bool aistx, void * aperiphaddr, unsigned afla
 	Enable();
 }
 
-bool THwDmaChannel_lpc_v3::StartTransfer(THwDmaTransfer * axfer)
+bool THwDmaChannel_lpc_v3::PrepareTransfer(THwDmaTransfer * axfer)
 {
-	Disable();
-
 	register unsigned cntm1 = axfer->count - 1;
 	register unsigned bytewidth = axfer->bytewidth;
 
@@ -115,7 +113,7 @@ bool THwDmaChannel_lpc_v3::StartTransfer(THwDmaTransfer * axfer)
 
 	if (istx)
 	{
-		if (axfer->addrinc)
+		if ((axfer->flags & DMATR_NO_ADDR_INC) == 0)
 		{
 			xfercfg |= (1 << 12); // SRC increment with the given width
 		}
@@ -125,7 +123,7 @@ bool THwDmaChannel_lpc_v3::StartTransfer(THwDmaTransfer * axfer)
 	}
 	else
 	{
-		if (axfer->addrinc)
+		if ((axfer->flags & DMATR_NO_ADDR_INC) == 0)
 		{
 			xfercfg |= (1 << 14); // DST increment with the given width
 		}
@@ -138,8 +136,6 @@ bool THwDmaChannel_lpc_v3::StartTransfer(THwDmaTransfer * axfer)
 
 	//regs->CTLSTAT = 0;
 	regs->XFERCFG = xfercfg;
-
-	Enable();
 
 	return true;
 }

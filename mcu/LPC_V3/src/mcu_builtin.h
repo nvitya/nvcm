@@ -42,6 +42,20 @@
 
   #include "LPC54608.h"
 
+#elif defined(MCU_LPC54016)
+
+  #define MCUF_LPC_V3
+  #define MCUSF_540XX
+
+  #include "LPC54016.h"
+
+#elif defined(MCU_LPC54018)
+
+  #define MCUF_LPC_V3
+  #define MCUSF_540XX
+
+  #include "LPC54018.h"
+
 #else
 
   #error "Unknown MCU"

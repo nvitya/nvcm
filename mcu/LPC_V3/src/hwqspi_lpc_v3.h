@@ -19,35 +19,38 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_defs.h (LPC_V3)
- *  brief:    LPC_V3 MCU Family definitions
+ *  file:     hwqspi_lpc.h
+ *  brief:    LPC V3 QSPI
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-06-28
  *  authors:  nvitya
 */
 
-#ifndef __MCU_DEFS_H
-#define __MCU_DEFS_H
+#ifndef HWQSPI_LPC_V3_H_
+#define HWQSPI_LPC_V3_H_
 
-#if defined(MCUSF_546XX) || defined(MCUSF_540XX)
+#define HWQSPI_PRE_ONLY
+#include "hwqspi.h"
 
-  #define MAX_CLOCK_SPEED  180000000
+#define HW_QSPI_REGS  SPIFI_Type
 
-#endif
-
-#define HW_GPIO_REGS  GPIO_Type
-#define HW_UART_REGS  USART_Type
-#define HW_SPI_REGS   SPI_Type
-
-#define HW_DMA_MAX_COUNT  1024  // quite low on this CPU
-
-inline void __attribute__((always_inline)) mcu_preinit_code()
+class THwQspi_lpc_v3 : public THwQspi_pre
 {
-  // enable the SRAM0-2 blocks (they are disabled after reset...)
-  // addr 0x20000000 - 0x20028000 = 160k
-  SYSCON->AHBCLKCTRLSET[0] = (7 << 3);
-  // enable the USB1 RAM at	0x40100000 - 0x40102000 = 8k
-  SYSCON->AHBCLKCTRLSET[2] = (1 << 6);
-}
+public:
+	unsigned char  dmachannel = 7;
+	HW_QSPI_REGS * regs = nullptr;
 
-#endif // __MCU_DEFS_H
+	bool Init();
+
+	virtual bool InitInterface(); // override
+
+	int  StartReadData(unsigned acmd, unsigned address, void * dstptr, unsigned len);
+	int  StartWriteData(unsigned acmd, unsigned address, void * srcptr, unsigned len);
+	void Run();
+
+	unsigned       ctrlbase = 0;
+};
+
+#define HWQSPI_IMPL THwQspi_lpc_v3
+
+#endif // def HWQSPI_LPC_V3_H_

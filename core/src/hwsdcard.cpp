@@ -103,6 +103,7 @@ void THwSdcard::Run()
 		else
 		{
 			errorcode = 0;
+#if 0
 			TRACE("HSMCI->SR = %08X\r\n", regs->HSMCI_SR);
 			while ((regs->HSMCI_SR & (1 << 27)) == 0)
 			{
@@ -118,6 +119,7 @@ void THwSdcard::Run()
 				TRACE(" %02X", bbuf[i]);
 			}
 			TRACE("\r\n");
+#endif
 #endif
 			state = 90;
 		}
