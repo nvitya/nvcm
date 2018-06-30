@@ -41,6 +41,12 @@
   #define MCU_LPC54606
   #define MCU_INPUT_FREQ   12000000
 
+#elif defined(BOARD_MIBO100_LPC540)
+
+  #define BOARD_NAME "MIBO-100 LPC540xx by nvitya"
+  #define MCU_LPC54016
+  #define MCU_INPUT_FREQ   12000000
+
 #elif defined(BOARD_XPRESSO_LPC54608)
 
   #define BOARD_NAME "LPCXpresso54608"

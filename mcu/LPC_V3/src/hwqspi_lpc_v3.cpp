@@ -169,7 +169,11 @@ int THwQspi_lpc_v3::StartReadData(unsigned acmd, unsigned address, void * dstptr
 		|	((acmd & 0xFF) << 24)
 	;
 
+	busy = true;
+
 	dmaused = (len > 4);
+
+	//dmaused = false;
 
 	if (dmaused)
 	{
@@ -178,25 +182,29 @@ int THwQspi_lpc_v3::StartReadData(unsigned acmd, unsigned address, void * dstptr
 		// The LPC SPIFI DMA transfer works only with 4 byte units !!!
 		// the DMA requests are generated after 4 full bytes are received
 
-		if (len > 0)
-		{
-			xfer.bytewidth = 4;
-			xfer.count = ((len + 3) >> 2);
-			xfer.flags = 0;
-			xfer.dstaddr = dstptr;
+		xfer.bytewidth = 4;
+		xfer.count = ((len + 3) >> 2);
+		xfer.flags = 0;
+		xfer.dstaddr = dstptr;
 
-	  	dataptr += (xfer.count << 2);
-	  	remainingbytes &= 0x03;
+		dataptr += (xfer.count << 2);
+		remainingbytes &= 0x03;
 
-			rxdma.StartTransfer(&xfer);
-		}
+		rxdma.PrepareTransfer(&xfer);
+
+		unsigned pm = __get_PRIMASK(); // save interrupt disable status
+		__disable_irq();
+
+		regs->CMD = cmd; // starts the SPIFI operation
+
+		rxdma.StartPreparedTransfer();  // the operation will fail when the DMA is started before the command !
+
+		__set_PRIMASK(pm); // restore interrupt disable status
 	}
-
-	regs->CMD = cmd;
-
-	// the operation should be started...
-
-	busy = true;
+	else
+	{
+		regs->CMD = cmd; // starts the SPIFI operation
+	}
 
 	return ERROR_OK;
 }
@@ -253,6 +261,8 @@ int THwQspi_lpc_v3::StartWriteData(unsigned acmd, unsigned address, void * srcpt
 
 	dmaused = (len > 4);
 
+	busy = true;
+
 	if (dmaused)
 	{
 		txdma.Prepare(true, (void *)&(regs->DATA), 0);  // we are using the same DMA channel, so it must be switched to rx
@@ -268,21 +278,21 @@ int THwQspi_lpc_v3::StartWriteData(unsigned acmd, unsigned address, void * srcpt
 		dataptr += (xfer.count << 2);
 		remainingbytes &= 0x03;
 
-		txdma.StartTransfer(&xfer);
-	}
+		txdma.PrepareTransfer(&xfer);
 
-	regs->CMD = cmd;
+		unsigned pm = __get_PRIMASK(); // save interrupt disable status
+		__disable_irq();
 
-	// the operation should be started...
+		regs->CMD = cmd; // starts the SPIFI operation
 
-	busy = true;
+  	txdma.StartPreparedTransfer();
 
-	if (dmaused)
-	{
-  	//txdma.StartTransfer(&xfer);
+	 	__set_PRIMASK(pm); // restore interrupt disable status
 	}
 	else
 	{
+		regs->CMD = cmd; // starts the SPIFI operation
+
 		Run(); // to fill the transmit FIFO
 	}
 
@@ -299,9 +309,14 @@ void THwQspi_lpc_v3::Run()
 
 	if (istx)
 	{
-		if (dmaused && txdma.Enabled())
+		if (dmaused)
 		{
-			return;
+			if (txdma.Active())
+			{
+				return;
+			}
+
+			if (txdma.Enabled())  txdma.Disable();
 		}
 
 		// send the tail
@@ -323,9 +338,14 @@ void THwQspi_lpc_v3::Run()
 			return;
 		}
 
-		if (dmaused && rxdma.Enabled())
+		if (dmaused)
 		{
-			return;
+			if (rxdma.Active())
+			{
+				return;
+			}
+
+			if (rxdma.Enabled())  rxdma.Disable();
 		}
 
 		// get the tail

@@ -84,6 +84,10 @@ void THwDmaChannel_lpc_v3::Prepare(bool aistx, void * aperiphaddr, unsigned afla
 
 bool THwDmaChannel_lpc_v3::PrepareTransfer(THwDmaTransfer * axfer)
 {
+	Disable();
+
+	HW_DMA->ERRINT = (1 << chnum); // clear error
+
 	register unsigned cntm1 = axfer->count - 1;
 	register unsigned bytewidth = axfer->bytewidth;
 
@@ -116,9 +120,13 @@ bool THwDmaChannel_lpc_v3::PrepareTransfer(THwDmaTransfer * axfer)
 		if ((axfer->flags & DMATR_NO_ADDR_INC) == 0)
 		{
 			xfercfg |= (1 << 12); // SRC increment with the given width
+			firstdesc->SRCEND = (char *)(unsigned(axfer->srcaddr) + cntm1 * bytewidth);
+		}
+		else
+		{
+			firstdesc->SRCEND = (char *)(unsigned(axfer->srcaddr));
 		}
 
-		firstdesc->SRCEND = (char *)(unsigned(axfer->srcaddr) + cntm1 * bytewidth);
 		firstdesc->DSTEND = periphaddr;
 	}
 	else
@@ -126,10 +134,14 @@ bool THwDmaChannel_lpc_v3::PrepareTransfer(THwDmaTransfer * axfer)
 		if ((axfer->flags & DMATR_NO_ADDR_INC) == 0)
 		{
 			xfercfg |= (1 << 14); // DST increment with the given width
+			firstdesc->DSTEND = (char *)(unsigned(axfer->dstaddr) + cntm1 * bytewidth);
+		}
+		else
+		{
+			firstdesc->DSTEND = (char *)(unsigned(axfer->dstaddr));
 		}
 
 		firstdesc->SRCEND = periphaddr;
-		firstdesc->DSTEND = (char *)(unsigned(axfer->dstaddr) + cntm1 * bytewidth);
 	}
 
 	firstdesc->NEXT = nullptr;

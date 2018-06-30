@@ -232,7 +232,11 @@ bool THwClkCtrl_lpc_v3::SetupPlls(bool aextosc, unsigned abasespeed, unsigned ac
 	// Setup FROHS to 48 MHz, it will be used as the source for FLEXCOMM units
 	// by default the FROHS configured to 96 MHz by the boot rom with trimmed values
 	// we just apply a by 2 divisior
+#ifdef SYSCON_FROHFCLKDIV_DIV_MASK
+	SYSCON->FROHFCLKDIV = 1;  // 1 = divide by two
+#else
 	SYSCON->FROHFDIV = 1;  // 1 = divide by two
+#endif
 	SYSCON->FROCTRL |= (1 << 30); // enable FROHS output
 
   return true;
