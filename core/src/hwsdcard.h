@@ -45,20 +45,36 @@
 class THwSdcard_pre
 {
 public:
-	int      devnum = -1;
-	bool     high_speed = false;
+	int           devnum = -1;
+	bool          high_speed = false;
 
-	uint8_t  bus_width = 4;
-	uint32_t clockspeed = 20000000; // 20 MHz by default
+	uint8_t       bus_width = 4;
+	uint32_t      clockspeed = 20000000; // 20 MHz by default
 
-	bool     initialized = false;
+	bool          initialized = false;
 
-	uint32_t cmdtimeout = 0;
-	bool     cmdrunning = false;
-	bool     cmderror = false;
-	uint32_t lastcmdtime = 0;
+	uint32_t      cmdtimeout = 0;
+	bool          cmdrunning = false;
+	bool          cmderror = false;
+	uint32_t      lastcmdtime = 0;
 
-	uint32_t after_error_delay_clocks = 1;
+	uint32_t      after_error_delay_clocks = 1;
+
+	int           trstate = 0; // transfer state machine control, 1 = start read,
+	uint32_t      startblock = 0;
+	uint32_t      curblock = 0;
+	uint32_t      blockcount = 0;
+	int           remainingblocks = 0;
+	uint8_t *     dataptr = nullptr;
+
+	bool        	completed = true;
+  int         	errorcode = 0;
+	int         	initstate = 0;
+
+	bool        	card_v2 = false;
+	bool        	card_present = false;
+	bool        	card_initialized = false;
+	bool        	high_capacity = false;
 
 	THwDmaChannel  dma; // must be initialized by the user
 	THwDmaTransfer dmaxfer;
@@ -104,13 +120,6 @@ public: // mandatory
 class THwSdcard : public HWSDCARD_IMPL
 {
 public:
-	int         state = 0;
-
-	bool        card_v2 = false;
-	bool        card_present = false;
-	bool        card_initialized = false;
-	bool        high_capacity = false;
-
 	uint32_t    rca = 0;      // relative card address, required for point-to-point communication
 	uint32_t    reg_ocr = 0;  // Card Operating Condition + status register
 
@@ -133,12 +142,7 @@ public:
 
 public:
 
-	bool        completed = true;
-  int         errorcode = 0;
-  uint8_t *   dataptr = nullptr;
-  uint32_t    datalen = 0;
-  uint32_t    startblock = 0;
-  bool        StartReadBlocks(uint32_t astartblock, void * adataptr, uint32_t adatalen);
+  bool        StartReadBlocks(uint32_t astartblock, void * adataptr, uint32_t ablockcount);
 	void 				WaitForComplete();
 };
 

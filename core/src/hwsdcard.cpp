@@ -50,7 +50,7 @@ bool THwSdcard::Init()
 
 	completed = true;
 	card_initialized = false;
-	state = 0; // set the state machine to start position
+	initstate = 0; // set the state machine to start position
 
 	after_error_delay_clocks = (SystemCoreClock / 20); // = 50 ms
 
@@ -61,19 +61,10 @@ bool THwSdcard::Init()
 
 void THwSdcard::Run()
 {
-  uint32_t carg;
-
 	if (!initialized)
 	{
 		return;
 	}
-
-	if (cmdrunning && !CmdFinished())
-	{
-		return;
-	}
-
-	cmdrunning = false;
 
 	if (!card_initialized)
 	{
@@ -81,55 +72,7 @@ void THwSdcard::Run()
 		return;
 	}
 
-	// run normal transfer commands
-	switch (state)
-	{
-	case 0: // idle
-		break;
-
-	case 1: // start read blocks
-		carg = startblock;
-		if (!high_capacity)  carg <<= 9; // byte addressing for low capacity cards
-		StartDataReadCmd(17, carg, SDCMD_RES_48BIT, dataptr, datalen);
-		++state;
-		break;
-
-	case 2:
-		if (cmderror)
-		{
-			errorcode = ERROR_READ;
-			state = 90;
-		}
-		else
-		{
-			errorcode = 0;
-#if 0
-			TRACE("HSMCI->SR = %08X\r\n", regs->HSMCI_SR);
-			while ((regs->HSMCI_SR & (1 << 27)) == 0)
-			{
-				// wait until the transfer is done.
-			}
-			TRACE("HSMCI->SR = %08X\r\n", regs->HSMCI_SR);
-#if 0
-			TRACE("Block read successful.\r\n");
-			TRACE("Block data:\r\n");
-			for (i = 0; i < 512; ++i)
-			{
-				if ((i != 0) && ((i % 16) == 0))  TRACE("\r\n");
-				TRACE(" %02X", bbuf[i]);
-			}
-			TRACE("\r\n");
-#endif
-#endif
-			state = 90;
-		}
-		break;
-
-	case 90: // finish the command
-		completed = true;
-		state = 0;
-		break;
-	}
+	RunTransfer(); // run transfer state machine
 }
 
 void THwSdcard::RunInitialization()
@@ -139,7 +82,14 @@ void THwSdcard::RunInitialization()
 
 	//TRACE("SD state = %i\r\n", state);
 
-	switch (state)
+	if (cmdrunning && !CmdFinished())
+	{
+		return;
+	}
+
+	cmdrunning = false;
+
+	switch (initstate)
 	{
 	case 0: // send init clocks
 
@@ -152,17 +102,17 @@ void THwSdcard::RunInitialization()
 		card_v2 = false;
 
 		SendSpecialCmd(SD_SPECIAL_CMD_INIT); // never fails
-		++state;
+		++initstate;
 		break;
 
 	case 1: // set SDCARD to init
 		SendCmd(0, 0, SDCMD_RES_NO); // never fails
-		++state;
+		++initstate;
 		break;
 
 	case 2:
 		SendCmd(8, 0x1AA, SDCMD_RES_48BIT | SDCMD_OPENDRAIN);  // test for V2
-		++state;
+		++initstate;
 		break;
 
 	case 3:
@@ -170,7 +120,7 @@ void THwSdcard::RunInitialization()
 		{
 			card_v2 = true;
 		}
-		state = 5;
+		initstate = 5;
 		break;
 
 	// Wait until the card is ready
@@ -178,7 +128,7 @@ void THwSdcard::RunInitialization()
 	case 5:
 		// prepare application specific command
 		SendCmd(55, 0, SDCMD_RES_48BIT | SDCMD_OPENDRAIN);
-		++state;
+		++initstate;
 		break;
 
 	case 6:
@@ -186,7 +136,7 @@ void THwSdcard::RunInitialization()
 		{
 			// no card available
 			card_present = false;
-			state = 100;
+			initstate = 100;
 		}
 		else
 		{
@@ -194,12 +144,12 @@ void THwSdcard::RunInitialization()
 			carg = 0x001f8000;
 			if (card_v2)  carg |= (1u << 30);
 			SendCmd(41, carg, SDCMD_RES_48BIT | SDCMD_OPENDRAIN);
-			++state;
+			++initstate;
 		}
 		break;
 
 	case 7:
-		if (cmderror)	 state = 100;
+		if (cmderror)	 initstate = 100;
 		else
 		{
 			reg_ocr = GetCmdResult32();
@@ -207,12 +157,12 @@ void THwSdcard::RunInitialization()
 			{
 				TRACE("SDCARD OCR = %08X\r\n", reg_ocr);
 				high_capacity = (reg_ocr & (1u << 30) ? true : false);
-				state = 10;
+				initstate = 10;
 			}
 			else
 			{
 				// repeat OCR register read
-				state = 5;
+				initstate = 5;
 			}
 		}
 		break;
@@ -220,11 +170,11 @@ void THwSdcard::RunInitialization()
   // read Card Identification Data (CID)
 	case 10:
 		SendCmd(2, 0, SDCMD_RES_136BIT | SDCMD_OPENDRAIN);
-		++state;
+		++initstate;
 		break;
 
 	case 11:
-		if (cmderror)  state = 100;
+		if (cmderror)  initstate = 100;
 		else
 		{
 			GetCmdResult128(&reg_cid[0]);
@@ -236,34 +186,34 @@ void THwSdcard::RunInitialization()
 			TRACE("\r\n");
 
 			card_present = true;
-			state = 20;
+			initstate = 20;
 		}
 		break;
 
 	// Ask for a Relative Card Address (RCA)
 	case 20:
 		SendCmd(3, 0, SDCMD_RES_48BIT | SDCMD_OPENDRAIN);
-		++state;
+		++initstate;
 		break;
 
 	case 21:
-		if (cmderror)  state = 100;
+		if (cmderror)  initstate = 100;
 		else
 		{
 			rca = (GetCmdResult32() & 0xFFFF0000);  // keep it high-shifted to spare later shiftings
 			TRACE("SDCARD RCA = %08X\r\n", rca);
-			++state;
+			++initstate;
 		}
 		break;
 
 	// get the Card Specific Data (CSD)
 	case 22:
 		SendCmd(9, rca, SDCMD_RES_136BIT | SDCMD_OPENDRAIN);
-		++state;
+		++initstate;
 		break;
 
 	case 23:
-		if (cmderror)  state = 100;
+		if (cmderror)  initstate = 100;
 		else
 		{
 			GetCmdResult128(&reg_csd[0]);
@@ -274,7 +224,7 @@ void THwSdcard::RunInitialization()
 				TRACE(" %02X", reg_csd[i]);
 			}
 			TRACE("\r\n");
-			++state;
+			++initstate;
 
 			ProcessCsd();
 		}
@@ -283,18 +233,18 @@ void THwSdcard::RunInitialization()
 	// Select the card and put into transfer mode
 	case 24:
 		SendCmd(7, rca, SDCMD_RES_R1B);
-		++state;
+		++initstate;
 		break;
 
 	case 25:
 		if (cmderror)
 		{
 			TRACE("Error selecting card!\r\n");
-			state = 100;
+			initstate = 100;
 		}
 		else
 		{
-			++state;
+			++initstate;
 		}
 		break;
 
@@ -302,18 +252,18 @@ void THwSdcard::RunInitialization()
 	case 26:
 		// prepare application specific command
 		SendCmd(55, rca, SDCMD_RES_48BIT);
-		++state;
+		++initstate;
 		break;
 
 	case 27:
 		StartDataReadCmd(51, 0, SDCMD_RES_48BIT, &reg_scr[0], sizeof(reg_scr));
-		++state;
+		++initstate;
 		break;
 	case 28:
 		if (cmderror)
 		{
 			TRACE("SCR register read error!\r\n");
-			state = 100;
+			initstate = 100;
 		}
 		else if (!dma.Active())
 		{
@@ -324,7 +274,7 @@ void THwSdcard::RunInitialization()
 			}
 			TRACE("\r\n");
 
-			++state;
+			++initstate;
 		}
 		break;
 
@@ -332,35 +282,35 @@ void THwSdcard::RunInitialization()
 	case 29:
 		// prepare application specific command
 		SendCmd(55, rca, SDCMD_RES_48BIT);
-		++state;
+		++initstate;
 		break;
 
 	case 30:
 		SendCmd(6, 2, SDCMD_RES_48BIT);  // Switch command, 2 = 4 bit bus
-		++state;
+		++initstate;
 		break;
 
 	case 31:
-		if (cmderror)		state = 100;
+		if (cmderror)		initstate = 100;
 		else
 		{
 			SetSpeed(clockspeed);
 			SetBusWidth(4); // always 4 bit bus
-			++state;
+			++initstate;
 		}
 		break;
 
 	case 32:
 		SendCmd(16, 512, SDCMD_RES_48BIT); // set block size
-		++state;
+		++initstate;
 		break;
 
 	case 33:
-		if (cmderror)		state = 100;
+		if (cmderror)		initstate = 100;
 		else
 		{
 			TRACE("SDCARD initialized, ready to accept transfer commands.\r\n");
-			state = 50;
+			initstate = 50;
 		}
 		break;
 
@@ -368,13 +318,13 @@ void THwSdcard::RunInitialization()
 		// ready to accept transfer commands, go to normal state
 		card_initialized = true;
 		completed = true;
-		state = 0;
+		initstate = 0;
 		break;
 
 	case 100: // delay after error
 		if (CLOCKCNT - lastcmdtime > after_error_delay_clocks)
 		{
-			state = 0;
+			initstate = 0;
 		}
 		break;
 	}
@@ -463,7 +413,7 @@ v2:
 	TRACE("SD card max speed = %u MHz, size = %u MBytes\r\n", csd_max_speed / 1000000, card_megabytes);
 }
 
-bool THwSdcard::StartReadBlocks(uint32_t astartblock, void * adataptr, uint32_t adatalen)
+bool THwSdcard::StartReadBlocks(uint32_t astartblock, void * adataptr, uint32_t ablockcount)
 {
 	if (!initialized)
 	{
@@ -479,13 +429,15 @@ bool THwSdcard::StartReadBlocks(uint32_t astartblock, void * adataptr, uint32_t 
 	}
 
 	dataptr = (uint8_t *)adataptr;
-	datalen = adatalen;
+	blockcount = ablockcount;
+	remainingblocks = ablockcount;
 	startblock = astartblock;
-
-	state = 1; // read blocks
+	curblock = astartblock;
 
 	errorcode = 0;
 	completed = false;
+
+	trstate = 1; // read blocks
 
 	Run();
 

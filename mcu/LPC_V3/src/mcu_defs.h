@@ -35,6 +35,13 @@
 
 #endif
 
+#if defined(MCUSF_540XX)
+
+  #define IRQVECTAB_OFFS_24_VALUE  0xEDDC94BD
+  #define IRQVECTAB_OFFS_28_VALUE  0x180  // fix boot block offset
+
+#endif
+
 #define HW_GPIO_REGS  GPIO_Type
 #define HW_UART_REGS  USART_Type
 #define HW_SPI_REGS   SPI_Type

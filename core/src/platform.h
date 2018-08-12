@@ -89,6 +89,14 @@
   #define HW_DMA_MAX_COUNT  32768
 #endif
 
+#ifndef IRQVECTAB_OFFS_24_VALUE
+  #define IRQVECTAB_OFFS_24_VALUE  0
+#endif
+
+#ifndef IRQVECTAB_OFFS_28_VALUE
+  #define IRQVECTAB_OFFS_28_VALUE  0
+#endif
+
 //------------------------------------------------------------------
 
 #include "mcu_generic.h"

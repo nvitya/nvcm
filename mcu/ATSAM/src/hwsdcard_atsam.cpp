@@ -31,6 +31,8 @@
 #include "atsam_utils.h"
 #include "clockcnt.h"
 
+#include "traces.h"
+
 bool THwSdcard_atsam::HwInit()
 {
 	unsigned code;
@@ -315,4 +317,119 @@ void THwSdcard_atsam::StartDataReadCmd(uint8_t acmd, uint32_t cmdarg, uint32_t c
 
 	lastcmdtime = CLOCKCNT;
 	cmdrunning = true;
+}
+
+void THwSdcard_atsam::StartBlockReadCmd()
+{
+	// Enabling Read/Write Proof allows to stop the HSMCI Clock during
+	// read/write  access if the internal FIFO is full.
+	// This will guarantee data integrity, not bandwidth.
+	regs->HSMCI_MR |= HSMCI_MR_WRPROOF | HSMCI_MR_RDPROOF;
+	regs->HSMCI_MR &= ~HSMCI_MR_FBYTE; // fix 512 bytes
+
+#ifdef HSMCI_MR_PDCMODE
+	regs->HSMCI_MR |= HSMCI_MR_PDCMODE;
+#endif
+	regs->HSMCI_DMA = HSMCI_DMA_DMAEN;
+
+	uint32_t cmdr = 0
+	  | HSMCI_CMDR_RSPTYP_48_BIT
+	  | HSMCI_CMDR_MAXLAT   // increase latency for commands with response
+	;
+
+	uint32_t cmdarg = startblock;
+	if (!high_capacity)  cmdarg <<= 9; // byte addressing for low capacity cards
+
+	// add data transfer flags
+	cmdr |= HSMCI_CMDR_TRCMD_START_DATA | HSMCI_CMDR_TRDIR_READ;
+
+	if (blockcount <= 1)
+	{
+		cmdr |= 17; // single block read command (a little faster finish)
+		cmdr |= HSMCI_CMDR_TRTYP_SINGLE;
+		regs->HSMCI_BLKR = (512 << 16) | (1 << 0);
+	}
+	else
+	{
+		// always use multiple block read
+		cmdr |= 18; // multi block read command
+		cmdr |= HSMCI_CMDR_TRTYP_MULTIPLE;
+		regs->HSMCI_BLKR = (512 << 16) | (blockcount);  // fix 512 byte blocks, block count not really used
+	}
+
+	regs->HSMCI_ARGR = cmdarg;
+	regs->HSMCI_CMDR = cmdr; // start the execution
+
+	// start the DMA channel
+
+	dma.Prepare(false, (void *)&regs->HSMCI_FIFO[0], 0); // setup the DMA for receive
+	dmaxfer.flags = 0; // use defaults
+	dmaxfer.bytewidth = 4;  // destination must be aligned !!!
+	dmaxfer.count = (blockcount << 7);  // 512 * n / 4 == 128 * n
+	dmaxfer.dstaddr = dataptr;
+	dma.StartTransfer(&dmaxfer);
+
+	cmderror = false;
+	lastcmdtime = CLOCKCNT;
+	cmdrunning = true;
+}
+
+void THwSdcard_atsam::RunTransfer()
+{
+	if (cmdrunning && !CmdFinished())
+	{
+		return;
+	}
+
+	cmdrunning = false;
+
+	switch (trstate)
+	{
+	case 0: // idle
+		break;
+
+	case 1: // start read blocks
+		StartBlockReadCmd();
+		trstate = 101;
+		break;
+
+	case 101: // wait until the block transfer finishes
+
+		if (cmderror)
+		{
+			// transfer error
+			errorcode = 1;
+			completed = true;
+			trstate = 0; // transfer finished.
+		}
+		else
+		{
+			if (dma.Active())
+			{
+				return; // wait until DMA finishes.
+			}
+
+			if (blockcount > 1)
+			{
+				// send the stop transmission command
+				SendCmd(12, 0, SDCMD_RES_R1B);
+				trstate = 106;
+			}
+			else
+			{
+				trstate = 106; RunTransfer(); return; // jump directly to the last phase
+			}
+		}
+		break;
+
+	case 106: // wait until transfer done flag set
+
+		if (regs->HSMCI_SR & HSMCI_SR_XFRDONE)
+		{
+			errorcode = 0;
+			completed = true;
+			trstate = 0; // transfer finished.
+		}
+		break;
+	}
 }

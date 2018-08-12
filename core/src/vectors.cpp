@@ -283,17 +283,17 @@ pHandler __isr_vectors[] =
 {
 	// Configure Initial Stack Pointer, using linker-generated symbols
 	(pHandler) (&__stack),
-	(pHandler) _start, // application entry
+	(pHandler) _start,           // application entry
 
 	(pHandler) NMI_Handler,
 	(pHandler) HardFault_Handler,
-	(pHandler) MemManage_Handler,
+	(pHandler) MemManage_Handler,  // offset = 0x10
 	(pHandler) BusFault_Handler,
 	(pHandler) UsageFault_Handler,
-	(pHandler) (0UL),           // Valid user code checksum for NXP
-	(pHandler) (0UL),           // Reserved
-	(pHandler) (0UL),           // Reserved
-	(pHandler) (0UL),           // Reserved
+	(pHandler) (0UL),              // offset = 0x1C, Valid user code checksum for NXP
+	(pHandler) (0UL),              // offset = 0x20, Reserved
+	(pHandler) (IRQVECTAB_OFFS_24_VALUE),       // offset = 0x24, NXP boot marker
+	(pHandler) (IRQVECTAB_OFFS_28_VALUE),       // offset = 0x28, NXP boot block offset
 	(pHandler) SVC_Handler,
 	(pHandler) DebugMon_Handler,
 	(pHandler) (0UL),           // Reserved

@@ -205,8 +205,6 @@ void THwDmaChannel_atsam::PrepareTransfer(THwDmaTransfer * axfer)
 		addr = (uint32_t)axfer->dstaddr;
 		regs->XDMAC_CDA = addr;
 		if (((addr >> 20) != 0x200) && ((addr >> 20) != 0x000))  ccreg |= (1 << 14); // DIF = 1
-
-		regs->XDMAC_CUBC = axfer->count;
 	}
 	else
 	{
