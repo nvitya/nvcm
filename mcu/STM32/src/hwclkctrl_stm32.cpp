@@ -182,15 +182,15 @@ void THwClkCtrl_stm32::PrepareHiSpeed(unsigned acpuspeed)
   unsigned ws;
   if (acpuspeed <= 24000000)
   {
-  	ws = 0;
+  	ws = FLASH_ACR_LATENCY_0;
   }
   else if (acpuspeed <= 48000000)
   {
-  	ws = 1;
+  	ws = FLASH_ACR_LATENCY_1;
   }
   else
   {
-  	ws = 2;
+  	ws = FLASH_ACR_LATENCY_2;
   }
 
   ws = 2;

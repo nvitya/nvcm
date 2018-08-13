@@ -36,6 +36,8 @@
 #include "traces.h"
 #include "clockcnt.h"
 
+#if defined(ETH_BASE)
+
 bool THwEth_stm32::Init(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, uint32_t txcnt)
 {
 	uint32_t n;
@@ -596,3 +598,5 @@ void THwEth_stm32::PhyStatusPoll(void)
 		break;
 	}
 }
+
+#endif

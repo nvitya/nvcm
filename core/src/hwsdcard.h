@@ -109,6 +109,8 @@ public: // mandatory
 
 	uint32_t GetCmdResult32() { return 0; }
 	void GetCmdResult128(void * adataptr) { }
+
+	void RunTransfer() {}
 };
 
 #define HWSDCARD_IMPL   THwSdcard_noimpl
