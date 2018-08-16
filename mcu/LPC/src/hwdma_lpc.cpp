@@ -160,7 +160,7 @@ bool THwDmaChannel_lpc::StartTransfer(THwDmaTransfer * axfer)
 		unaligned = ((axfer->bytewidth == 4) && ((unsigned(axfer->srcaddr) & 3) != 0));
 
 		ctrl |= (1 << 25); // select peripheral bus for DST
-		if (axfer->addrinc)  ctrl |= (1 << 26); // increment source address
+		if ((axfer->flags & DMATR_NO_ADDR_INC) == 0)  ctrl |= (1 << 26); // increment source address
 	}
 	else
 	{
@@ -168,7 +168,7 @@ bool THwDmaChannel_lpc::StartTransfer(THwDmaTransfer * axfer)
 		unaligned = ((axfer->bytewidth == 4) && ((unsigned(axfer->dstaddr) & 3) != 0));
 
 		ctrl |= (1 << 24); // select peripheral bus for SRC
-		if (axfer->addrinc)  ctrl |= (1 << 27); // increment DST address
+		if ((axfer->flags & DMATR_NO_ADDR_INC) == 0)  ctrl |= (1 << 27); // increment DST address
 	}
 
 	if (unaligned)
