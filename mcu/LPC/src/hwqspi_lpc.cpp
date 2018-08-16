@@ -179,7 +179,7 @@ int THwQspi_lpc::StartReadData(unsigned acmd, unsigned address, void * dstptr, u
 		{
 			xfer.bytewidth = 4;
 			xfer.count = ((len + 3) >> 2);
-			xfer.addrinc = true;
+			xfer.flags = 0;
 			xfer.dstaddr = dstptr;
 
 	  	dataptr += (xfer.count << 2);
@@ -259,7 +259,7 @@ int THwQspi_lpc::StartWriteData(unsigned acmd, unsigned address, void * srcptr, 
 
 		xfer.bytewidth = 4;
 		xfer.count = ((len + 3) >> 2);
-		xfer.addrinc = true;
+		xfer.flags = 0;
 		xfer.srcaddr = dataptr;
 
 		dataptr += (xfer.count << 2);

@@ -480,7 +480,7 @@ void THwI2c_stm32::Run()
 				xfer.bytewidth = 1;
 				cr2 = regs->CR2;
 				xfer.count = ((cr2 >> 16) & 0xFF); // todo: check count zero
-				xfer.addrinc = true;
+				xfer.flags = 0;
 				dataptr += xfer.count;
 				remainingbytes -= xfer.count;
 
@@ -553,7 +553,7 @@ void THwI2c_stm32::Run()
 				xfer.bytewidth = 1;
 				cr2 = regs->CR2;
 				xfer.count = ((cr2 >> 16) & 0xFF); // todo: check count zero
-				xfer.addrinc = true;
+				xfer.flags = 0;
 				dataptr += xfer.count;
 				remainingbytes -= xfer.count;
 

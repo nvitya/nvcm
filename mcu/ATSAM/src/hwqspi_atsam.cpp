@@ -226,7 +226,7 @@ int THwQspi_atsam::StartReadData(unsigned acmd, unsigned address, void * dstptr,
 		xfer.dstaddr = dstptr;
 		xfer.bytewidth = 1;
 		xfer.count = remainingbytes;
-		xfer.addrinc = true;
+		xfer.flags = 0;
 		rxdma.StartMemToMem(&xfer);
 
 		remainingbytes = 0;
@@ -340,7 +340,7 @@ int THwQspi_atsam::StartWriteData(unsigned acmd, unsigned address, void * srcptr
 		xfer.dstaddr = qspidatamem;
 		xfer.bytewidth = 1;
 		xfer.count = remainingbytes;
-		xfer.addrinc = true;
+		xfer.flags = 0;
 		txdma.StartMemToMem(&xfer);
 
 		remainingbytes = 0;
