@@ -64,6 +64,8 @@ public:	// settings
 	bool 					 initialized = false;
 
 	unsigned       speed = 8000000;  // default speed = 8MHz
+	bool           idleclk_high = true;
+
 	int            addrlen = 3;
 	unsigned       dummydata = 0;
 	unsigned       dummysize = 1; // default dummy size = 1 byte

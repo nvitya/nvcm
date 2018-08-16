@@ -134,7 +134,7 @@ bool THwDmaChannel_lpc::Enabled()
 	return ((regs->CONFIG & 1) != 0);
 }
 
-bool THwDmaChannel_lpc::StartTransfer(THwDmaTransfer * axfer)
+void THwDmaChannel_lpc::PrepareTransfer(THwDmaTransfer * axfer)
 {
 	// compose the DMA control register
 
@@ -194,9 +194,5 @@ bool THwDmaChannel_lpc::StartTransfer(THwDmaTransfer * axfer)
 	ctrl |= count;
 
 	regs->CONTROL = ctrl;  // 0x9 48 0001
-
-	Enable();
-
-	return true;
 }
 

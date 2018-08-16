@@ -166,7 +166,7 @@ int THwQspi_lpc::StartReadData(unsigned acmd, unsigned address, void * dstptr, u
 		|	((acmd & 0xFF) << 24)
 	;
 
-	dmaused = (len > 4);
+	dmaused = (len >= 4);
 
 	if (dmaused)
 	{
@@ -248,7 +248,7 @@ int THwQspi_lpc::StartWriteData(unsigned acmd, unsigned address, void * srcptr, 
 		|	((acmd & 0xFF) << 24)
 	;
 
-	dmaused = (len > 4);
+	dmaused = (len >= 4);
 
 	if (dmaused)
 	{

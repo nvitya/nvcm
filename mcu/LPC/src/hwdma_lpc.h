@@ -52,8 +52,8 @@ public:
 	bool Enabled();
 	bool Active();
 
-	bool StartTransfer(THwDmaTransfer * axfer);
-	bool StartMemToMem(THwDmaTransfer * axfer);
+	void PrepareTransfer(THwDmaTransfer * axfer);
+	inline void StartPreparedTransfer() { Enable(); }
 };
 
 #define HWDMACHANNEL_IMPL  THwDmaChannel_lpc
