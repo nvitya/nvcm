@@ -19,6 +19,8 @@ public:
 	THwDmaTransfer  dmaxfer;
 
 	uint8_t         cmdbuf[16];
+	uint8_t         cmdcnt;
+	uint8_t         cmdidx;
 
 	virtual bool InitInterface();
 
@@ -31,6 +33,13 @@ public:
 	//virtual void FillColor(uint16_t acolor, unsigned acount);
 
 	virtual void Run(); // constantly updates the display
+
+protected:
+	uint8_t         current_page;
+	uint8_t *       dataptr;
+	uint32_t        row_remaining;
+
+
 };
 
 #endif /* SRC_MONOLCD_SPI_H_ */

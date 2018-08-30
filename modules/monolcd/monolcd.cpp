@@ -112,8 +112,8 @@ void TMonoLcd::InitPanel()
 {
   WriteCmd(0xE2);  //System Reset
   WriteCmd(0x40); // Set display start line to 0
-  WriteCmd(0xA1); //Set SEG Direction
-  WriteCmd(0xC0); //Set COM Direction
+  //WriteCmd(0xA1); //Set SEG Direction
+  //WriteCmd(0xC0); //Set COM Direction
   WriteCmd(0xA2); //Set Bias = 1/9
   WriteCmd(0x2C);  //Boost ON
   WriteCmd(0x2E); //Voltage Regular On
@@ -146,13 +146,13 @@ void TMonoLcd::SetRotation(uint8_t m)
   	width = hwwidth;
   	height = hwheight;
 		WriteCmd(0xC8);  // set com scan direction to remap
-		WriteCmd(0xA1);  // set segment re-map to remap
+		WriteCmd(0xA0);  // set segment re-map to remap
   	break;
   case 2:
   	width = hwwidth;
   	height = hwheight;
 		WriteCmd(0xC0);  // set com scan direction to normal
-		WriteCmd(0xA0);  // set segment re-map to normal
+		WriteCmd(0xA1);  // set segment re-map to normal
   	break;
   }
 }

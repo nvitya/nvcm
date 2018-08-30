@@ -151,7 +151,7 @@ bool THwEth_stm32::Init(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, 
 	return true;
 }
 
-void THwEth_stm32::InitDescList(bool istx, int bufnum, HW_ETH_DMA_DESC * pdesc_list)
+void THwEth_stm32::InitDescList(bool istx, int bufnum, HW_ETH_DMA_DESC * pdesc_list, uint8_t * pbuffer)
 {
 	int i;
 	HW_ETH_DMA_DESC *  pdesc = pdesc_list;

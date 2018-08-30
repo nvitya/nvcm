@@ -39,47 +39,91 @@ void TMonoLcd_spi::WriteCmd(uint8_t adata)
 
 void TMonoLcd_spi::Run()
 {
-	uint32_t page;
-	uint32_t col;
-	uint8_t * dp = pdispbuf;
-
 	switch (updatestate)
 	{
 	case 0: // wait for update request
-		if (lastupdate != updatecnt)
+		if (lastupdate == updatecnt)
 		{
-			updatestate = 1;  Run();  return;
+			return;
 		}
-		break;
 
-	case 1: // start update
-		updatestate = 5;
-		break;
-
-	case 5: // start sending data
 		lastupdate = updatecnt;
+		current_page = 0;
+		dataptr = pdispbuf;
+		updatestate = 2;
 
+		// no break !
 
-		for (page = 0; page < (hwheight >> 3); ++page)
+	case 2: // send commands
+		pin_cd.Set0(); // set to command
+		cmdbuf[0] = 0x00 + (rotation == 2 ? 4 : 0); // set column start address / LSB
+		cmdbuf[1] = 0x10; // set column start address / MSB
+		cmdbuf[2] = 0xB0 + current_page; // set page address
+		cmdcnt = 3;
+		cmdidx = 0;
+
+		pin_cs.Set0();
+		updatestate = 3;
+		// no break !
+
+	case 3: // sending command bytes
+		while (cmdidx < cmdcnt)
 		{
-			WriteCmd(0x04); // set column start address / LSB
-			WriteCmd(0x10); // set column start address / MSB
-			WriteCmd(0xB0 + page); // set page address
-			pin_cd.Set1();
-			pin_cs.Set0();
-			for (col = 0; col < hwwidth; ++col)
+			if (!spi.TrySendData(cmdbuf[cmdidx]))
 			{
-				spi.SendData(*dp++);
+				return;
 			}
-			spi.WaitSendFinish();
-			pin_cs.Set0();
+			++cmdidx;
 		}
 
-		updatestate = 6;
-		break;
+		if (!spi.SendFinished())
+		{
+			return;
+		}
 
-	case 6: // wait until the buffer write finished
-		updatestate = 0; // return the idle state
+		pin_cs.Set1();
+		updatestate = 4;
+		// no break !
+
+	case 4: // start send row data
+
+		row_remaining = hwwidth;
+		pin_cd.Set1();
+		pin_cs.Set0();
+		updatestate = 5;
+
+		// no break;
+
+	case 5: // sending row data
+
+		while (row_remaining > 0)
+		{
+			if (!spi.TrySendData(*dataptr))
+			{
+				return;
+			}
+			++dataptr;
+			--row_remaining;
+		}
+
+		if (!spi.SendFinished())
+		{
+			return;
+		}
+
+		pin_cs.Set1();
+
+		// go to the next row
+		++current_page;
+		if (current_page < (hwheight >> 3))
+		{
+			updatestate = 2; Run(); return;
+		}
+		else
+		{
+			// the end.
+			updatestate = 0;
+		}
 		break;
 	}
 }
