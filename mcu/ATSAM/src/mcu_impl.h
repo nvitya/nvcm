@@ -50,7 +50,7 @@
   #include "hwi2c_atsam.h"
 #endif
 
-#ifdef Qspi
+#ifdef QSPI
 	#ifdef HWQSPI_H_
 		#include "hwqspi_atsam.h"
 	#endif

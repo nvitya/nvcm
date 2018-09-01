@@ -124,9 +124,10 @@ void TTftLcd_gp16::WriteCmd(uint8_t adata)
 	pin_cs.Set0();
 	SetData8(adata);
 	pin_wr.Set0();
-	//delay_clocks(data_hold_clocks);
+	delay_clocks(data_hold_clocks);
 	pin_wr.Set1();
 	pin_cs.Set1();
+	//delay_clocks(data_hold_clocks);
 }
 
 void TTftLcd_gp16::WriteData8(uint8_t adata)
@@ -135,9 +136,10 @@ void TTftLcd_gp16::WriteData8(uint8_t adata)
 	pin_cs.Set0();
 	SetData8(adata);
 	pin_wr.Set0();
-	//delay_clocks(data_hold_clocks);
+	delay_clocks(data_hold_clocks);
 	pin_wr.Set1();
 	pin_cs.Set1();
+	//delay_clocks(data_hold_clocks);
 }
 
 void TTftLcd_gp16::WriteData16(uint16_t adata)
@@ -146,9 +148,10 @@ void TTftLcd_gp16::WriteData16(uint16_t adata)
 	pin_cs.Set0();
 	SetData16(adata);
 	pin_wr.Set0();
-	//delay_clocks(data_hold_clocks);
+	delay_clocks(data_hold_clocks);
 	pin_wr.Set1();
 	pin_cs.Set1();
+	//delay_clocks(data_hold_clocks);
 }
 
 void TTftLcd_gp16::SetAddrWindow(uint16_t x0, uint16_t y0, uint16_t w, uint16_t h)
@@ -179,7 +182,7 @@ void TTftLcd_gp16::FillColor(uint16_t acolor, unsigned acount)
   while (acount > 0)
   {
   	pin_wr.Set0();
-  	//delay_clocks(data_hold_clocks);
+  	delay_clocks(data_hold_clocks);
   	pin_wr.Set1();
   	--acount;
   }

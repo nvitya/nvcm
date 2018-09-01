@@ -190,8 +190,8 @@ void THwDmaChannel_atsam::PrepareTransfer(THwDmaTransfer * axfer)
 	if (axfer->flags & DMATR_MEM_TO_MEM)
 	{
 		ccreg |= (0
-			| (1 <<  0)   // TYPE: 1 = Peripheral - Memory transfer
-		  | (1 <<  4)   // DSYNC = 1
+			| (0 <<  0)   // TYPE: 0 = Memory to Memory transfer
+		  | (0 <<  4)   // DSYNC = 0
 			| (1 <<  6)   // SWREQ = 1 to start without HW signal
 		);
 		ccreg |= (1 << 16); // SAM = 1

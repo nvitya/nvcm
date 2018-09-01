@@ -26,11 +26,11 @@
  *  authors:  nvitya
 */
 
-#ifdef Qspi
-
 #include "platform.h"
 #include "hwpins.h"
 #include "hwqspi.h"
+
+#ifdef QSPI
 
 bool THwQspi_atsam::InitInterface()
 {
@@ -226,8 +226,8 @@ int THwQspi_atsam::StartReadData(unsigned acmd, unsigned address, void * dstptr,
 		xfer.dstaddr = dstptr;
 		xfer.bytewidth = 1;
 		xfer.count = remainingbytes;
-		xfer.flags = 0;
-		rxdma.StartMemToMem(&xfer);
+		xfer.flags = DMATR_MEM_TO_MEM;
+		rxdma.StartTransfer(&xfer);
 
 		remainingbytes = 0;
 	}
@@ -340,8 +340,8 @@ int THwQspi_atsam::StartWriteData(unsigned acmd, unsigned address, void * srcptr
 		xfer.dstaddr = qspidatamem;
 		xfer.bytewidth = 1;
 		xfer.count = remainingbytes;
-		xfer.flags = 0;
-		txdma.StartMemToMem(&xfer);
+		xfer.flags = DMATR_MEM_TO_MEM;
+		txdma.StartTransfer(&xfer);
 
 		remainingbytes = 0;
 	}
