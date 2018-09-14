@@ -81,7 +81,7 @@
 #define PINCFG_AF_14       0x1E0000
 #define PINCFG_AF_15       0x1F0000
 
-#define PINCFG_AF_A        0x100000
+#define PINCFG_AF_A        0x100000  // Atmel uses ABC.. instead of 123..
 #define PINCFG_AF_B        0x110000
 #define PINCFG_AF_C        0x120000
 #define PINCFG_AF_D        0x130000

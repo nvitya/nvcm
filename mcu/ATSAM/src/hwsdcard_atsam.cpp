@@ -33,6 +33,8 @@
 
 #include "traces.h"
 
+#if defined(HSMCI)
+
 bool THwSdcard_atsam::HwInit()
 {
 	unsigned code;
@@ -57,7 +59,9 @@ bool THwSdcard_atsam::HwInit()
 	// Enable the HSMCI and the Power Saving
 	regs->HSMCI_CR = HSMCI_CR_MCIEN | HSMCI_CR_PWSEN;
 
+#ifdef HSMCI_DMA_DMAEN
 	regs->HSMCI_DMA = 0;
+#endif
 
 	if (high_speed)
 	{
@@ -180,7 +184,9 @@ void THwSdcard_atsam::SendSpecialCmd(uint32_t aspecialcmd)
 
 	// Configure command
 	regs->HSMCI_MR &= ~(HSMCI_MR_WRPROOF | HSMCI_MR_RDPROOF | HSMCI_MR_FBYTE);
+#ifdef HSMCI_DMA_DMAEN
 	regs->HSMCI_DMA = 0;
+#endif
 	// Write argument
 	regs->HSMCI_ARGR = 0;
 	regs->HSMCI_CMDR = cmdr; // start the execution
@@ -192,7 +198,9 @@ void THwSdcard_atsam::SendSpecialCmd(uint32_t aspecialcmd)
 void THwSdcard_atsam::SendCmd(uint8_t acmd, uint32_t cmdarg, uint32_t cmdflags)
 {
 	regs->HSMCI_MR &= ~(HSMCI_MR_WRPROOF | HSMCI_MR_RDPROOF | HSMCI_MR_FBYTE);
+#ifdef HSMCI_DMA_DMAEN
 	regs->HSMCI_DMA = 0;
+#endif
 	regs->HSMCI_BLKR = 0;
 
 	uint32_t cmdr = (acmd & 0x3F);
@@ -269,10 +277,11 @@ void THwSdcard_atsam::StartDataReadCmd(uint8_t acmd, uint32_t cmdarg, uint32_t c
 		regs->HSMCI_MR &= ~HSMCI_MR_FBYTE;
 	}
 
-#ifdef HSMCI_MR_PDCMODE
+#ifdef HSMCI_DMA_DMAEN
+	regs->HSMCI_DMA = HSMCI_DMA_DMAEN;
+#else
 	regs->HSMCI_MR |= HSMCI_MR_PDCMODE;
 #endif
-	regs->HSMCI_DMA = HSMCI_DMA_DMAEN;
 
 	uint32_t cmdr = (acmd & 0x3F);
 	uint8_t restype = (cmdflags & SDCMD_RES_MASK);
@@ -327,10 +336,11 @@ void THwSdcard_atsam::StartBlockReadCmd()
 	regs->HSMCI_MR |= HSMCI_MR_WRPROOF | HSMCI_MR_RDPROOF;
 	regs->HSMCI_MR &= ~HSMCI_MR_FBYTE; // fix 512 bytes
 
-#ifdef HSMCI_MR_PDCMODE
+#ifdef HSMCI_DMA_DMAEN
+	regs->HSMCI_DMA = HSMCI_DMA_DMAEN;
+#else
 	regs->HSMCI_MR |= HSMCI_MR_PDCMODE;
 #endif
-	regs->HSMCI_DMA = HSMCI_DMA_DMAEN;
 
 	uint32_t cmdr = 0
 	  | HSMCI_CMDR_RSPTYP_48_BIT
@@ -433,3 +443,5 @@ void THwSdcard_atsam::RunTransfer()
 		break;
 	}
 }
+
+#endif

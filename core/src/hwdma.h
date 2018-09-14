@@ -33,8 +33,10 @@
 
 // DMA Transfer Flags
 
-#define DMATR_NO_ADDR_INC   0x0001  // do not in
-#define DMATR_MEM_TO_MEM    0x0002
+#define DMATR_NO_ADDR_INC   0x0003  // do not increment SRC and DST ADDRESS
+#define DMATR_NO_SRC_INC    0x0001
+#define DMATR_NO_DST_INC    0x0002
+#define DMATR_MEM_TO_MEM    0x0008
 #define DMATR_IRQ           0x0010
 
 class THwDmaTransfer

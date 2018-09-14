@@ -30,12 +30,16 @@
 
 uint32_t atsam_peripheral_clock()
 {
+#if defined(PMC_MCKR_MDIV_Pos)
 	uint32_t result = SystemCoreClock;
 	uint32_t div = (PMC->PMC_MCKR >> PMC_MCKR_MDIV_Pos) & 3;
 	if (div == 1)  return (result >> 1);
 	if (div == 2)  return (result / 3);
 	if (div == 3)  return (result >> 2);
 	return result;
+#else
+	return SystemCoreClock;
+#endif
 }
 
 void atsam_enable_peripheral(uint32_t perid)

@@ -19,65 +19,40 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     tftlcd_mm16.cpp
+ *  file:     tftlcd_mm16.h
  *  brief:    16 bit parallel TFT LCD Display driver using external memory controller
  *  version:  1.00
  *  date:     2018-02-10
  *  authors:  nvitya
 */
 
-#include "tftlcd_mm16.h"
+#ifndef TFT_TFTLCD_MM16C_H_
+#define TFT_TFTLCD_MM16C_H_
 
-bool TTftLcd_mm16::InitInterface()
+#include "tftlcd.h"
+
+class TTftLcd_mm16c: public TTftLcd
 {
-	// should be overridden !
-	return false;
-}
+public:
+	typedef TTftLcd super;
 
-void TTftLcd_mm16::WriteCmd(uint8_t adata)
-{
-	*cmdreg = adata;
-	__DSB();
-}
+	volatile uint16_t *  cmdreg16 = nullptr;
+	volatile uint32_t *  cmdreg32 = nullptr;
+	volatile uint16_t *  datareg16 = nullptr;
+	volatile uint32_t *  datareg32 = nullptr;
 
-void TTftLcd_mm16::WriteData8(uint8_t adata)
-{
-	*datareg = adata;
-	__DSB();
-}
+public:
+	// interface dependent
 
-void TTftLcd_mm16::WriteData16(uint16_t adata)
-{
-	*datareg = adata;
-	__DSB();
-}
+	virtual bool InitInterface();
 
-void TTftLcd_mm16::SetAddrWindow(uint16_t x0, uint16_t y0, uint16_t w, uint16_t h)
-{
-	uint16_t x1 = x0 + w - 1;
-	uint16_t y1 = y0 + h - 1;
+	virtual void WriteCmd(uint8_t adata);
+	virtual void WriteData8(uint8_t adata);
+	virtual void WriteData16(uint16_t adata);
 
-	*cmdreg = 0x2a;
-	*datareg = (x0 >> 8);
-	*datareg = (x0);
-	*datareg = (x1 >> 8);
-	*datareg = (x1);
+	virtual void SetAddrWindow(uint16_t x0, uint16_t y0, uint16_t w,  uint16_t h);
+	virtual void FillColor(uint16_t acolor, unsigned acount);
 
-	*cmdreg = 0x2b;
-	*datareg = (y0 >> 8);
-	*datareg = (y0);
-	*datareg = (y1 >> 8);
-	*datareg = (y1);
+};
 
-	*cmdreg = 0x2c;
-}
-
-void TTftLcd_mm16::FillColor(uint16_t acolor, unsigned acount)
-{
-  while (acount > 0)
-  {
-  	*datareg = acolor;
-  	__DSB();
-  	--acount;
-  }
-}
+#endif /* TFT_TFTLCD_MM16C_H_ */

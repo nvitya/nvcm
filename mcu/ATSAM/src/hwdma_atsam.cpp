@@ -194,8 +194,15 @@ void THwDmaChannel_atsam::PrepareTransfer(THwDmaTransfer * axfer)
 		  | (0 <<  4)   // DSYNC = 0
 			| (1 <<  6)   // SWREQ = 1 to start without HW signal
 		);
-		ccreg |= (1 << 16); // SAM = 1
-		ccreg |= (1 << 18); // DAM = 1
+
+		if ((axfer->flags & DMATR_NO_SRC_INC) == 0)
+		{
+			ccreg |= (1 << 16); // SAM = 1
+		}
+		if ((axfer->flags & DMATR_NO_DST_INC) == 0)
+		{
+			ccreg |= (1 << 18); // DAM = 1
+		}
 
 	  // auto detect interface based on the address
 		unsigned addr;
@@ -219,7 +226,7 @@ void THwDmaChannel_atsam::PrepareTransfer(THwDmaTransfer * axfer)
 			  | (0 << 13)   // SIF = 0
 			);
 
-			if ((axfer->flags & DMATR_NO_ADDR_INC) == 0)
+			if ((axfer->flags & DMATR_NO_SRC_INC) == 0)
 			{
 				ccreg |= (3 << 16); // SAM == 3
 			}
@@ -235,7 +242,7 @@ void THwDmaChannel_atsam::PrepareTransfer(THwDmaTransfer * axfer)
 			  | (1 << 13)  // SIF = 1, IF1 required for peripheral bus access
 			);
 
-			if ((axfer->flags & DMATR_NO_ADDR_INC) == 0)
+			if ((axfer->flags & DMATR_NO_DST_INC) == 0)
 			{
 				ccreg |= (3 << 18); // DAM == 3
 			}

@@ -20,7 +20,7 @@
  * --------------------------------------------------------------------------- */
 /*
  *  file:     hweth_atsam.cpp
- *  brief:    STM32 Ethernet MAC (GMAC)
+ *  brief:    ATSAM Ethernet MAC (GMAC)
  *  version:  1.00
  *  date:     2018-05-31
  *  authors:  nvitya
@@ -29,6 +29,10 @@
 #include <stdio.h>
 #include "string.h"
 #include <stdarg.h>
+
+#include "platform.h"
+
+#if defined(GMAC)
 
 #include "hweth.h"
 #include "traces.h"
@@ -70,18 +74,22 @@ bool THwEth_atsam::Init(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, 
     | (1 <<  1)  // FD: 1 = full duplex
     | (0 <<  2)  // DNVLAN: 1 = discard VLAN Frames
     | (0 <<  3)  // JFRAME: 1 = enable jumbo frames
-    | (0 <<  4)  // CAF: copy all frames (promiscous mode?)
+  | (1 <<  4)  // CAF: copy all frames (promiscous mode?)
     | (0 <<  5)  // NBC: 1 = do not accept broadcast frames
     | (1 <<  8)  // MAXFS: 1 = Allow 1536 byte frames
     | (1 << 17)  // RFCS: 1 = remove FCS from received frame data
     | (4 << 18)  // CLK(3): MDC clock divisor
-    | (0 << 24)  // RXCOEN: 1 = Enable RX Checksum offload (wrong checksum frames will be discarded)
+  | (0 << 24)  // RXCOEN: 1 = Enable RX Checksum offload (wrong checksum frames will be discarded)
+  | (0 << 25)  // EFRHD: Enable Receive in half duplex
+  | (1 << 26)  // IRXFCS: Ignore RX FCS
+  | (1 << 29)  // RXBP: Receive Bad Preamble
+  | (1 << 30)  // IRXER: Ignore IPG GRXER
   ;
 
   regs->GMAC_DCFGR = 0
   	| (0 << 24)  // DDRP: 1 = Discard Receive Packets when no free descriptors are available
   	| (24 << 16)  // DRBS(8): DMA Receive Buffer Size in 64 byte units, 24 x 64 = 1536
-  	| (1 << 11)  // TXCOEN: 1 = IP Checksum offload enable for sending
+	| (1 << 11)  // TXCOEN: 1 = IP Checksum offload enable for sending
   	| (1 << 10)  // TXPBMS: 4K TX Buffer Memory
   	| (3 <<  8)  // RXBMS(2): 4K RX buffer memory
   	| (0 <<  7)  // ESPA: 0 = LSB endian mode for packet data
@@ -509,3 +517,5 @@ void THwEth_atsam::PhyStatusPoll(void)
 		break;
 	}
 }
+
+#endif

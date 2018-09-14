@@ -56,7 +56,7 @@
 	#endif
 #endif
 
-#ifdef HWETH_H_
+#if defined(HWETH_H_) && defined(GMAC)
   #include "hweth_atsam.h"
 #endif
 
