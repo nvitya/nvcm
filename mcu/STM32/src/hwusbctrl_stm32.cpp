@@ -217,6 +217,7 @@ void THwUsbCtrl_stm32::HandleIrq()
 		regs->ISTR &= ~USB_ISTR_ERR;
 	}
 
+#if defined(USB_CNTR_LP_MODE)
 	if (regs->ISTR & USB_ISTR_WKUP)
 	{
 		TRACE("USB WKUP, ISTR=%04X\r\n", regs->ISTR);
@@ -247,6 +248,8 @@ void THwUsbCtrl_stm32::HandleIrq()
 		/* clear of the ISTR bit must be done after setting of CNTR_FSUSP */
 		regs->ISTR &= ~USB_ISTR_SUSP;
 	}
+
+#endif
 
 	if (regs->ISTR & USB_ISTR_SOF)
 	{
