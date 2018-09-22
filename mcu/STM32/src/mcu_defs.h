@@ -58,13 +58,18 @@
 
 #elif	defined(MCUSF_F7)
 
+  #if !defined(MAX_CLOCK_SPEED)
     #define MAX_CLOCK_SPEED  216000000
+  #endif
 
 #endif
 
 #define HW_GPIO_REGS  GPIO_TypeDef
 #define HW_UART_REGS  USART_TypeDef
 #define HW_SPI_REGS   SPI_TypeDef
+#ifdef QUADSPI
+  #define HW_QSPI_REGS  QUADSPI_TypeDef
+#endif
 
 #if defined(MCUSF_F1) || defined(MCUSF_F0) || defined(MCUSF_L0) || defined(MCUSF_F3)
   #define HW_DMA_REGS 	DMA_Channel_TypeDef

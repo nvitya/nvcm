@@ -177,15 +177,18 @@ void THwDmaChannel_stm32::Enable()
 
 void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 {
+	//Disable();
+
 	int sizecode = 0;
 	if (axfer->bytewidth == 2)  sizecode = 1;
 	else if (axfer->bytewidth == 4)  sizecode = 2;
 
-	int dircode = (istx ? 1 : 0);
 	int meminc = (axfer->flags & DMATR_NO_ADDR_INC ? 0 : 1);
-	uint32_t mem2mem = (axfer->flags & DMATR_MEM_TO_MEM ? 1 : 0);
 
 #ifndef DMASTREAMS
+
+	int dircode = (istx ? 1 : 0);
+	uint32_t mem2mem = (axfer->flags & DMATR_MEM_TO_MEM ? 1 : 0);
 
 	regs->CCR = 0
 		| (mem2mem << 14)  // MEM2MEM: 1 = memory to memory mode
@@ -215,6 +218,20 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 
 #else
 
+	int dircode;
+	if (axfer->flags & DMATR_MEM_TO_MEM)
+	{
+		dircode = 2;
+	}
+	else if (istx)
+	{
+		dircode = 1;
+	}
+	else
+	{
+		dircode = 0;
+	}
+
 	regs->CR = 0
 		| (chnum << 25)  // CHSEL(3): set the channel
 		| (0  << 23)  // MBURST(2): memory burst, 0 = single transfer
@@ -229,19 +246,24 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 		| (0  <<  9)  // PINC: Peripheral increment mode
 		| (0  <<  8)  // CIRC: Circular mode
 		| (dircode <<  6)  // DIR(2): Data transfer direction (init with 0)
-		| (0  <<  5)  // PFCTRL: Peripheral flow controller
+		| (0  <<  5)  // PFCTRL: Peripheral flow controller, 0 = DMA is the flow controller
 		| (0  <<  1)  // INTERRUPTS(4): no interrupts enabled
 		| (0  <<  0)  // EN: keep not enabled
 	;
 
-	regs->PAR = (uint32_t)periphaddr;
-
-	if (istx)
+	if (axfer->flags & DMATR_MEM_TO_MEM)
 	{
+		regs->PAR = (uint32_t)axfer->srcaddr;
+		regs->M0AR = (uint32_t)axfer->dstaddr;
+	}
+	else if (istx)
+	{
+		regs->PAR = (uint32_t)periphaddr;
 		regs->M0AR = (uint32_t)axfer->srcaddr;
 	}
 	else
 	{
+		regs->PAR = (uint32_t)periphaddr;
 		regs->M0AR = (uint32_t)axfer->dstaddr;
 	}
 

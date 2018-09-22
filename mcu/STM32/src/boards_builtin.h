@@ -70,6 +70,15 @@
   #define MCU_STM32F746ZG
   #define MCU_INPUT_FREQ   8000000
 
+#elif defined(BOARD_DISCOVERY_F746)
+
+  #define BOARD_NAME "STM32F746 Discovery"
+  #define MCU_STM32F746NG
+  #define MCU_INPUT_FREQ   25000000
+
+  #define MAX_CLOCK_SPEED  200000000
+
+
 #else
 
   #error "Unknown board."

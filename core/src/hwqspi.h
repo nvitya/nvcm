@@ -39,6 +39,7 @@
 #define QSPICM_SSM        0x00000800  // S command, S address + dummy, M data
 #define QSPICM_SMM        0x00000E00  // S command, M address + dummy, M data
 #define QSPICM_MMM        0x00000F00  // M command, M address + dummy, M data
+#define QSPICM_MASK       0x00000F00
 
 // Addres byte count
 #define QSPICM_ADDR       0x00080000  // send address with the default size
@@ -52,8 +53,8 @@
 // dummy byte count
 #define QSPICM_DUMMY      0x00800000  // send dummy with the default size
 #define QSPICM_DUMMY0     0x00000000  // do not send dummy (default)
-#define QSPICM_DUMMY1     0x00100000
-#define QSPICM_DUMMY2     0x00200000
+#define QSPICM_DUMMY1     0x00100000  // 8 dummy cycles
+#define QSPICM_DUMMY2     0x00200000  // 16 dummy cycles
 #define QSPICM_DUMMY3     0x00300000
 #define QSPICM_DUMMY4     0x00400000
 #define QSPICM_DUMMY_MASK 0x00F00000
@@ -66,7 +67,7 @@ public:	// settings
 	unsigned       speed = 8000000;  // default speed = 8MHz
 	bool           idleclk_high = true;
 
-	int            addrlen = 3;
+	unsigned       addrlen = 3;
 	unsigned       dummydata = 0;
 	unsigned       dummysize = 1; // default dummy size = 1 byte
 

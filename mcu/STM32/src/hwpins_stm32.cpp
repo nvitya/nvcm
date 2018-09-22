@@ -204,6 +204,10 @@ bool THwPinCtrl_stm32::PinSetup(int aportnum, int apinnum, unsigned flags)
   {
   	regs->OSPEEDR |= ~(1 << pinx2);
   }
+  else if ((flags & PINCFG_SPEED_MASK) == PINCFG_SPEED_MED2)
+  {
+  	regs->OSPEEDR |= ~(2 << pinx2);
+  }
   else if ((flags & PINCFG_SPEED_MASK) == PINCFG_SPEED_FAST)
   {
   	regs->OSPEEDR |= ~(3 << pinx2);

@@ -110,9 +110,9 @@
 
 // STM32F7: Cortex-M7
 
-#elif defined(MCU_STM32F746ZG)
+#elif defined(MCU_STM32F746ZG) || defined(MCU_STM32F746NG)
 
-	#define MCUF_STM32
+  #define MCUF_STM32
   #define MCUSF_F7
 
   #include "stm32f746xx.h"

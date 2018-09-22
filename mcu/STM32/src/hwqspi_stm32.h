@@ -19,45 +19,36 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwqspi_stm32.h
+ *  brief:    STM32 QSPI
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-09-21
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
-#endif
+#ifndef HWQSPI_STM32_H_
+#define HWQSPI_STM32_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
+#define HWQSPI_PRE_ONLY
+#include "hwqspi.h"
 
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
+class THwQspi_stm32 : public THwQspi_pre
+{
+public:
+	HW_QSPI_REGS * regs = nullptr;
 
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
+	bool Init();
 
-#ifdef HWI2C_H_
-  #include "hwi2c_stm32.h"
-#endif
+	virtual bool InitInterface(); // override
 
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
+	int  StartReadData(unsigned acmd, unsigned address, void * dstptr, unsigned len);
+	int  StartWriteData(unsigned acmd, unsigned address, void * srcptr, unsigned len);
+	void Run();
 
-#ifdef HWUSBCTRL_H_
-  #include "hwusbctrl_stm32.h"
-#endif
+	uint32_t   mlcode = 0;
+	int        runstate = 0;
+};
 
-#ifdef HWETH_H_
-  #include "hweth_stm32.h"
-#endif
+#define HWQSPI_IMPL THwQspi_stm32
 
-#if defined(QUADSPI) && defined(HWQSPI_H_)
-  #include "hwqspi_stm32.h"
-#endif
+#endif // def HWQSPI_STM32_H_
