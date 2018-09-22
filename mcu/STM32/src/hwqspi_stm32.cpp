@@ -34,6 +34,7 @@
 #ifdef QUADSPI
 
 #include "hwqspi.h"
+#include "clockcnt.h"
 
 #include "traces.h"
 
@@ -230,8 +231,7 @@ int THwQspi_stm32::StartReadData(unsigned acmd, unsigned address, void * dstptr,
 		ccr |= (1 << 8); // single line command
 	}
 
-	dmaused = (remainingbytes > 1);
-	//dmaused = false;
+	dmaused = (remainingbytes > 0);
 
 	regs->CCR = ccr;
 
@@ -350,8 +350,7 @@ int THwQspi_stm32::StartWriteData(unsigned acmd, unsigned address, void * srcptr
 		ccr |= (1 << 8); // single line command
 	}
 
-	dmaused = (remainingbytes > 1);
-	//dmaused = false;
+	dmaused = (remainingbytes > 0);
 
 	regs->CCR = ccr;
 
@@ -416,14 +415,14 @@ void THwQspi_stm32::Run()
 			}
 		}
 
-		regs->FCR = 0x1F; // clear transfer flags
+		regs->FCR = 0x3; // clear transfer flags
 
 		runstate = 1; // for abort handling
 	}
 
 	if (1 == runstate)
 	{
-		if (regs->SR & QUADSPI_SR_BUSY)
+		if ((regs->SR & (QUADSPI_SR_BUSY | QUADSPI_SR_FTF)))
 		{
 			// after a successful (DMA) transaction the BUSY bit and FIFO threshold stays set
 			// this is a silicon bug:, extra data written in the FIFO at the end of a read transfer

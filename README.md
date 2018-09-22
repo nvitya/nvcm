@@ -93,7 +93,7 @@ __KINETIS__  | OK                    | partial           | OK       | -       | 
 __LPC__      | OK                    | OK                | OK       | OK      | Master  | -       | OK
 __LPC_V2__   | OK                    | restricted        | OK       | -       | -       | -       | -
 __LPC_V3__   | OK                    | OK                | OK       | OK      | Master  | -       | -
-__STM32__    | OK                    | OK                | OK       | OK      | Master  | Master  | -
+__STM32__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK
 __XMC__      | OK                    | OK                | OK       | -       | -       | -       | -
 
 ### Planned Drivers
@@ -122,6 +122,7 @@ LPC        | BOARD_XPLORER_LPC4330  | [LPC4330-Xplorer](https://www.nxp.com/supp
 LPC_V3     | BOARD_XPRESSO_LPC54608 | [LPCXpresso54608](https://www.nxp.com/support/developer-resources/hardware-development-tools/lpcxpresso-boards/lpcxpresso-development-board-for-lpc5460x-mcus:OM13092)
 LPC_V3     | BOARD_MIBO100_LPC546XX | MIBO-100 LPC546xx by nvitya
 STM32      | BOARD_MIN_F103         | [STM32F103C8 Minimum Development Board (breadboard friendly)](https://www.aliexpress.com/w/wholesale-stm32f103c8t6-minimum.html)
+STM32      | BOARD_DISCOVERY_F746   | [Discovery kit with STM32F746NG](https://www.st.com/en/evaluation-tools/32f746gdiscovery.html)
 STM32      | BOARD_NUCLEO_F746      | [NUCLEO-F746ZG](http://www.st.com/en/evaluation-tools/nucleo-f746zg.html)
 STM32      | BOARD_NUCLEO_F446      | [NUCLEO-F446RE](http://www.st.com/en/evaluation-tools/nucleo-f446re.html)
 STM32      | BOARD_DISCOVERY_F072   | [Discovery kit with STM32F072RB MCU](http://www.st.com/en/evaluation-tools/32f072bdiscovery.html)
@@ -130,4 +131,4 @@ STM32      | BOARD_DEV_STM32F407ZE  | [STM32F407ZE Development Board](https://ww
 XMC        | BOARD_BOOT_XMC1200     | [XMC1200 Boot Kit](https://www.infineon.com/cms/de/product/evaluation-boards/kit_xmc12_boot_001/)
 
 
-For these usually there are ready to use examples. It is not so hard to create a project for a custom hardware either.
+For these usually there are ready to use examples but it is not so hard to create a project for a custom hardware.
