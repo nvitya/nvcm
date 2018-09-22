@@ -29,7 +29,7 @@
 #include "hwadc_stm32.h"
 #include "clockcnt.h"
 
-#if defined(ADC_CR1_SCAN)
+#if defined(MCUSF_F1)
 
 // ADC_v1: F1
 
