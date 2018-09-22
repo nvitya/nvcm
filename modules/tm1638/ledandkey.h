@@ -46,6 +46,7 @@ public:
 	void Set7Seg(int apos, int avalue);
 	void SetHexDigit(int apos, int avalue);
 
+	void DisplayDirect(uint32_t avaluel, uint32_t avalueh);  // sets every segment one by one
 	void DisplayHexNum(int avalue);
 	void DisplayDecNum(int avalue);
 

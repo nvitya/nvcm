@@ -114,7 +114,11 @@ bool THwPinCtrl_stm32::PinSetup(int aportnum, int apinnum, unsigned flags)
   else  // input
   {
   	// leave the mode bits at 0 = input mode
-    if (flags & PINCFG_PULLUP)
+    if (flags & PINCFG_ANALOGUE)
+    {
+    	// pinconf |= 0;
+    }
+    else if (flags & PINCFG_PULLUP)
     {
     	pinconf |= 8;
     	regs->BSRR = (1 << apinnum);

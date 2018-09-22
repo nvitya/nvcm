@@ -19,49 +19,61 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwadc.h
+ *  brief:    Simple internal ADC vendor-independent definitions
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-09-22
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
-#endif
+#ifndef _HWADC_H_PRE_
+#define _HWADC_H_PRE_
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
+#include "platform.h"
+#include "hwpins.h"
+#include "hwdma.h"
+#include "errors.h"
 
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
+class THwAdc_pre
+{
+public:	// settings
+	bool 					 initialized = false;
 
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
+	int      			 devnum = -1;
+};
 
-#ifdef HWI2C_H_
-  #include "hwi2c_stm32.h"
-#endif
+#endif // ndef _HWADC_H_PRE_
 
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
+#ifndef HWADC_PRE_ONLY
 
-#ifdef HWADC_H_
-  #include "hwadc_stm32.h"
-#endif
+//-----------------------------------------------------------------------------
 
-#ifdef HWUSBCTRL_H_
-  #include "hwusbctrl_stm32.h"
-#endif
+#ifndef HWADC_H_
+#define HWADC_H_
 
-#ifdef HWETH_H_
-  #include "hweth_stm32.h"
-#endif
+#include "mcu_impl.h"
 
-#if defined(QUADSPI) && defined(HWQSPI_H_)
-  #include "hwqspi_stm32.h"
+#ifndef HWADC_IMPL
+
+class THwAdc_noimpl : public THwAdc_pre
+{
+public: // mandatory
+	uint16_t ChValue(uint8_t ach) { return 0; }
+	bool Init(int adevnum, uint32_t achannel_map)  { return false; }
+};
+
+#define HWADC_IMPL   THwAdc_noimpl
+
+#endif // ndef HWADC_IMPL
+
+//-----------------------------------------------------------------------------
+
+class THwAdc : public HWADC_IMPL
+{
+};
+
+#endif // HWADC_H_
+
+#else
+  #undef HWADC_PRE_ONLY
 #endif

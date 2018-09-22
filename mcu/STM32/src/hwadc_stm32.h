@@ -19,49 +19,55 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwadc.cpp
+ *  brief:    STM32 Simple Internal ADC
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-09-22
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
+#ifndef HWADC_STM32_H_
+#define HWADC_STM32_H_
+
+#define HWADC_PRE_ONLY
+#include "hwadc.h"
+
+#if defined(ADC_CR1_SCAN)
+
+#include "hwdma.h"
+
+#define HW_ADC_REGS  ADC_TypeDef
+
+#define HWADC_MAX_CHANNELS  18
+
+class THwAdc_stm32 : public THwAdc_pre
+{
+public:
+	THwDmaChannel   dmach;
+	THwDmaTransfer  dmaxfer;
+
+	uint32_t        sampling_cycles = 0; // = 0 - 7, sampling cycles code as of ADC_SMPRx register contents
+	                                     //          0 = 1.5, 1 = 7.5, 2 = 13.5, 3 = 28.5, ..., 6 = 71.5, 7 = 239.5
+
+	uint32_t        adcclock;
+
+	uint32_t        channel_map = 0;  // by default convert only ch 0
+
+	uint16_t        dmadata[HWADC_MAX_CHANNELS];    // puffer for data storage (transferred with the DMA)
+	uint16_t *      databyid[HWADC_MAX_CHANNELS];
+
+	uint8_t         dmadatacnt = 0;
+
+	HW_ADC_REGS *   regs = nullptr;
+
+	bool            Init(int adevnum, uint32_t achannel_map);
+	inline uint16_t ChValue(uint8_t ach) { return *(databyid[ach]); }
+
+	void            SetupChannels();
+};
+
+#define HWADC_IMPL THwAdc_stm32
+
 #endif
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
-
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
-
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
-
-#ifdef HWI2C_H_
-  #include "hwi2c_stm32.h"
-#endif
-
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
-
-#ifdef HWADC_H_
-  #include "hwadc_stm32.h"
-#endif
-
-#ifdef HWUSBCTRL_H_
-  #include "hwusbctrl_stm32.h"
-#endif
-
-#ifdef HWETH_H_
-  #include "hweth_stm32.h"
-#endif
-
-#if defined(QUADSPI) && defined(HWQSPI_H_)
-  #include "hwqspi_stm32.h"
-#endif
+#endif /* HWADC_STM32_H_ */

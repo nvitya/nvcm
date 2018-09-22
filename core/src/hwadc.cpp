@@ -19,49 +19,13 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwadc.cpp
+ *  brief:    Simple internal ADC vendor-independent implementations
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-09-22
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
-#endif
+#include "platform.h"
+#include "hwadc.h"
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
-
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
-
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
-
-#ifdef HWI2C_H_
-  #include "hwi2c_stm32.h"
-#endif
-
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
-
-#ifdef HWADC_H_
-  #include "hwadc_stm32.h"
-#endif
-
-#ifdef HWUSBCTRL_H_
-  #include "hwusbctrl_stm32.h"
-#endif
-
-#ifdef HWETH_H_
-  #include "hweth_stm32.h"
-#endif
-
-#if defined(QUADSPI) && defined(HWQSPI_H_)
-  #include "hwqspi_stm32.h"
-#endif

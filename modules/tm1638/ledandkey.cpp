@@ -97,6 +97,25 @@ void TLedAndKey::SetHexDigit(int apos, int avalue)
 	Set7Seg(apos, seg7_hexdigits[avalue & 0x0F]);
 }
 
+void TLedAndKey::DisplayDirect(uint32_t avaluel, uint32_t avalueh)
+{
+  int i;
+  unsigned v;
+  v = avaluel;
+  for (i = 0; i < 4; ++i)
+  {
+  	Set7Seg(i, v & 0xFF);
+  	v = (v >> 8);
+  }
+
+  v = avalueh;
+  for (i = 4; i < 8; ++i)
+  {
+  	Set7Seg(i, v & 0xFF);
+  	v = (v >> 8);
+  }
+}
+
 void TLedAndKey::DisplayHexNum(int avalue)
 {
   int i;

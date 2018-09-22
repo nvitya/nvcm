@@ -185,22 +185,27 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 
 	int meminc = (axfer->flags & DMATR_NO_ADDR_INC ? 0 : 1);
 
-#ifndef DMASTREAMS
+	uint32_t circ = (axfer->flags & DMATR_CIRCULAR ? 1 : 0);
+	uint32_t inte = (axfer->flags & DMATR_IRQ ? 1 : 0);
+
+#ifndef DMASTREAMS // simpler DMA
 
 	int dircode = (istx ? 1 : 0);
 	uint32_t mem2mem = (axfer->flags & DMATR_MEM_TO_MEM ? 1 : 0);
 
 	regs->CCR = 0
-		| (mem2mem << 14)  // MEM2MEM: 1 = memory to memory mode
-		| (0  << 12)  // PL(2): priority level
+		| (mem2mem << 14)   // MEM2MEM: 1 = memory to memory mode
+		| ((priority & 3) << 12)  // PL(2): priority level
 		| (sizecode << 10)  // MSIZE(2): Memory data size, 8 bit
 		| (sizecode <<  8)  // PSIZE(2): Periph data size, 8 bit
 		| (meminc   <<  7)  // MINC: Memory increment mode
-		| (0  <<  6)  // PINC: Peripheral increment mode
-		| (0  <<  5)  // CIRC: Circular mode
-		| (dircode <<  4)  // DIR(2): Data transfer direction (init with 0)
-		| (0  <<  1)  // INTERRUPTS(3): no interrupts enabled
-		| (0  <<  0)  // EN: keep not enabled
+		| (0  <<  6)        // PINC: Peripheral increment mode
+		| (circ <<  5)      // CIRC: Circular mode
+		| (dircode <<  4)   // DIR(2): Data transfer direction (init with 0)
+		| (0 <<  3)         // TEIE: Transfer error interrupt enable
+		| (0 <<  2)         // HTIE: Half transfer interrupt enable
+		| (inte <<  1)      // TCIE: TCIE: Transfer complete interrupt enable
+		| (0  <<  0)        // EN: keep not enabled
 	;
 
 	regs->CPAR = (uint32_t)periphaddr;
@@ -216,7 +221,7 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 
 	regs->CNDTR = (uint32_t)axfer->count;
 
-#else
+#else  // more advanced DMA
 
 	int dircode;
 	if (axfer->flags & DMATR_MEM_TO_MEM)
@@ -233,22 +238,23 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 	}
 
 	regs->CR = 0
-		| (chnum << 25)  // CHSEL(3): set the channel
-		| (0  << 23)  // MBURST(2): memory burst, 0 = single transfer
-		| (0  << 21)  // PBURST(2): peripheral burst
-		| (0  << 19)  // CT: current target
-		| (0  << 18)  // DBM: double buffer mode
-		| (0  << 16)  // PL(2): priority level
-		| (0  << 15)  // PINCOS: peripheral increment offset
+		| (chnum << 25)     // CHSEL(3): set the channel
+		| (0  << 23)        // MBURST(2): memory burst, 0 = single transfer
+		| (0  << 21)        // PBURST(2): peripheral burst
+		| (0  << 19)        // CT: current target
+		| (0  << 18)        // DBM: double buffer mode
+		| ((priority & 3) << 16) // PL(2): priority level
+		| (0  << 15)        // PINCOS: peripheral increment offset
 		| (sizecode << 13)  // MSIZE(2): Memory data size, 8 bit
 		| (sizecode << 11)  // PSIZE(2): Periph data size, 8 bit
 		| (meminc   << 10)  // MINC: Memory increment mode
-		| (0  <<  9)  // PINC: Peripheral increment mode
-		| (0  <<  8)  // CIRC: Circular mode
-		| (dircode <<  6)  // DIR(2): Data transfer direction (init with 0)
-		| (0  <<  5)  // PFCTRL: Peripheral flow controller, 0 = DMA is the flow controller
-		| (0  <<  1)  // INTERRUPTS(4): no interrupts enabled
-		| (0  <<  0)  // EN: keep not enabled
+		| (0  <<  9)        // PINC: Peripheral increment mode
+		| (circ <<  8)      // CIRC: Circular mode
+		| (dircode <<  6)   // DIR(2): Data transfer direction (init with 0)
+		| (0  <<  5)        // PFCTRL: Peripheral flow controller, 0 = DMA is the flow controller
+		| (inte << 4)       // TCIE: TCIE: Transfer complete interrupt enable
+		| (0  <<  1)        // (3): error interrupts
+		| (0  <<  0)        // EN: keep not enabled
 	;
 
 	if (axfer->flags & DMATR_MEM_TO_MEM)
