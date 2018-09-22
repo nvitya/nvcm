@@ -48,7 +48,6 @@ bool THwSpi_stm32::Init(int adevnum)
 	{
 		regs = (HW_SPI_REGS *)SPI1_BASE;
 		RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
-		clockdiv = 2;
 	}
 #endif
 #if defined(SPI2_BASE)
@@ -56,7 +55,7 @@ bool THwSpi_stm32::Init(int adevnum)
 	{
 		regs = (HW_SPI_REGS *)SPI2_BASE;
 		RCC->APB1ENR |= RCC_APB1ENR_SPI2EN;
-		clockdiv = 4;
+		clockdiv = 2;
 	}
 #endif
 #if defined(SPI3_BASE) && defined(RCC_APB1ENR_SPI3EN)
@@ -64,7 +63,7 @@ bool THwSpi_stm32::Init(int adevnum)
 	{
 		regs = (HW_SPI_REGS *)SPI3_BASE;
 		RCC->APB1ENR |= RCC_APB1ENR_SPI3EN;
-		clockdiv = 4;
+		clockdiv = 2;
 	}
 #endif
 #if defined(SPI4_BASE)
@@ -72,7 +71,6 @@ bool THwSpi_stm32::Init(int adevnum)
 	{
 		regs = (HW_SPI_REGS *)SPI4_BASE;
 		RCC->APB2ENR |= RCC_APB2ENR_SPI4EN;
-		clockdiv = 2;
 	}
 #endif
 #if defined(SPI5_BASE)
@@ -80,7 +78,6 @@ bool THwSpi_stm32::Init(int adevnum)
 	{
 		regs = (HW_SPI_REGS *)SPI5_BASE;
 		RCC->APB2ENR |= RCC_APB2ENR_SPI5EN;
-		clockdiv = 2;
 	}
 #endif
 #if defined(SPI6_BASE)
@@ -88,7 +85,6 @@ bool THwSpi_stm32::Init(int adevnum)
 	{
 		regs = (HW_SPI_REGS *)SPI6_BASE;
 		RCC->APB2ENR |= RCC_APB2ENR_SPI6EN;
-		clockdiv = 2;
 	}
 #endif
 
@@ -97,10 +93,22 @@ bool THwSpi_stm32::Init(int adevnum)
 		return false;
 	}
 
+	if (SystemCoreClock <= 48000000)
+	{
+		clockdiv = 1;
+	}
+	else
+	{
+		// on higher speed devices the Peripheral clock is always divided by at least 2
+		clockdiv = (clockdiv << 1);
+	}
+
+	// speed: the base speed will be divided with the powers of 2
+
 	basespeed = SystemCoreClock / clockdiv;
 
 	unsigned dcode = 0;
-	while ((basespeed / (1 << (dcode + 1)) > speed) && (dcode < 7))
+	while ((basespeed / (1 << dcode) > speed) && (dcode < 7))
 	{
 		++dcode;
 	}
