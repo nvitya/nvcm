@@ -32,7 +32,7 @@
 #define HWADC_PRE_ONLY
 #include "hwadc.h"
 
-#if defined(MCUSF_F1)
+#if defined(MCUSF_F1) || defined(MCUSF_F0)
 
 #include "hwdma.h"
 

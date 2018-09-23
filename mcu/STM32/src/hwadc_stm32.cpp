@@ -211,4 +211,162 @@ void THwAdc_stm32::SetupChannels()
 	regs->CR2 |= (ADC_CR2_SWSTART | ADC_CR2_ADON | ADC_CR2_EXTTRIG);
 }
 
+#elif defined(MCUSF_F0)
+
+// ADC_v2
+
+bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
+{
+	uint32_t tmp;
+
+	initialized = false;
+
+	devnum = adevnum;
+	initialized = false;
+	channel_map = achannel_map;
+
+	regs = nullptr;
+	if      (1 == devnum)
+	{
+		regs = ADC1;
+		RCC->APB2ENR |= RCC_APB2ENR_ADC1EN;
+	}
+#ifdef ADC2
+	else if (2 == devnum)
+	{
+		regs = ADC2;
+		RCC->APB2ENR |= RCC_APB2ENR_ADC2EN;
+	}
+#endif
+	else
+	{
+		return false;
+	}
+
+	// DMA (requires
+	dmach.Init(1, 1, 0); // it has a fixed channel
+	dmach.Prepare(false, (void *)&regs->DR, 0);
+
+	ADC1_COMMON->CCR = 0
+		| (0 << 24)  // VBATEN: VBAT ch enable
+		| (0 << 23)  // TSEN: temp sensor
+		| (1 << 22)  // VREFEN: internal reference enable
+	;
+
+	regs->CR = 0;
+
+	regs->CR = (1u << 31); // start calibration
+
+	delay_us(10);
+
+	while (regs->CR & (1u << 31))
+	{
+		// wait until the calibration is ready
+	}
+
+	delay_us(10);
+
+	regs->CR = (1 << 0); // enable the ADC
+
+	delay_us(10);
+
+	while ((regs->CR & 1) == 0)
+	{
+		// wait until enabled
+	}
+
+	regs->IER = 0; // disable interrupts
+
+	// CFGR1
+
+	regs->CFGR1 = 0
+	  | (0 << 26)  // AWDCH(5):  analogue watchdog channel select
+	  | (0 << 23)  // AWDEN: 1 = enable AWD
+	  | (0 << 22)  // AWDSGL: single ch. AWD
+	  | (0 << 16)  // DISCEN: 1 = discontinous mode enabled
+	  | (0 << 15)  // AUTOFF: 1 = auto off mode enabled
+	  | (0 << 14)  // WAIT: 1 = wait conversion mode on
+	  | (1 << 13)  // CONT: 1 = continous conversion mode
+	  | (1 << 12)  // OVRMOD: 1 = the ADC_DR will be overwritten on overrun
+	  | (0 << 10)  // EXTEN(2): external trigger enable
+	  | (0 <<  6)  // EXTSEL(3): external trigger select
+	  | (0 <<  5)  // ALIGN: 0 = right data alignment, 1 = left data aligment
+	  | (0 <<  3)  // RES(2): resolution, 0 = 12 bit, 1 = 10 bit, 2 = 8 bit, 3 = 6 bit
+	  | (0 <<  2)  // SCANDIR: 0 = upward scan (ch. 0 -> 18), 1 = backward scan (ch. 18 -> 0)
+	  | (1 <<  1)  // DMACFG: 0 = one shot DMA mode, 1 = circular DMA mode
+	  | (1 <<  0)  // DMAEN: 1 = DMA enabled
+	;
+
+	regs->CFGR2 = 0
+	  | (0 << 30)  // CLKMODE(2), 0 = ADCCLK (14 MHz), 1 = PCLK / 2, 2 = PCLK / 4
+	;
+
+	adc_clock = 14000000; // dedicated internal clock
+
+	// setup channel sampling time registers
+
+	uint32_t stcode = 0; // sampling time code, use the fastest sampling
+	// 0: 1.5 cycles
+	// 1: 7.5 cycles
+	// 2: 13.5 cycles
+	// 3: 28.5 cycles
+	// 4: 41.5 cycles
+	// 5: 55.5 cycles
+	// 6: 71.5 cycles
+	// 7: 239.5 cycles
+	regs->SMPR = stcode;
+
+	regs->TR = 0; // no analogue watchdog
+
+	// calculate the actual conversion rate
+
+	// total conversion cycles:  12.5 ADC clocks + sampling time (= 1.5 ADC clocks)
+	conv_adc_clocks = 14;
+	act_conv_rate = adc_clock / conv_adc_clocks;
+
+	// setup the regular sequence based on the channel map and start the cyclic conversion
+	SetupChannels();
+
+	initialized = true;
+	return true;
+}
+
+void THwAdc_stm32::SetupChannels()
+{
+	uint32_t ch;
+	uint32_t sqr[3] = {0, 0, 0};
+	uint32_t * psqr = &sqr[0];
+	uint32_t bitshift = 0;
+
+	for (ch = 0; ch < HWADC_MAX_CHANNELS; ++ch)
+	{
+		dmadata[ch] = 0x1111 + ch; // set some markers for diagnostics
+		databyid[ch] = &dmadata[ch]; // initialize with valid pointers
+	}
+
+	dmadatacnt = 0;
+	for (ch = 0; ch < HWADC_MAX_CHANNELS; ++ch)
+	{
+		if (channel_map & (1 << ch))
+		{
+			// add this channel
+			databyid[ch] = &dmadata[dmadatacnt]; // set the decode map
+			++dmadatacnt;
+		}
+	}
+
+	regs->CHSELR = channel_map;
+
+  // prepare the DMA transfer
+
+	dmaxfer.bytewidth = 2;
+	dmaxfer.count = dmadatacnt;
+	dmaxfer.dstaddr = &dmadata[0];
+	dmaxfer.flags = DMATR_CIRCULAR; // ST supports it !
+	dmach.StartTransfer(&dmaxfer);
+
+	// and start the conversion
+	regs->CR |= (1 << 2); // start the ADC
+}
+
 #endif
