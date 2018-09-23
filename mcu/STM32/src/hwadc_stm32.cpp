@@ -73,10 +73,10 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 	{
 		adcdiv += 2;
 	}
-
-	adcclock = baseclock / adcdiv;
 	RCC->CFGR &= ~RCC_CFGR_ADCPRE_Msk;
 	RCC->CFGR |= ((adcdiv >> 2) << RCC_CFGR_ADCPRE_Pos);
+
+	adc_clock = baseclock / adcdiv;
 
 	// stop adc
 	regs->CR2 &= ~(ADC_CR2_ADON_Msk);
@@ -123,25 +123,38 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 */
 
 	// setup channel sampling time registers
+
+	uint32_t stcode = 0; // sampling time code, use the fastest sampling
+	// 0: 1.5 cycles
+	// 1: 7.5 cycles
+	// 2: 13.5 cycles
+	// 3: 28.5 cycles
+	// 4: 41.5 cycles
+	// 5: 55.5 cycles
+	// 6: 71.5 cycles
+	// 7: 239.5 cycles
+
 	int i;
 	tmp = 0;
 	for (i = 0; i < 8; ++i)
 	{
-		tmp |= (sampling_cycles << (i * 3));
+		tmp |= (stcode << (i * 3));
 	}
 	regs->SMPR1 = tmp;
 	tmp = 0;
 	for (i = 0; i < 10; ++i)
 	{
-		tmp |= (sampling_cycles << (i * 3));
+		tmp |= (stcode << (i * 3));
 	}
 	regs->SMPR2 = 0;
 
-	// setup the regular sequence based on the channel map
-	regs->SQR1 = 0;
-	regs->SQR2 = 0;
-	regs->SQR3 = 0;
+	// calculate the actual conversion rate
 
+	// total conversion cycles:  12.5 ADC clocks + sampling time (= 1.5 ADC clocks)
+	conv_adc_clocks = 14;
+	act_conv_rate = adc_clock / conv_adc_clocks;
+
+	// setup the regular sequence based on the channel map and start the cyclic conversion
 	SetupChannels();
 
 	initialized = true;

@@ -40,6 +40,11 @@ public:	// settings
 	bool 					 initialized = false;
 
 	int      			 devnum = -1;
+
+	uint32_t       sampling_time_ns = 0; // 0 = smallest possible
+	uint32_t       adc_clock = 0;        // actual ADC clock
+	uint32_t       conv_adc_clocks = 0;  // ADC clocks required to one conversion
+	uint32_t       act_conv_rate = 0;    // actual conversion rate in Hz
 };
 
 #endif // ndef _HWADC_H_PRE_

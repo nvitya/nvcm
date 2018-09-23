@@ -46,11 +46,6 @@ public:
 	THwDmaChannel   dmach;
 	THwDmaTransfer  dmaxfer;
 
-	uint32_t        sampling_cycles = 0; // = 0 - 7, sampling cycles code as of ADC_SMPRx register contents
-	                                     //          0 = 1.5, 1 = 7.5, 2 = 13.5, 3 = 28.5, ..., 6 = 71.5, 7 = 239.5
-
-	uint32_t        adcclock;
-
 	uint32_t        channel_map = 0;  // by default convert only ch 0
 
 	uint16_t        dmadata[HWADC_MAX_CHANNELS];    // puffer for data storage (transferred with the DMA)
