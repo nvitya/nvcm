@@ -32,8 +32,6 @@
 #define HWADC_PRE_ONLY
 #include "hwadc.h"
 
-#if defined(MCUSF_F1) || defined(MCUSF_F0)
-
 #include "hwdma.h"
 
 #define HW_ADC_REGS  ADC_TypeDef
@@ -45,6 +43,8 @@ class THwAdc_stm32 : public THwAdc_pre
 public:
 	THwDmaChannel   dmach;
 	THwDmaTransfer  dmaxfer;
+
+	int             dmastream = -1;   // -1 = use default dma stream
 
 	uint32_t        channel_map = 0;  // by default convert only ch 0
 
@@ -62,7 +62,5 @@ public:
 };
 
 #define HWADC_IMPL THwAdc_stm32
-
-#endif
 
 #endif /* HWADC_STM32_H_ */

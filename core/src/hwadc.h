@@ -24,6 +24,9 @@
  *  version:  1.00
  *  date:     2018-09-22
  *  authors:  nvitya
+ *  note:
+ *    The THwAdc class provides only continous scanning (with maximal speed)
+ *    of the selected channels.
 */
 
 #ifndef _HWADC_H_PRE_
