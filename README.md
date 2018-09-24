@@ -85,28 +85,30 @@ __XMC__      | [XMC1xxx](https://github.com/nvitya/nvcm/blob/master/mcu/XMC/src/
 
 ### Current Driver Status
 
-  Family     | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __UART__ | __DMA__ | __SPI__ | __I2C__ |__QSPI__
--------------|-----------------------|-------------------|----------|---------|---------|---------|--------
-__ATSAM__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK
-__ATSAM_V2__ | OK                    | OK                | OK       | -       | -       | -       | -
-__KINETIS__  | OK                    | partial           | OK       | -       | -       | -       | -
-__LPC__      | OK                    | OK                | OK       | OK      | Master  | -       | OK
-__LPC_V2__   | OK                    | restricted        | OK       | -       | -       | -       | -
-__LPC_V3__   | OK                    | OK                | OK       | OK      | Master  | -       | -
-__STM32__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK
-__XMC__      | OK                    | OK                | OK       | -       | -       | -       | -
+  Family     | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __UART__ | __DMA__ | __SPI__ | __I2C__ | __ADC__ | __QSPI__
+-------------|-----------------------|-------------------|----------|---------|---------|---------|---------|---------
+__ATSAM__    | OK                    | OK                | OK       | OK      | Master  | Master  | 4S      | OK
+__ATSAM_V2__ | OK                    | OK                | OK       | -       | -       | -       | -       | -
+__KINETIS__  | OK                    | partial           | OK       | -       | -       | -       | -       | -
+__LPC__      | OK                    | OK                | OK       | OK      | Master  | -       | -       | OK
+__LPC_V2__   | OK                    | restricted        | OK       | -       | -       | -       | -       | -
+__LPC_V3__   | OK                    | OK                | OK       | OK      | Master  | -       | -       | -
+__STM32__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK      | OK
+__XMC__      | OK                    | OK                | OK       | -       | -       | -       | -       | -
 
 ### Planned Drivers
+ * Simple PWM
  * USB Device
+ * SDCARD
+ * Ethernet
  * Internal Flash
- * ADC
 
 ## Included HW Module Drivers
 This NVCM core project contains some useful external module drivers as well. Currently these modules are included into the core:
  * TFT LCD displays: SPI, Parallel
  * I2C OLED displays (SSD1306)
  * SPI, QSPI flash memories
- * Led and Key module
+ * Led and Key module, some other serial 7 segment displays
 
 ### Built-In Boards
 

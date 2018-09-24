@@ -19,51 +19,42 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (ATSAM)
- *  brief:    ATSAM list of implemented NVCM core peripherals
+ *  file:     hwadc_atsam.cpp
+ *  brief:    ATSAM Simple Internal ADC
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-09-24
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_atsam.h"
+#ifndef HWADC_ATSAM_H_
+#define HWADC_ATSAM_H_
+
+#define HWADC_PRE_ONLY
+#include "hwadc.h"
+
+#if defined(MCUSF_4S)
+
+#define HW_ADC_REGS  Adc
+
+#define HWADC_MAX_CHANNELS  16
+
+class THwAdc_atsam : public THwAdc_pre
+{
+public:
+	uint32_t        channel_map = 0;  // by default convert only ch 0
+
+	uint8_t         dmadatacnt = 0;
+
+	HW_ADC_REGS *   regs = nullptr;
+
+	bool            Init(int adevnum, uint32_t achannel_map);
+	inline uint16_t ChValue(uint8_t ach) { return regs->ADC_CDR[ach]; }
+
+	void            SetupChannels();
+};
+
+#define HWADC_IMPL THwAdc_atsam
+
 #endif
 
-#ifdef HWPINS_H_
-  #include "hwpins_atsam.h"
-#endif
-
-#ifdef HWDMA_H_
-  #include "hwdma_atsam.h"
-#endif
-
-#ifdef HWUART_H_
-  #include "hwuart_atsam.h"
-#endif
-
-#ifdef HWSPI_H_
-  #include "hwspi_atsam.h"
-#endif
-
-#ifdef HWI2C_H_
-  #include "hwi2c_atsam.h"
-#endif
-
-#ifdef HWADC_H_
-  #include "hwadc_atsam.h"
-#endif
-
-#ifdef QSPI
-	#ifdef HWQSPI_H_
-		#include "hwqspi_atsam.h"
-	#endif
-#endif
-
-#if defined(HWETH_H_) && defined(GMAC)
-  #include "hweth_atsam.h"
-#endif
-
-#if defined(HSMCI) && defined(HWSDCARD_H_)
-  #include "hwsdcard_atsam.h"
-#endif
+#endif /* HWADC_ATSAM_H_ */

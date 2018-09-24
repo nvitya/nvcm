@@ -19,7 +19,7 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     hwadc.cpp
+ *  file:     hwadc_stm32.cpp
  *  brief:    STM32 Simple Internal ADC
  *  version:  1.00
  *  date:     2018-09-22
