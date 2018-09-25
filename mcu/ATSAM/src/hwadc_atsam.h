@@ -32,7 +32,7 @@
 #define HWADC_PRE_ONLY
 #include "hwadc.h"
 
-#if defined(MCUSF_4S)
+#if defined(ADC)
 
 #define HW_ADC_REGS  Adc
 

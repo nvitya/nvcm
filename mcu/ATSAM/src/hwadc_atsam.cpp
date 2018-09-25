@@ -29,7 +29,7 @@
 #include "hwadc_atsam.h"
 #include "clockcnt.h"
 
-#if defined(MCUSF_4S)
+#if defined(ADC)
 
 bool THwAdc_atsam::Init(int adevnum, uint32_t achannel_map)
 {
