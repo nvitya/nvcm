@@ -32,9 +32,11 @@
 #define HWADC_PRE_ONLY
 #include "hwadc.h"
 
-#if defined(ADC)
-
-#define HW_ADC_REGS  Adc
+#if defined(ADC) || defined(ADC1)
+  #define HW_ADC_REGS  Adc
+#elif defined(AFEC0)
+  #define HW_ADC_REGS  Afec
+#endif
 
 #define HWADC_MAX_CHANNELS  16
 
@@ -48,13 +50,13 @@ public:
 	HW_ADC_REGS *   regs = nullptr;
 
 	bool            Init(int adevnum, uint32_t achannel_map);
+#if defined(ADC)
 	inline uint16_t ChValue(uint8_t ach) { return regs->ADC_CDR[ach]; }
-
-	void            SetupChannels();
+#else
+	uint16_t ChValue(uint8_t ach);
+#endif
 };
 
 #define HWADC_IMPL THwAdc_atsam
-
-#endif
 
 #endif /* HWADC_ATSAM_H_ */

@@ -57,7 +57,8 @@
 
   #define BOARD_NAME "VERTIBO-A by nvitya"
 	#define MCU_ATSAME70Q20
-  #define MCU_INPUT_FREQ   12000000
+  #define MCU_INPUT_FREQ    12000000
+  #define MCU_CLOCK_SPEED  288000000  // because the SDRAM shares the data bus with the FPGA
 
 #elif defined(BOARD_MIBO64_ATSAM4S)
 

@@ -174,7 +174,51 @@ bool THwPinCtrl_atsam::GpioPortEnable(int aportnum)
 		return false;
 	}
 
-	PMC->PMC_PCER0 = (1 << (11 + aportnum));
+	uint32_t perid;
+
+	if (PORTNUM_A == aportnum)
+	{
+		perid = ID_PIOA;
+	}
+#if defined(ID_PIOB)
+	else if (PORTNUM_B == aportnum)
+	{
+		perid = ID_PIOB;
+	}
+#endif
+#if defined(ID_PIOC)
+	else if (PORTNUM_C == aportnum)
+	{
+		perid = ID_PIOC;
+	}
+#endif
+#if defined(ID_PIOD)
+	else if (PORTNUM_D == aportnum)
+	{
+		perid = ID_PIOD;
+	}
+#endif
+#if defined(ID_PIOE)
+	else if (PORTNUM_E == aportnum)
+	{
+		perid = ID_PIOE;
+	}
+#endif
+#if defined(ID_PIOF)
+	else if (PORTNUM_F == aportnum)
+	{
+		perid = ID_PIOF;
+	}
+#endif
+
+	if (perid < 32)
+	{
+		PMC->PMC_PCER0 = (1 << perid);
+	}
+	else
+	{
+		PMC->PMC_PCER1 = (1 << (perid-32));
+	}
 
   return true;
 }
