@@ -85,16 +85,22 @@ __XMC__      | [XMC1xxx](https://github.com/nvitya/nvcm/blob/master/mcu/XMC/src/
 
 ### Current Driver Status
 
+#### Main MCUs
+
   Family     | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __UART__ | __DMA__ | __SPI__ | __I2C__ | __ADC__ | __QSPI__
 -------------|-----------------------|-------------------|----------|---------|---------|---------|---------|---------
-__ATSAM__    | OK                    | OK                | OK       | OK      | Master  | Master  | 4S      | OK
+__ATSAM__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK      | OK
+__LPC__      | OK                    | OK                | OK       | OK      | Master  | -       | OK      | OK
+__STM32__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK      | OK
+
+#### Experimental MCUs
+
+  Family     | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __UART__ | __DMA__ | __SPI__ | __I2C__ | __ADC__ | __QSPI__
+-------------|-----------------------|-------------------|----------|---------|---------|---------|---------|---------
 __ATSAM_V2__ | OK                    | OK                | OK       | -       | -       | -       | -       | -
 __KINETIS__  | OK                    | partial           | OK       | -       | -       | -       | -       | -
-__LPC__      | OK                    | OK                | OK       | OK      | Master  | -       | -       | OK
 __LPC_V2__   | OK                    | restricted        | OK       | -       | -       | -       | -       | -
 __LPC_V3__   | OK                    | OK                | OK       | OK      | Master  | -       | -       | -
-__STM32__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK      | OK
-__XMC__      | OK                    | OK                | OK       | -       | -       | -       | -       | -
 
 ### Planned Drivers
  * Simple PWM
