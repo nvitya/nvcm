@@ -19,37 +19,34 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (LPC)
- *  brief:    LPC list of implemented NVCM core peripherals
+ *  file:     hwadc_lpc.h
+ *  brief:    LPC Simple Internal ADC
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-09-29
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_lpc.h"
-#endif
+#ifndef HWADC_LPC_H_
+#define HWADC_LPC_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_lpc.h"
-#endif
+#define HWADC_PRE_ONLY
+#include "hwadc.h"
 
-#ifdef HWUART_H_
-  #include "hwuart_lpc.h"
-#endif
+#define HW_ADC_REGS  LPC_ADC_T
 
-#ifdef HWDMA_H_
-  #include "hwdma_lpc.h"
-#endif
+#define HWADC_MAX_CHANNELS  8
 
-#ifdef HWADC_H_
-  #include "hwadc_lpc.h"
-#endif
+class THwAdc_lpc : public THwAdc_pre
+{
+public:
+	uint32_t        channel_map = 0;
 
-#ifdef HWSPI_H_
-  #include "hwspi_lpc.h"
-#endif
+	HW_ADC_REGS *   regs = nullptr;
 
-#ifdef HWQSPI_H_
-  #include "hwqspi_lpc.h"
-#endif
+	bool            Init(int adevnum, uint32_t achannel_map);
+	inline uint16_t ChValue(uint8_t ach) { return (regs->DR[ach] & 0xFFC0); }  // always left aligned
+};
+
+#define HWADC_IMPL THwAdc_lpc
+
+#endif /* HWADC_LPC_H_ */
