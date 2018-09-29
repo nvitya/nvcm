@@ -257,7 +257,7 @@ bool THwAdc_atsam::Init(int adevnum, uint32_t achannel_map)
 uint16_t THwAdc_atsam::ChValue(uint8_t ach)
 {
 	regs->AFEC_CSELR = ach;
-	return (regs->AFEC_CDR & 0x0FFF);
+	return (regs->AFEC_CDR << 4); // left aligned
 }
 
 #else

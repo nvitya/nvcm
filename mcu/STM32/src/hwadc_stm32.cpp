@@ -105,7 +105,7 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 		| (7 << 17)  // EXTSEL(3): External event select for regular group (see reference), 7 = SWSTART
 		| (0 << 15)  // JEXTTRIG: External trigger conversion mode for injected channels
 		| (0 << 12)  // JEXTSEL(3): External event select for injected group
-		| (0 << 11)  // ALIGN: Data alignment, 0 = right, 1 = left
+		| (1 << 11)  // ALIGN: Data alignment, 0 = right, 1 = left
 		| (1 <<  8)  // DMA: 1 = DMA enabled (only for ADC1, ADC2 does not have direct DMA connection)
 		| (0 <<  3)  // RSTCAL: Reset calibration, 1 = initialize calibration register
 		| (0 <<  2)  // CAL: A/D Calibration, 1 = enable calibration, 0 = calibration completed
@@ -324,7 +324,7 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 		| (0 << 22)  // JSWSTART: Start conversion of injected channels
 		| (0 << 20)  // JEXTEN(2): External trigger enable for injected channels, 0 = disabled, 1 = rising edge, 2 = falling, 3 both
 		| (0 << 16)  // JEXTSEL(4): External event select for injected group (see reference)
-		| (0 << 11)  // ALIGN: Data alignment, 0 = right, 1 = left
+		| (1 << 11)  // ALIGN: Data alignment, 0 = right, 1 = left
 		| (0 << 10)  // EOCS: End of conversion selection, 0 = sequence end
 		| (1 <<  9)  // DDS: DMA disable selection (for single ADC mode)
 		| (1 <<  8)  // DMA: 1 = DMA enabled (only for ADC1, ADC2 does not have direct DMA connection)
@@ -494,7 +494,7 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 	  | (1 << 12)  // OVRMOD: 1 = the ADC_DR will be overwritten on overrun
 	  | (0 << 10)  // EXTEN(2): external trigger enable
 	  | (0 <<  6)  // EXTSEL(3): external trigger select
-	  | (0 <<  5)  // ALIGN: 0 = right data alignment, 1 = left data aligment
+	  | (1 <<  5)  // ALIGN: 0 = right data alignment, 1 = left data aligment
 	  | (0 <<  3)  // RES(2): resolution, 0 = 12 bit, 1 = 10 bit, 2 = 8 bit, 3 = 6 bit
 	  | (0 <<  2)  // SCANDIR: 0 = upward scan (ch. 0 -> 18), 1 = backward scan (ch. 18 -> 0)
 	  | (1 <<  1)  // DMACFG: 0 = one shot DMA mode, 1 = circular DMA mode

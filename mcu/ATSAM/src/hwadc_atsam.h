@@ -51,7 +51,7 @@ public:
 
 	bool            Init(int adevnum, uint32_t achannel_map);
 #if defined(ADC)
-	inline uint16_t ChValue(uint8_t ach) { return regs->ADC_CDR[ach]; }
+	inline uint16_t ChValue(uint8_t ach) { return (regs->ADC_CDR[ach] << 4); } // report left aligned
 #else
 	uint16_t ChValue(uint8_t ach);
 #endif
