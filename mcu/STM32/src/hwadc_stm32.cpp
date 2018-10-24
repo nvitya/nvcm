@@ -155,60 +155,10 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 	act_conv_rate = adc_clock / conv_adc_clocks;
 
 	// setup the regular sequence based on the channel map and start the cyclic conversion
-	SetupChannels();
+	StartFreeRun(channel_map);
 
 	initialized = true;
 	return true;
-}
-
-void THwAdc_stm32::SetupChannels()
-{
-	uint32_t ch;
-	uint32_t sqr[3] = {0, 0, 0};
-	uint32_t * psqr = &sqr[0];
-	uint32_t bitshift = 0;
-
-	for (ch = 0; ch < HWADC_MAX_CHANNELS; ++ch)
-	{
-		dmadata[ch] = 0x1111 + ch; // set some markers for diagnostics
-		databyid[ch] = &dmadata[ch]; // initialize with valid pointers
-	}
-
-	dmadatacnt = 0;
-	for (ch = 0; ch < HWADC_MAX_CHANNELS; ++ch)
-	{
-		if (channel_map & (1 << ch))
-		{
-			// add this channel
-			*psqr |= (ch << bitshift);
-			databyid[ch] = &dmadata[dmadatacnt]; // set the decode map
-
-			++dmadatacnt;
-
-			bitshift += 5;
-			if (bitshift > 25)
-			{
-				// go to the next register
-				bitshift = 0;
-				++psqr;
-			}
-		}
-	}
-
-	regs->SQR3 = sqr[0];
-	regs->SQR2 = sqr[1];
-	regs->SQR1 = (sqr[2] & 0x000FFFFF) | ((dmadatacnt-1) << 20);  // this contains the sequence length too
-
-  // prepare the DMA transfer
-
-	dmaxfer.bytewidth = 2;
-	dmaxfer.count = dmadatacnt;
-	dmaxfer.dstaddr = &dmadata[0];
-	dmaxfer.flags = DMATR_CIRCULAR; // ST supports it !
-	dmach.StartTransfer(&dmaxfer);
-
-	// and start the conversion
-	regs->CR2 |= (ADC_CR2_SWSTART | ADC_CR2_ADON | ADC_CR2_EXTTRIG);
 }
 
 #elif defined(MCUSF_F7) || defined(MCUSF_F4)
@@ -358,62 +308,11 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 	act_conv_rate = adc_clock / conv_adc_clocks;
 
 	// setup the regular sequence based on the channel map and start the cyclic conversion
-	SetupChannels();
+	StartFreeRun(channel_map);
 
 	initialized = true;
 	return true;
 }
-
-void THwAdc_stm32::SetupChannels()
-{
-	uint32_t ch;
-	uint32_t sqr[3] = {0, 0, 0};
-	uint32_t * psqr = &sqr[0];
-	uint32_t bitshift = 0;
-
-	for (ch = 0; ch < HWADC_MAX_CHANNELS; ++ch)
-	{
-		dmadata[ch] = 0x1111 + ch; // set some markers for diagnostics
-		databyid[ch] = &dmadata[ch]; // initialize with valid pointers
-	}
-
-	dmadatacnt = 0;
-	for (ch = 0; ch < HWADC_MAX_CHANNELS; ++ch)
-	{
-		if (channel_map & (1 << ch))
-		{
-			// add this channel
-			*psqr |= (ch << bitshift);
-			databyid[ch] = &dmadata[dmadatacnt]; // set the decode map
-
-			++dmadatacnt;
-
-			bitshift += 5;
-			if (bitshift > 25)
-			{
-				// go to the next register
-				bitshift = 0;
-				++psqr;
-			}
-		}
-	}
-
-	regs->SQR3 = sqr[0];
-	regs->SQR2 = sqr[1];
-	regs->SQR1 = (sqr[2] & 0x000FFFFF) | ((dmadatacnt-1) << 20);  // this contains the sequence length too
-
-  // prepare the DMA transfer
-
-	dmaxfer.bytewidth = 2;
-	dmaxfer.count = dmadatacnt;
-	dmaxfer.dstaddr = &dmadata[0];
-	dmaxfer.flags = DMATR_CIRCULAR; // ST supports it !
-	dmach.StartTransfer(&dmaxfer);
-
-	// and start the conversion
-	regs->CR2 |= (ADC_CR2_SWSTART | ADC_CR2_ADON);
-}
-
 
 #elif defined(MCUSF_F0)
 
@@ -529,14 +428,29 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 	act_conv_rate = adc_clock / conv_adc_clocks;
 
 	// setup the regular sequence based on the channel map and start the cyclic conversion
-	SetupChannels();
+	StartFreeRun(channel_map);
 
 	initialized = true;
 	return true;
 }
 
-void THwAdc_stm32::SetupChannels()
+#else
+
+#warning "ADC implementation is missing!"
+
+bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 {
+	return false;
+}
+
+#endif
+
+// Shared functions
+
+void THwAdc_stm32::SetupChannels(uint32_t achsel)
+{
+	channel_map = achsel;
+
 	uint32_t ch;
 	uint32_t sqr[3] = {0, 0, 0};
 	uint32_t * psqr = &sqr[0];
@@ -554,12 +468,33 @@ void THwAdc_stm32::SetupChannels()
 		if (channel_map & (1 << ch))
 		{
 			// add this channel
+			*psqr |= (ch << bitshift);
 			databyid[ch] = &dmadata[dmadatacnt]; // set the decode map
+
 			++dmadatacnt;
+
+			bitshift += 5;
+			if (bitshift > 25)
+			{
+				// go to the next register
+				bitshift = 0;
+				++psqr;
+			}
 		}
 	}
 
+#if defined(MCUSF_F0)
 	regs->CHSELR = channel_map;
+#else
+	regs->SQR3 = sqr[0];
+	regs->SQR2 = sqr[1];
+	regs->SQR1 = (sqr[2] & 0x000FFFFF) | ((dmadatacnt-1) << 20);  // this contains the sequence length too
+#endif
+}
+
+void THwAdc_stm32::StartFreeRun(uint32_t achsel)
+{
+	SetupChannels(achsel);
 
   // prepare the DMA transfer
 
@@ -569,17 +504,54 @@ void THwAdc_stm32::SetupChannels()
 	dmaxfer.flags = DMATR_CIRCULAR; // ST supports it !
 	dmach.StartTransfer(&dmaxfer);
 
+	StartContConv();
+}
+
+void THwAdc_stm32::StopFreeRun()
+{
+	dmach.Disable();
+
+	// disable continuous mode
+#if defined(MCUSF_F0)
+	regs->CR |= (1 << 4); // stop the ADC
+	while (regs->cr & (1 << 4))
+	{
+		// wait until stopped
+	}
+#else
+	regs->CR2 &= ~ADC_CR2_CONT;  // disable the continuous mode
+	delay_us(10);
+#endif
+}
+
+void THwAdc_stm32::StartContConv()
+{
+#if defined(MCUSF_F0)
 	// and start the conversion
 	regs->CR |= (1 << 2); // start the ADC
-}
-
+#elif defined(MCUSF_F1)
+	// and start the conversion
+	regs->CR2 |= ADC_CR2_CONT;  // enable the continuous mode
+	regs->CR2 |= (ADC_CR2_SWSTART | ADC_CR2_ADON | ADC_CR2_EXTTRIG);
 #else
-
-#warning "ADC implementation is missing!"
-
-bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
-{
-	return false;
+	// and start the conversion
+	regs->CR2 |= ADC_CR2_CONT;  // enable the continuous mode
+	regs->CR2 |= (ADC_CR2_SWSTART | ADC_CR2_ADON);
+#endif
 }
 
-#endif
+
+void THwAdc_stm32::StartRecord(uint32_t achsel, uint32_t acount, uint16_t * adstptr)
+{
+	StopFreeRun();
+
+	SetupChannels(achsel); // this makes now a little bit more than what is necessary, but it is simpler this way
+
+	dmaxfer.dstaddr = adstptr;
+	dmaxfer.count = acount;
+	dmaxfer.bytewidth = 2;
+	dmaxfer.flags = 0; // not circular this time
+	dmach.StartTransfer(&dmaxfer);
+
+	StartContConv();
+}

@@ -35,16 +35,31 @@
 #define HW_ADC_REGS  LPC_ADC_T
 
 #define HWADC_MAX_CHANNELS  8
+#define HWADC_DATA_LSHIFT   0
+
 
 class THwAdc_lpc : public THwAdc_pre
 {
 public:
 	uint32_t        channel_map = 0;
 
+	THwDmaChannel   dmach;
+	THwDmaTransfer  dmaxfer;
+	int             dmachannel = 6;
+	uint8_t         dmarqid = 13;
+
 	HW_ADC_REGS *   regs = nullptr;
 
 	bool            Init(int adevnum, uint32_t achannel_map);
 	inline uint16_t ChValue(uint8_t ach) { return (regs->DR[ach] & 0xFFC0); }  // always left aligned
+
+	void            StartFreeRun(uint32_t achsel);
+	void            StopFreeRun();
+	void            StartRecord(uint32_t achsel, uint32_t acount, uint16_t * adstptr);
+	bool            RecordFinished() { return !dmach.Active(); }
+
+public:
+	uint32_t        adcdiv = 0;
 };
 
 #define HWADC_IMPL THwAdc_lpc

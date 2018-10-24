@@ -37,6 +37,7 @@
 #define HW_ADC_REGS  ADC_TypeDef
 
 #define HWADC_MAX_CHANNELS  18
+#define HWADC_DATA_LSHIFT    0
 
 class THwAdc_stm32 : public THwAdc_pre
 {
@@ -58,7 +59,14 @@ public:
 	bool            Init(int adevnum, uint32_t achannel_map);
 	inline uint16_t ChValue(uint8_t ach) { return *(databyid[ach]); }
 
-	void            SetupChannels();
+	void            StartFreeRun(uint32_t achsel);
+	void            StopFreeRun();
+	void            StartRecord(uint32_t achsel, uint32_t acount, uint16_t * adstptr);
+	bool            RecordFinished() { return !dmach.Active(); }
+
+public: // STM32 helper functions
+	void            SetupChannels(uint32_t achsel);
+	void            StartContConv();
 };
 
 #define HWADC_IMPL THwAdc_stm32

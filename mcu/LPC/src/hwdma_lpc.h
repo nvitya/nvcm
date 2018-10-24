@@ -42,7 +42,7 @@ public:
   HW_DMA_ALT_REGS *  altregs = nullptr;  // Some Atmel systems have two different DMA system
 #endif
 
-	bool Init(int achnum);
+	bool Init(int achnum, int aperid, int arqmux);
 	bool InitPeriphDma(bool aistx, void * aregs, void * aaltregs);  // special function for Atmel PDMA
 
 	void Prepare(bool aistx, void * aperiphaddr, unsigned aflags);

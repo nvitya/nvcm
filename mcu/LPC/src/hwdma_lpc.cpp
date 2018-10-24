@@ -35,22 +35,21 @@
 
 /* DmaChannel::Init for LPC:
  *
- * achnum:
- *   bit0..7:    channel id
- *   bit8..15:   0-15 = peripheral request id
- *   bit16..23:  0-3 = peripheral request mux (DMA mux) for the request id
+ * achnum:  0-7   = channel id
+ * arqid:   0-15  = peripheral request id
+ * arqmux:  0-3   = peripheral request mux (DMA mux) for the request id
  *
  *   for request ids search DMAMUX in the LPC43xx reference manual
 */
-bool THwDmaChannel_lpc::Init(int achnum)
+bool THwDmaChannel_lpc::Init(int achnum, int aperid, int arqmux)
 {
 	unsigned tmp;
 
 	initialized = false;
 
 	chnum = (achnum & 0xFF);
-	perid = ((achnum >> 8) & 0xF);  // rq id
-	unsigned rqmux = ((achnum >> 16) & 0x3);
+	perid = (aperid & 15); // or rqid
+	unsigned rqmux = (arqmux & 0x3);
 
 	if ((chnum < 0) || (chnum >= MAX_DMA_CHANNELS))
 	{

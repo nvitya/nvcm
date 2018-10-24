@@ -121,6 +121,13 @@ bool THwAdc_atsam::Init(int adevnum, uint32_t achannel_map)
 	conv_adc_clocks = 22;
 	act_conv_rate = adc_clock / conv_adc_clocks;
 
+	// DMA setup, required only for record
+	dmach.InitPeriphDma(false, regs, nullptr);
+	dmach.Prepare(false, (void *)&(regs->ADC_LCDR), 0);
+
+	dmaxfer.bytewidth = 2;
+	dmaxfer.flags = 0; // use defaults
+
 	// Start the conversion
 	regs->ADC_CR = 0
 		| (0 <<  0)  // SWRST: Software Reset
@@ -131,6 +138,63 @@ bool THwAdc_atsam::Init(int adevnum, uint32_t achannel_map)
 	initialized = true;
 	return true;
 }
+
+void THwAdc_atsam::StartFreeRun(uint32_t achsel)
+{
+	channel_map = achsel;
+	regs->ADC_CHDR = (~channel_map & 0xFFFF);
+	regs->ADC_CHER = channel_map; // enable channels
+
+	regs->ADC_MR |= 0
+		|	(1 <<  7)  // FREERUN: Free Run Mode, 1 = never wait for any trigger
+	;
+
+	// Start the conversion
+	regs->ADC_CR = 0
+		| (0 <<  0)  // SWRST: Software Reset
+		| (1 <<  1)  // START: Start Conversion
+		| (1 <<  3)  // AUTOCAL: Automatic Calibration of ADC, 1 = start calibration sequence
+	;
+}
+
+void THwAdc_atsam::StopFreeRun()
+{
+	// stop the freerun
+	uint32_t tmp = regs->ADC_MR;
+	tmp &= ~(1 <<  7); // disable free run
+	regs->ADC_MR = tmp;
+
+	while (regs->ADC_ISR & ADC_ISR_DRDY)
+	{
+		tmp = regs->ADC_LCDR;
+	}
+}
+
+void THwAdc_atsam::StartRecord(uint32_t achsel, uint32_t acount, uint16_t * adstptr)
+{
+	StopFreeRun();
+
+	// enable the selected channels
+
+	channel_map = achsel;
+	regs->ADC_CHDR = (~channel_map & 0xFFFF);
+	regs->ADC_CHER = channel_map; // enable channels
+
+	dmaxfer.dstaddr = adstptr;
+	dmaxfer.count = acount;
+	dmach.StartTransfer(&dmaxfer);
+
+	regs->ADC_MR |= 0
+		|	(1 <<  7)  // FREERUN: Free Run Mode, 1 = never wait for any trigger
+	;
+
+	// Start the conversion
+	regs->ADC_CR = 0
+		| (0 <<  0)  // SWRST: Software Reset
+		| (1 <<  1)  // START: Start Conversion
+	;
+}
+
 
 #elif defined(AFEC0)
 
@@ -151,12 +215,14 @@ bool THwAdc_atsam::Init(int adevnum, uint32_t achannel_map)
 	{
 		regs = AFEC0;
 		perid = ID_AFEC0;
+		dmarqid = 35;
 	}
 #if defined(AFEC1)
 	else if (1 == devnum)
 	{
 		regs = AFEC1;
 		perid = ID_AFEC1;
+		dmarqid = 36;
 	}
 #endif
 	else
@@ -244,11 +310,14 @@ bool THwAdc_atsam::Init(int adevnum, uint32_t achannel_map)
 		regs->AFEC_COCR = 512;
 	}
 
-	// Start the conversion
-	regs->AFEC_CR = 0
-		| (0 <<  0)  // SWRST: Software Reset
-		| (1 <<  1)  // START: Start Conversion
-	;
+	// DMA setup, required only for record
+	dmach.Init(dmachannel, dmarqid);
+	dmach.Prepare(false, (void *)&(regs->AFEC_LCDR), 0);
+
+	dmaxfer.bytewidth = 2;
+	dmaxfer.flags = 0; // use defaults
+
+	StartFreeRun(channel_map);
 
 	initialized = true;
 	return true;
@@ -257,7 +326,67 @@ bool THwAdc_atsam::Init(int adevnum, uint32_t achannel_map)
 uint16_t THwAdc_atsam::ChValue(uint8_t ach)
 {
 	regs->AFEC_CSELR = ach;
-	return (regs->AFEC_CDR << 4); // left aligned
+	return (regs->AFEC_CDR << HWADC_DATA_LSHIFT); // left aligned
+}
+
+void THwAdc_atsam::StartFreeRun(uint32_t achsel)
+{
+	channel_map = achsel;
+
+	// enable the selected channels
+	regs->AFEC_CHDR = (~channel_map & 0xFFFF);
+	regs->AFEC_CHER = channel_map; // enable channels
+
+	regs->AFEC_MR |= 0
+		|	(1 <<  7)  // FREERUN: Free Run Mode, 1 = never wait for any trigger
+	  | (1 << 23)  // ONE: must be 1
+	;
+
+	// Start the conversion
+	regs->AFEC_CR = 0
+		| (0 <<  0)  // SWRST: Software Reset
+		| (1 <<  1)  // START: Start Conversion
+	;
+}
+
+void THwAdc_atsam::StopFreeRun()
+{
+	// stop the freerun
+	uint32_t tmp = regs->AFEC_MR;
+	tmp &= ~(1 <<  7); // disable free run
+	regs->AFEC_MR = tmp;
+
+	while (regs->AFEC_ISR & AFEC_ISR_DRDY)
+	{
+		tmp = regs->AFEC_LCDR;
+	}
+}
+
+void THwAdc_atsam::StartRecord(uint32_t achsel, uint32_t acount, uint16_t * adstptr)
+{
+	StopFreeRun();
+
+	// enable the selected channels
+
+	channel_map = achsel;
+
+	regs->AFEC_CHDR = (~channel_map & 0xFFFF);
+	regs->AFEC_CHER = channel_map; // enable channels
+
+	dmaxfer.dstaddr = adstptr;
+	dmaxfer.count = acount;
+	dmach.StartTransfer(&dmaxfer);
+
+	regs->AFEC_MR |= 0
+		|	(1 <<  7)  // FREERUN: Free Run Mode, 1 = never wait for any trigger
+	  | (1 << 23)  // ONE: must be 1
+	;
+
+	// Start the conversion
+	regs->AFEC_CR = 0
+		| (0 <<  0)  // SWRST: Software Reset
+		| (1 <<  1)  // START: Start Conversion
+	;
 }
 
 #else

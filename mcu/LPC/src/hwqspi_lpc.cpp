@@ -44,9 +44,9 @@ bool THwQspi_lpc::InitInterface()
 	hwpinctrl.PinSetup(3, 8, qspipincfg);  // SPIFI_CS
 
 	// The DMA channel 7 is used by the QSPI !
-	txdma.Init(0x000007);  // perid = 0, DMA mux = 0
+	txdma.Init(7, 0, 0);  // perid = 0, DMA mux = 0
 	// use the same channel for tx and rx
-	rxdma.Init(0x000007);
+	rxdma.Init(7, 0, 0);
 
 	return true;
 }
