@@ -397,21 +397,22 @@ void TGfxBase::DrawGlyph(TGfxFont * afont, TGfxGlyph * glyph)
 		carr[0] = bgcolor;
 		carr[1] = color;
 
-		uint8_t endx = (dw < w ? w : dw);
+		uint8_t endx = xo + w; // scan always minimum the full character width to follow the bits correctly
+		if (endx < dw)  endx = dw;
 
 		for (y = 0; y < dh; ++y)
 		{
 			for (x = 0; x < endx; ++x)
 			{
 				if (   (y >= yo) && (y < yo + h)
-				    && (x >= xo) && (x < xo + w) )
+				    && (x >= xo) && (x < xo + w))
 				{
 					if ((bit & 7) == 0) // load the bits
 					{
 						bits = *bmptr++;
 					}
 
-					if (x < dw)
+					if (x < dw) // ignore pixels outside the address window
 					{
 						FillColor(carr[(bits >> 7) & 1], 1);
 					}

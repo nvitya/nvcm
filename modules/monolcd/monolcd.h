@@ -10,8 +10,11 @@ typedef enum
 {
 	MLCD_CTRL_UNKNOWN = 0,
 	MLCD_CTRL_UC1701,
+	MLCD_CTRL_PCD8544 // = Nokia 5110
 //
 } TMonoLcdCtrlType;
+
+#define MLCD_CTRL_NOKIA5110   MLCD_CTRL_PCD8544
 
 class TMonoLcd : public TGfxBase
 {

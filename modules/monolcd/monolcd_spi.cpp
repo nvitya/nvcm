@@ -56,10 +56,20 @@ void TMonoLcd_spi::Run()
 
 	case 2: // send commands
 		pin_cd.Set0(); // set to command
-		cmdbuf[0] = 0x00 + (rotation == 2 ? 4 : 0); // set column start address / LSB
-		cmdbuf[1] = 0x10; // set column start address / MSB
-		cmdbuf[2] = 0xB0 + current_page; // set page address
-		cmdcnt = 3;
+		if (MLCD_CTRL_PCD8544 == ctrltype)
+		{
+			cmdbuf[0] = 0x40 | current_page; // set y address
+			cmdbuf[1] = 0x80 | 0; // set column start address / MSB
+			cmdcnt = 2;
+		}
+		else
+		{
+			cmdbuf[0] = 0x00 + (rotation == 2 ? 4 : 0); // set column start address / LSB
+			cmdbuf[1] = 0x10; // set column start address / MSB
+			cmdbuf[2] = 0xB0 + current_page; // set page address
+			cmdcnt = 3;
+		}
+
 		cmdidx = 0;
 
 		pin_cs.Set0();

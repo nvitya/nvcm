@@ -110,51 +110,73 @@ void TMonoLcd::SetDisplayOn(bool aon)
 
 void TMonoLcd::InitPanel()
 {
-  WriteCmd(0xE2);  //System Reset
-  WriteCmd(0x40); // Set display start line to 0
-  //WriteCmd(0xA1); //Set SEG Direction
-  //WriteCmd(0xC0); //Set COM Direction
-  WriteCmd(0xA2); //Set Bias = 1/9
-  WriteCmd(0x2C);  //Boost ON
-  WriteCmd(0x2E); //Voltage Regular On
-  WriteCmd(0x2F); //Voltage Follower On
-  WriteCmd(0xF8); //Set booster ratio to
-  WriteCmd(0x00); //4x
-  WriteCmd(0x23); //Set Resistor Ratio = 3
-  WriteCmd(0x81);
-  WriteCmd(0x28); //Set Electronic Volume = 40
-  WriteCmd(0xAC);//Set Static indicator off
-  WriteCmd(0x00);
-  WriteCmd(0XA6); // Disable inverse
-  WriteCmd(0xAF); //Set Display Enable
-  delay_us(1000);
-  WriteCmd(0xA5); //display all points
-  delay_us(2000);
-  WriteCmd(0xA4); //normal display
+	if (MLCD_CTRL_UC1701 == ctrltype)
+	{
+		WriteCmd(0xE2);  //System Reset
+		WriteCmd(0x40); // Set display start line to 0
+		//WriteCmd(0xA1); //Set SEG Direction
+		//WriteCmd(0xC0); //Set COM Direction
+		WriteCmd(0xA2); //Set Bias = 1/9
+		WriteCmd(0x2C);  //Boost ON
+		WriteCmd(0x2E); //Voltage Regular On
+		WriteCmd(0x2F); //Voltage Follower On
+		WriteCmd(0xF8); //Set booster ratio to
+		WriteCmd(0x00); //4x
+		WriteCmd(0x23); //Set Resistor Ratio = 3
+		WriteCmd(0x81);
+		WriteCmd(0x28); //Set Electronic Volume = 40
+		WriteCmd(0xAC);//Set Static indicator off
+		WriteCmd(0x00);
+		WriteCmd(0XA6); // Disable inverse
+		WriteCmd(0xAF); //Set Display Enable
+		delay_us(1000);
+		WriteCmd(0xA5); //display all points
+		delay_us(2000);
+		WriteCmd(0xA4); //normal display
+	}
+	else if (MLCD_CTRL_PCD8544 == ctrltype)
+	{
+		WriteCmd(0x21); // get into the EXTENDED mode!
+		WriteCmd(0x10 | 4); // LCD bias select (4 is optimal?)
+	  WriteCmd(0x80 | contrast); // set VOP (contrast)
+	  WriteCmd(0x20); // normal mode
+	  // Set display to Normal
+	  WriteCmd(0x08 | 0x4);  // PCD8544_DISPLAYCONTROL | PCD8544_DISPLAYNORMAL
+	}
 
   SetRotation(rotation);
 }
 
 void TMonoLcd::SetRotation(uint8_t m)
 {
-	rotation = m;
+	if (MLCD_CTRL_PCD8544 == ctrltype)
+	{
+		rotation = 0;
+  	width = hwwidth;
+  	height = hwheight;
+  	return;
+	}
+	else
+	{
+		rotation = m;
 
-  switch (rotation)
-  {
-  case 0:
-  default:
-  	width = hwwidth;
-  	height = hwheight;
-		WriteCmd(0xC8);  // set com scan direction to remap
-		WriteCmd(0xA0);  // set segment re-map to remap
-  	break;
-  case 2:
-  	width = hwwidth;
-  	height = hwheight;
-		WriteCmd(0xC0);  // set com scan direction to normal
-		WriteCmd(0xA1);  // set segment re-map to normal
-  	break;
-  }
+		switch (rotation)
+		{
+		case 0:
+		default:
+			width = hwwidth;
+			height = hwheight;
+			WriteCmd(0xC8);  // set com scan direction to remap
+			WriteCmd(0xA0);  // set segment re-map to remap
+			break;
+		case 2:
+			width = hwwidth;
+			height = hwheight;
+			WriteCmd(0xC0);  // set com scan direction to normal
+			WriteCmd(0xA1);  // set segment re-map to normal
+			break;
+		}
+	}
 }
 
 void TMonoLcd::FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
