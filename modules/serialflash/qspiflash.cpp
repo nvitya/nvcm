@@ -213,7 +213,8 @@ void TQspiFlash::Run()
 				break;
 
 			case 3: // write data
-				chunksize = 256; // for the writes this is the maximal size
+				chunksize = 256 - (address & 0xFF); // for the writes this is the maximal size
+
 				if (chunksize > remaining)  chunksize = remaining;
 
 				if ((qspi.multi_line_count == 4) && ((idcode & 0xFF) != 0xC2))

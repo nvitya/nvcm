@@ -234,7 +234,7 @@ void TSpiFlash::Run()
 				break;
 
 			case 5: // data phase
-				chunksize = 256; // page size
+				chunksize = 256 - (address & 0xFF); // page size
 				if (chunksize > remaining)  chunksize = remaining;
 
 				txfer.srcaddr = dataptr;
