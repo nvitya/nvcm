@@ -82,17 +82,14 @@ public:
 	uint16_t             rxbufoffs;
 	uint16_t             txbufoffs;
 
-	uint8_t *            tx_remaining_dataptr;
-	uint16_t             tx_remaining_len;
-
 	__IO uint16_t *      preg;
 	PUsbPmaDescriptor    pdesc;
 
-	int  Recv(void * buf, unsigned len, unsigned flags);
-	int  Send(void * buf, unsigned len, unsigned flags);
-	int  SendRemaining();
+	virtual ~THwUsbEndpoint_stm32() { }
 
 	bool Configure();
+	int  SendRemaining();
+  int  ReadRecvData(void * buf, uint32_t buflen);
 };
 
 class THwUsbCtrl_stm32 : public THwUsbCtrl_pre

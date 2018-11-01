@@ -40,6 +40,8 @@ bool TUsbEndpoint::Init(uint8_t aattr, uint16_t ahtod_len, uint16_t adtoh_len)
 	htod_len = ahtod_len;
 	dtoh_len = adtoh_len;
 
+	attr = aattr;
+
 	epdesc_dtoh.attributes = aattr;
 	epdesc_dtoh.max_packet_size = dtoh_len;
 
@@ -121,19 +123,6 @@ bool TUsbInterface::InitInterface() // must be overridden
 	return false;
 }
 
-bool TUsbInterface::Init()
-{
-	if (!InitInterface())
-	{
-		return false;
-	}
-
-	// now should be everything prepared
-
-
-	return true;
-}
-
 bool TUsbInterface::AddDesc(uint8_t atype, void * adataptr, uint16_t alen, uint8_t aflags)
 {
 	TUsbDevDescRec * dd = FindDesc(atype);
@@ -183,18 +172,9 @@ void TUsbInterface::AddEndpoint(TUsbEndpoint * aep)
 // TUsbDevice
 // -----------------------------------------------------------------------------------------
 
-TUsbDevice::TUsbDevice()
+bool TUsbDevice::InitDevice()  // can be overridden
 {
-	for (int i = 0; i < USBDEV_MAX_STRINGS; ++i)
-	{
-		stringtable[i] = nullptr;
-	}
-
-}
-
-bool TUsbDevice::InitDevice()  // must be overridden !
-{
-	return false;
+	return true;
 }
 
 bool TUsbDevice::Init()
@@ -204,7 +184,7 @@ bool TUsbDevice::Init()
 
 	initialized = false;
 
-	if (!usbctrl.Init())
+	if (!InitDevice())
 	{
 		return false;
 	}
@@ -220,10 +200,15 @@ bool TUsbDevice::Init()
 		return false;
 	}
 
+	if (!InitHw())
+	{
+		return false;
+	}
+
 	// build up internal structures
 
 	epcount = 0;
-	ep_ctrl.Init(USB_EP_TYPE_CONTROL, 64, 64);  // this must be always the first endpoint (id = 0)
+	ep_ctrl.Init(HWUSB_EP_TYPE_CONTROL, 64, 64);  // this must be always the first endpoint (id = 0)
   AddEndpoint(&ep_ctrl);
 
 	// prepare the descriptors
@@ -242,14 +227,21 @@ bool TUsbDevice::Init()
 
 	for (i = 0; i < interface_count; ++i)
 	{
-		if (!PrepareInterface(i, interfaces[i]))
+		TUsbInterface * intf = interfaces[i];
+
+		if (!intf->InitInterface())
+		{
+			return false;
+		}
+
+		if (!PrepareInterface(i, intf))
 		{
 			return false;
 		}
 
 		// calculate the config descriptor length
 
-		len = interfaces[i]->AppendConfigDesc(&ctrlbuf[0], sizeof(ctrlbuf));
+		len = intf->AppendConfigDesc(&ctrlbuf[0], sizeof(ctrlbuf));
 		if (len <= 0)
 		{
 			return false;
@@ -258,13 +250,12 @@ bool TUsbDevice::Init()
 		confdesc.total_length += len;
 	}
 
-/*
-
-	if (!InitDevice())
+	// initialize endpoints
+	for (i = 0; i < epcount; ++i)
 	{
-		return false;
+		eplist[i]->usbctrl = this;
+		eplist[i]->Configure();
 	}
-*/
 
 	initialized = true;
 
@@ -329,4 +320,27 @@ bool TUsbDevice::PrepareInterface(uint8_t ifidx, TUsbInterface * pif)
 	}
 
 	return true;
+}
+
+
+bool TUsbDevice::HandleEpTransferEvent(uint8_t epid, bool htod)
+{
+	if (epid >= USBDEV_MAX_ENDPOINTS)
+	{
+		return false;
+	}
+
+	TUsbEndpoint * ep = eplist[epid];
+	if (!ep)
+	{
+		return false;
+	}
+
+	return ep->HandleTransferEvent(htod);
+}
+
+bool TUsbEndpoint::HandleTransferEvent(bool htod)
+{
+#warning "implement me!"
+	return false;
 }

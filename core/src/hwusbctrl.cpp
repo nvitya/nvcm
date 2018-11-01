@@ -29,97 +29,7 @@
 #include "hwusbctrl.h"
 #include "platform.h"
 
-bool THwUsbEndpoint::Init(THwUsbCtrl * ausbctrl, uint8_t aid, uint16_t atxbufsize, uint16_t arxbufsize, uint32_t aflags)
-{
-	usbctrl = ausbctrl;
-	id = aid;
-	txbufsize = atxbufsize;
-	rxbufsize = atxbufsize;
-	flags = aflags;
-
-	return true;
-}
-
 //-------------------------------------------------------------------------------------------
-
-bool THwUsbCtrl::Init()
-{
-	int i;
-
-	initialized = false;
-
-	for (i = 0; i < USB_MAX_ENDPOINTS; ++i)
-	{
-		epbyid[i] = nullptr;
-	}
-
-	if (!InitHw())
-	{
-		return false;
-	}
-
-	initialized = true;
-	return true;
-}
-
-bool THwUsbCtrl::AddEndpoint(THwUsbEndpoint * aep, uint8_t aid, uint16_t atxbufsize, uint16_t arxbufsize, uint32_t aflags)
-{
-	if (aid >= USB_MAX_ENDPOINTS)
-	{
-		return false;
-	}
-
-	aep->Init(this, aid, atxbufsize, arxbufsize, aflags);
-	aep->Configure(); // sets registers, allocates buffer
-
-  epbyid[aid] = aep;
-
-  return true;
-}
-
-bool THwUsbCtrl::HandleData(uint8_t epid, bool isrx)
-{
-	if (epid >= USB_MAX_ENDPOINTS)
-	{
-		return false;
-	}
-
-	THwUsbEndpoint * ep = epbyid[epid];
-	if (!ep)
-	{
-		return false;
-	}
-
-	// ...
-
-#if 0
-	if (isrx)
-	{
-		pusbdev->on_data_received(epid);
-
-		clear_epreg_ctr_rx(epdef->preg);
-
-		set_epreg_rx_status(epdef->preg, 3);
-	}
-	else
-	{
-		clear_epreg_ctr_tx(epdef->preg);
-
-		if (epdef->tx_remaining_len > 0)
-		{
-			//strace("...continue sending: %i rem.\r\n", epdef->tx_remaining_len);
-			ep_send_remaining(epid);
-		}
-		else
-		{
-			// signalize transfer end
-			pusbdev->on_data_sent(epid);
-		}
-	}
-#endif
-
-  return true;
-}
 
 void THwUsbCtrl::HandleReset()
 {
@@ -131,3 +41,17 @@ void THwUsbCtrl::HandleReset()
 	set_epreg_rx_status(epdef->preg, 3); // enabled
 #endif
 }
+
+int THwUsbEndpoint::StartSend(void * buf, unsigned len)
+{
+	if (tx_remaining_len > 0)
+	{
+		return USBERR_TX_OVERWRITE;
+	}
+
+	tx_remaining_dataptr = (uint8_t *)buf;
+	tx_remaining_len = len;
+
+	return SendRemaining();
+}
+

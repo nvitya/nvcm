@@ -31,18 +31,11 @@
 
 #include "hwpins.h"
 
-//#define USB_EP_TYPE_MASK        0x0007
-#define USB_EP_TYPE_CONTROL      0x0001
-#define USB_EP_TYPE_INTERRUPT    0x0002
-#define USB_EP_TYPE_BULK         0x0003
-#define USB_EP_TYPE_ISO          0x0004
-
-// USB Endpoint Flags
-#define USBEF_TYPE_CONTROL       0x0001
-#define USBEF_TYPE_INTERRUPT     0x0002
-#define USBEF_TYPE_BULK          0x0003
-#define USBEF_TYPE_ISO           0x0004
-#define USBEF_TYPE_MASK          0x000F
+#define HWUSB_EP_TYPE_CONTROL      0x0001
+#define HWUSB_EP_TYPE_INTERRUPT    0x0002
+#define HWUSB_EP_TYPE_BULK         0x0003
+#define HWUSB_EP_TYPE_ISO          0x0004
+#define HWUSB_EP_TYPE_MASK         0x0007
 
 // Error codes
 #define USBERR_INVALID_EP            -1
@@ -56,24 +49,29 @@ class THwUsbEndpoint;
 class THwUsbEndpoint_pre
 {
 public:
-	THwUsbCtrl *    usbctrl;
-	uint8_t         id = 0;
-	uint16_t        txbufsize = 0;
-	uint16_t        rxbufsize = 0;
-	uint32_t        flags = 0;
+	THwUsbCtrl *    usbctrl = nullptr;
 
-	uint8_t *       dataptr = nullptr;  // data send
-	unsigned        datalen = 0;
+	uint8_t         index = 0xFF;  // will be set later
+
+	uint16_t        htod_len = 0;  // host -> device max packet length
+	uint16_t        dtoh_len = 0;  // device -> host max packet length
+
+	uint32_t        attr = 0;
+
+	uint8_t *       tx_remaining_dataptr = nullptr;
+	uint32_t        tx_remaining_len = 0;
+
+	virtual         ~THwUsbEndpoint_pre() { }
 };
 
 class THwUsbCtrl_pre
 {
 public:
-	bool              initialized = false;
+	bool            initialized = false;
 
 	virtual ~THwUsbCtrl_pre() { }
 	virtual void HandleReset() { }
-	virtual bool HandleData(uint8_t epid, bool isrx) { return false; }
+	virtual bool HandleEpTransferEvent(uint8_t epid, bool htod) { return false; }
 };
 
 #endif // ndef HWUSBCTRL_H_PRE_
@@ -93,16 +91,17 @@ public:
 
 class THwUsbEndpoint_noimpl : public THwUsbEndpoint_pre
 {
-public: // mandatory
-	bool Configure()   { return false; }  // based on previously set fields
-
+public: // mandatory functions
+	bool Configure()  { return false; }  // based on previously set fields
+	int  SendRemaining()  { return 0; }
+  int  ReadRecvData(void * buf, uint32_t buflen) { return 0; }
 };
 
 class THwUsbCtrl_noimpl : public THwUsbCtrl_pre
 {
-public: // mandatory
+public: // mandatory functions
 	bool InitHw() { return false; }
-
+	void HandleIrq() { }
 };
 
 #define HWUSBENDPOINT_IMPL   THwUsbEndpoint_noimpl
@@ -115,21 +114,12 @@ public: // mandatory
 class THwUsbEndpoint : public HWUSBENDPOINT_IMPL
 {
 public: // mandatory
-	bool    Init(THwUsbCtrl * ausbctrl, uint8_t aid, uint16_t atxbufsize, uint16_t arxbufsize, uint32_t aflags);
-
-	int     Recv(void * buf, unsigned len, unsigned flags);
-	int     Send(void * buf, unsigned len, unsigned flags);
+	int     StartSend(void * buf, unsigned len);
 };
 
 class THwUsbCtrl : public HWUSBCTRL_IMPL
 {
 public:
-	THwUsbEndpoint *  epbyid[USB_MAX_ENDPOINTS];
-
-	bool Init();
-	bool AddEndpoint(THwUsbEndpoint * aep, uint8_t aid, uint16_t atxbufsize, uint16_t arxbufsize, uint32_t aflags);
-
-	virtual bool HandleData(uint8_t epid, bool isrx);
 	virtual void HandleReset();
 };
 

@@ -135,11 +135,9 @@ typedef struct TUsbDevDescRec
 //
 } TUsbDevDescRec;
 
-class TUsbEndpoint
+class TUsbEndpoint : public THwUsbEndpoint
 {
 public:
-	uint8_t              index = 0xFF;
-
 	TUsbEndpointDesc     epdesc_dtoh =
 	{
 		.length = 7,
@@ -160,11 +158,13 @@ public:
 		.interval = 10  // polling interval
 	};
 
-	uint16_t             htod_len = 0;  // host -> device max packet length
-	uint16_t             dtoh_len = 0;  // device -> host max packet length
-
 	bool Init(uint8_t aattr, uint16_t ahtod_len, uint16_t adtoh_len);
 	void SetIndex(uint8_t aindex);
+
+	//virtual void OnSendFinished();
+	//virtual void OnDataReceived(int adatalength);
+
+	virtual bool HandleTransferEvent(bool htod);
 };
 
 class TUsbInterface
@@ -196,7 +196,6 @@ public:
 public:
   virtual ~TUsbInterface() {} // to avoid warnings
 
-	bool                 Init();
 	virtual bool         InitInterface(); // should be overridden
 
 	bool                 AddDesc(uint8_t atype, void * adataptr, uint16_t alen, uint8_t aflags);
@@ -206,11 +205,9 @@ public:
 	int                  AppendConfigDesc(uint8_t * dptr, uint16_t maxlen);
 };
 
-class TUsbDevice
+class TUsbDevice : public THwUsbCtrl
 {
 public:
-	THwUsbCtrl            usbctrl;
-
 	bool                  initialized = false;
 
 	TUsbDeviceDesc        devdesc =
@@ -255,18 +252,15 @@ public:
 	TUsbEndpoint *        eplist[USBDEV_MAX_ENDPOINTS];
 	uint8_t               epcount = 0;
 
-	char *          			stringtable[USBDEV_MAX_STRINGS];
+	char *          			stringtable[USBDEV_MAX_STRINGS] = {0};
 	uint8_t               stringcount = 0;
 
 	TUsbEndpoint          ep_ctrl;
 	uint8_t               ctrlbuf[USBDEV_CTRL_BUF_SIZE];
 
-	TUsbDevice();
-	virtual ~TUsbDevice() { }
-
 	bool Init();
 
-  virtual bool InitDevice();
+  virtual bool InitDevice(); // can be overridden
 
 public:
   void AddInterface(TUsbInterface * aintf);
@@ -274,6 +268,8 @@ public:
   void AddEndpoint(TUsbEndpoint * aep);
 
   bool PrepareInterface(uint8_t ifidx, TUsbInterface * pif);
+
+	virtual bool HandleEpTransferEvent(uint8_t epid, bool htod);
 };
 
 #endif /* USBDEVICE_H_ */
