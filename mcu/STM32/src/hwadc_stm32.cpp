@@ -514,7 +514,7 @@ void THwAdc_stm32::StopFreeRun()
 	// disable continuous mode
 #if defined(MCUSF_F0)
 	regs->CR |= (1 << 4); // stop the ADC
-	while (regs->cr & (1 << 4))
+	while (regs->CR & (1 << 4))
 	{
 		// wait until stopped
 	}
