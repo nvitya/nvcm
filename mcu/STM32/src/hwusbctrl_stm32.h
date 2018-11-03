@@ -87,9 +87,13 @@ public:
 
 	virtual ~THwUsbEndpoint_stm32() { }
 
-	bool Configure();
+	bool ConfigureHwEp();
 	int  SendRemaining();
   int  ReadRecvData(void * buf, uint32_t buflen);
+
+  void FinishRecv(bool reenable);
+  void EnableRecv();
+  void FinishSend();
 };
 
 class THwUsbCtrl_stm32 : public THwUsbCtrl_pre

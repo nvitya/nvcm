@@ -94,7 +94,7 @@ static void clear_epreg_ctr_rx(__IO uint16_t * preg)
 	*preg = regval;
 }
 
-bool THwUsbEndpoint_stm32::Configure()
+bool THwUsbEndpoint_stm32::ConfigureHwEp()
 {
 	if (!usbctrl)
 	{
@@ -214,7 +214,7 @@ int THwUsbEndpoint_stm32::ReadRecvData(void * buf, uint32_t buflen)
 
 	uint16_t * pdst = (uint16_t *)(buf);
 
-	unsigned ccnt = (cnt >> 1);
+	unsigned ccnt = ((cnt + 1) >> 1);
 	for (unsigned i = 0; i < ccnt; ++i)
 	{
 		*pdst = *psrc;
@@ -231,6 +231,11 @@ int THwUsbEndpoint_stm32::ReadRecvData(void * buf, uint32_t buflen)
 
 int THwUsbEndpoint_stm32::SendRemaining()
 {
+	if (tx_remaining_len < 1)
+	{
+		return 0;
+	}
+
 	// copy words
 
 	uint16_t * pdst = (uint16_t *)(USB_PMAADDR);
@@ -451,6 +456,25 @@ void THwUsbCtrl_stm32::ResetEndpoints()
 
 		eprptr += 2;
 	}
+}
+
+void THwUsbEndpoint_stm32::FinishRecv(bool reenable)
+{
+	clear_epreg_ctr_rx(preg);
+	if (reenable)
+	{
+		EnableRecv();
+	}
+}
+
+void THwUsbEndpoint_stm32::EnableRecv()
+{
+	set_epreg_rx_status(preg, 3);  // restart read
+}
+
+void THwUsbEndpoint_stm32::FinishSend()
+{
+	clear_epreg_ctr_tx(preg);
 }
 
 #endif

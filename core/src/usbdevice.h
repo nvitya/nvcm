@@ -135,9 +135,13 @@ typedef struct TUsbDevDescRec
 //
 } TUsbDevDescRec;
 
+class TUsbInterface;
+
 class TUsbEndpoint : public THwUsbEndpoint
 {
 public:
+	TUsbInterface *      interface = nullptr;
+
 	TUsbEndpointDesc     epdesc_dtoh =
 	{
 		.length = 7,
@@ -203,12 +207,16 @@ public:
 
 	void                 AddEndpoint(TUsbEndpoint * aep);
 	int                  AppendConfigDesc(uint8_t * dptr, uint16_t maxlen);
+
+	virtual bool         HandleTransferEvent(TUsbEndpoint * aep, bool htod);
 };
 
 class TUsbDevice : public THwUsbCtrl
 {
 public:
 	bool                  initialized = false;
+
+	uint8_t  				      devaddr = 0xFF; // assigned address
 
 	TUsbDeviceDesc        devdesc =
 	{
@@ -256,20 +264,37 @@ public:
 	uint8_t               stringcount = 0;
 
 	TUsbEndpoint          ep_ctrl;
-	uint8_t               ctrlbuf[USBDEV_CTRL_BUF_SIZE];
+	uint8_t               rxbuf[64];
+	int                   rxlen = 0;
+	uint8_t               txbuf[128];  // configuration descriptors can be larger than 64 byte
+	int                   txlen = 0;
 
-	bool Init();
+protected:
+	bool                  set_devaddr_on_ack = false;
+	bool                  set_configured_on_ack = false;
+	bool                  configured = false;
 
-  virtual bool InitDevice(); // can be overridden
+	void                  MakeDeviceConfig(); // prepares the device config into the txbuf
 
 public:
-  void AddInterface(TUsbInterface * aintf);
-  uint8_t AddString(const char * astr); // returned string index + 1 as id
-  void AddEndpoint(TUsbEndpoint * aep);
+	bool           Init();
 
-  bool PrepareInterface(uint8_t ifidx, TUsbInterface * pif);
+  virtual bool   InitDevice(); // can be overridden
 
-	virtual bool HandleEpTransferEvent(uint8_t epid, bool htod);
+  void           AddInterface(TUsbInterface * aintf);
+  uint8_t        AddString(const char * astr); // returned string index + 1 as id
+  void           AddEndpoint(TUsbEndpoint * aep);
+  bool           PrepareInterface(uint8_t ifidx, TUsbInterface * pif);
+
+	virtual bool   HandleEpTransferEvent(uint8_t epid, bool htod);
+
+	bool           HandleControlEndpoint(bool htod);
+	bool           ProcessControlRequest();
+	void           ProcessControlSendFinished();
+	void           SendControlAck();
+
+	void           SetConfigured();
+	virtual void   OnConfigured();
 };
 
 #endif /* USBDEVICE_H_ */
