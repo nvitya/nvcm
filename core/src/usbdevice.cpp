@@ -43,10 +43,34 @@ bool TUsbEndpoint::Init(uint8_t aattr, uint16_t ahtod_len, uint16_t adtoh_len)
 
 	attr = aattr;
 
-	epdesc_dtoh.attributes = aattr;
+	uint8_t descattr = 0; // descriptor attribute
+	// bits0..1: Transfer type, 0 = control, 1 = isochronous, 2 = bulk, 3 = interrupt
+	// bits2..3: isochronous mode sync. type, 0 = no sync, 1 = async, 2 = adaptive, 3 = synchronous
+	// bits4..5: isochronous mode usage type, 0 = data endpoint, 1 = feedback endpoint, 2 = Explicit Feedback Data Endpoint, 3 = reserved
+
+	uint8_t eptype = (aattr & HWUSB_EP_TYPE_MASK);
+
+	if (HWUSB_EP_TYPE_CONTROL == eptype)
+	{
+		descattr = 0;
+	}
+	else if (HWUSB_EP_TYPE_INTERRUPT == eptype)
+	{
+		descattr = 3;
+	}
+	else if (HWUSB_EP_TYPE_BULK == eptype)
+	{
+		descattr = 2;
+	}
+	else if (HWUSB_EP_TYPE_ISO == eptype)
+	{
+		descattr = 1; //TODO: implement other ISO attributes
+	}
+
+	epdesc_dtoh.attributes = descattr;
 	epdesc_dtoh.max_packet_size = dtoh_len;
 
-	epdesc_htod.attributes = aattr;
+	epdesc_htod.attributes = descattr;
 	epdesc_htod.max_packet_size = htod_len;
 
 	return true;
@@ -146,6 +170,7 @@ bool TUsbInterface::AddDesc(uint8_t atype, void * adataptr, uint16_t alen, uint8
 
 	dd->dataptr = (uint8_t *)adataptr;
 	dd->datalen = alen;
+	dd->flags = aflags;
 
 	return true;
 }
@@ -179,6 +204,16 @@ bool TUsbInterface::HandleTransferEvent(TUsbEndpoint * aep, bool htod) // should
 	return false;
 }
 
+void TUsbInterface::SetConfigured()
+{
+	configured = true;
+	OnConfigured();
+}
+
+void TUsbInterface::OnConfigured() // can be overridden
+{
+}
+
 // -----------------------------------------------------------------------------------------
 // TUsbDevice
 // -----------------------------------------------------------------------------------------
@@ -191,7 +226,7 @@ bool TUsbDevice::InitDevice()  // can be overridden
 bool TUsbDevice::Init()
 {
 	uint8_t i;
-	int ctrl_rq_len;
+	int len;
 
 	initialized = false;
 
@@ -231,10 +266,13 @@ bool TUsbDevice::Init()
 	devdesc.stri_product = AddString(device_name);
 	devdesc.stri_serial_number = AddString(device_serial_number);
 
-	// configuration descriptor (first)
+	// configuration descriptor assembly test, required for total_length calculation
+	// actually assembled into txbuf[] for debugging
 
 	confdesc.total_length = confdesc.length;
 	confdesc.num_interfaces = interface_count;
+
+	txlen = confdesc.length;
 
 	for (i = 0; i < interface_count; ++i)
 	{
@@ -250,23 +288,21 @@ bool TUsbDevice::Init()
 			return false;
 		}
 
-		// calculate the config descriptor length
-
-		ctrl_rq_len = intf->AppendConfigDesc(&txbuf[0], sizeof(txbuf));
-		if (ctrl_rq_len <= 0)
+		len = intf->AppendConfigDesc(&txbuf[txlen], sizeof(txbuf) - txlen);
+		if (len <= 0)
 		{
 			return false;
 		}
 
-		confdesc.total_length += ctrl_rq_len;
+		txlen += len;
+		confdesc.total_length += len;
 	}
 
-	// initialize endpoints
-	for (i = 0; i < epcount; ++i)
-	{
-		eplist[i]->usbctrl = this;
-		eplist[i]->ConfigureHwEp();
-	}
+	memcpy(&txbuf[0], &confdesc, confdesc.length); // copy the head, the txbuf now contains the full config descriptor
+
+	HandleReset();
+
+	EnableIrq();
 
 	initialized = true;
 
@@ -333,6 +369,20 @@ bool TUsbDevice::PrepareInterface(uint8_t ifidx, TUsbInterface * pif)
 	return true;
 }
 
+void TUsbDevice::HandleReset()
+{
+	// (Re-)initialize endpoints
+
+	ResetEndpoints();
+
+	for (int i = 0; i < epcount; ++i)
+	{
+		eplist[i]->usbctrl = this;
+		eplist[i]->ConfigureHwEp();
+	}
+
+	ep_ctrl.EnableRecv(); // activate the EP0 to receive control requests
+}
 
 bool TUsbDevice::HandleEpTransferEvent(uint8_t epid, bool htod)
 {
@@ -382,8 +432,10 @@ bool TUsbDevice::HandleControlEndpoint(bool htod)
 	{
 		// device to host send completed
 		ep_ctrl.FinishSend(); // clear IRQ reason
-		if (ep_ctrl.SendRemaining() > 0) // should we continue larger block send ?
+		if (ep_ctrl.tx_remaining_len > 0) // should we continue larger block send ?
 		{
+			r = ep_ctrl.SendRemaining();
+			TRACE("... continue send, len = %i\r\n", r);
 			return true;
 		}
 
@@ -398,25 +450,25 @@ bool TUsbDevice::ProcessControlRequest()
 	int i;
 
 	TRACE("CTRL request: ");
-	unsigned char * cp = rxbuf;
-	for (i = 0; i < rxlen; ++i)
+	if (0 == rxlen)
 	{
-		TRACE(" %02X", *cp);
-		++cp;
+		TRACE("ACK\r\n");
 	}
-	TRACE("\r\n");
+	else
+	{
+		unsigned char * cp = rxbuf;
+		for (i = 0; i < rxlen; ++i)
+		{
+			TRACE(" %02X", *cp);
+			++cp;
+		}
+		TRACE("\r\n");
+	}
 
 	// parsing CTRL request
 
 	if (0 == rxlen) // ACK
 	{
-		if (set_configured_on_ack)
-		{
-			set_configured_on_ack = false;
-			SetConfigured();
-		}
-
-		TRACE("(ACK)\r\n");
 		return true;
 	}
 	else if (8 == rxlen) // setup packet
@@ -468,6 +520,7 @@ bool TUsbDevice::ProcessControlRequest()
 					txbuf[0] = txlen;
 					txbuf[1] = 3;
 
+					// convert the string to unicode format
 					char * pdst = (char *)&txbuf[2];
 					for (i = 0; i < slen; ++i)
 					{
@@ -494,7 +547,6 @@ bool TUsbDevice::ProcessControlRequest()
 					MakeDeviceConfig();
 					descptr = &txbuf[0];
 					desclen = txlen;
-					return true;
 				}
 				else
 				{
@@ -521,9 +573,9 @@ bool TUsbDevice::ProcessControlRequest()
 				}
 
 				uint16_t rqlen = (rxbuf[6] + (rxbuf[7] << 8));
-				TRACE("Sending descriptor 0x%02X, ctrl_rq_len = %i...\r\n", descid, rqlen);
-
 				if (rqlen < desclen)  desclen = rqlen;  // we can not send more than the size was requested !
+
+				TRACE("Sending descriptor 0x%02X, len = %i...\r\n", descid, desclen);
 
 				// send the descriptor
 				ep_ctrl.StartSend(descptr, desclen);
@@ -534,22 +586,26 @@ bool TUsbDevice::ProcessControlRequest()
 		else if ((0x00 == rxbuf[0]) && (0x05 == rxbuf[1])) // Set address
 		{
 			devaddr = rxbuf[2];
-			TRACE("Set device address: %i\r\n", devaddr);
-
 			set_devaddr_on_ack = true;
+			TRACE("Set device address: %i\r\n", devaddr);
 			SendControlAck();
+			//SetDeviceAddress(devaddr);
 		}
 		else if ((0x00 == rxbuf[0]) && (0x09 == rxbuf[1])) // Set configuration
 		{
 			TRACE("Set configuration\r\n");
 			SendControlAck();
 		}
-		else if ((0x21 == rxbuf[0]) && (0x0A == rxbuf[1])) // Set interface ???
+		else if ((0x21 == rxbuf[0]) && (0x0A == rxbuf[1])) // Set interface
 		{
 			TRACE("Set interface\r\n");
 			SendControlAck();
 
-			SetConfigured();
+			i = rxbuf[4]; // interface index
+			if (i < interface_count)
+			{
+				interfaces[i]->SetConfigured();
+			}
 		}
 		else if ((0xA1 == rxbuf[0])) // vendor request...
 		{
@@ -584,12 +640,6 @@ void TUsbDevice::ProcessControlSendFinished()
 	}
 }
 
-void TUsbDevice::SetConfigured()
-{
-	OnConfigured();
-	configured = true;
-}
-
 void TUsbDevice::MakeDeviceConfig()
 {
 	txlen = confdesc.length;
@@ -614,9 +664,6 @@ void TUsbDevice::MakeDeviceConfig()
 
 void TUsbDevice::SendControlAck()
 {
-	ep_ctrl.StartSend(&txbuf[0], 0); // active tx buffer with 0 length means acknowledge
+	ep_ctrl.SendAck();
 }
 
-void TUsbDevice::OnConfigured() // can be overridden
-{
-}

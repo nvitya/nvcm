@@ -89,10 +89,13 @@ public:
 
 	bool ConfigureHwEp();
 	int  SendRemaining();
+	void SendAck();
   int  ReadRecvData(void * buf, uint32_t buflen);
 
   void FinishRecv(bool reenable);
   void EnableRecv();
+  void DisableRecv();
+  void StopSend();
   void FinishSend();
 };
 

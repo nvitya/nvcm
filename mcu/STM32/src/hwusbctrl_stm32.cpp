@@ -30,6 +30,7 @@
 
 #if defined(MCUSF_F1) || defined(MCUSF_F0)
 
+#include "string.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <hwusbctrl.h>
@@ -176,16 +177,7 @@ bool THwUsbEndpoint_stm32::ConfigureHwEp()
 	set_epreg_static_content(preg, epconf);
 
 	set_epreg_tx_status(preg, 0);
-
-	if ((index != 0) && (htod_len > 0))
-	{
-		set_epreg_rx_status(preg, 3);
-	}
-	else
-	{
-		// RX disabled
-		set_epreg_rx_status(preg, 0);
-	}
+	set_epreg_rx_status(preg, 0);
 
 	return true;
 }
@@ -231,11 +223,6 @@ int THwUsbEndpoint_stm32::ReadRecvData(void * buf, uint32_t buflen)
 
 int THwUsbEndpoint_stm32::SendRemaining()
 {
-	if (tx_remaining_len < 1)
-	{
-		return 0;
-	}
-
 	// copy words
 
 	uint16_t * pdst = (uint16_t *)(USB_PMAADDR);
@@ -284,6 +271,43 @@ int THwUsbEndpoint_stm32::SendRemaining()
 	return sendlen;
 }
 
+void THwUsbEndpoint_stm32::SendAck()
+{
+	tx_remaining_len = 0;
+	pdesc->COUNT_TX = 0;
+	set_epreg_tx_status(preg, 3);
+}
+
+void THwUsbEndpoint_stm32::FinishRecv(bool reenable)
+{
+	clear_epreg_ctr_rx(preg);
+	if (reenable)
+	{
+		EnableRecv();
+	}
+}
+
+void THwUsbEndpoint_stm32::EnableRecv()
+{
+	set_epreg_rx_status(preg, 3);  // restart read
+}
+
+void THwUsbEndpoint_stm32::DisableRecv()
+{
+	set_epreg_rx_status(preg, 0);
+}
+
+void THwUsbEndpoint_stm32::StopSend()
+{
+	set_epreg_tx_status(preg, 0);
+	tx_remaining_len = 0;
+}
+
+void THwUsbEndpoint_stm32::FinishSend()
+{
+	clear_epreg_ctr_tx(preg);
+}
+
 /************************************************************************************************************
  * THwUsbCtrl_stm32
  ************************************************************************************************************/
@@ -315,9 +339,12 @@ bool THwUsbCtrl_stm32::InitHw()
 
   // USB_DevInit(hpcd->Instance, hpcd->Init) ->
   regs->CNTR = USB_CNTR_FRES; // reset USB registers
-  regs->CNTR = 0;
+  if (regs->CNTR) { } // synchronize HW
+  regs->CNTR = 0; // remove reset
   regs->ISTR = 0;
   regs->BTABLE = 0;  // the descriptor table is at the beginning
+
+  memset((uint8_t *)USB_PMAADDR, 0, 2 * 64); // clear USB PMA descriptor buffer
 
 #if defined(MCUSF_F0)
   regs->LPMCSR = 0;
@@ -334,18 +361,19 @@ bool THwUsbCtrl_stm32::InitHw()
 
 void THwUsbCtrl_stm32::HandleIrq()
 {
-
 	//source:  HAL_PCD_IRQHandler
 
-	//strace("USB IRQ: %04X\r\n", regs->ISTR);
+	uint32_t istr = regs->ISTR;
 
-	if (regs->ISTR & USB_ISTR_CTR)
+	if (istr & USB_ISTR_CTR)
 	{
 		// Endpoint transfer finished.
 		//PCD_EP_ISR_Handler(hpcd);
 
-		int epid = (regs->ISTR & 7);
-		bool htod = ((regs->ISTR & 0x10) != 0);
+		int epid = (istr & 7);
+		bool htod = ((istr & 0x10) != 0);
+
+		//TRACE("EP(%03X) event\r\n", istr & 0x17);
 
 		if (!HandleEpTransferEvent(epid, htod))
 		{
@@ -371,6 +399,9 @@ void THwUsbCtrl_stm32::HandleIrq()
 	if (regs->ISTR & USB_ISTR_RESET)
 	{
 		TRACE("USB RESET, ISTR=%04X\r\n", regs->ISTR);
+
+		// the USB registers were already cleared by the hw
+
 		//HAL_PCD_SetAddress(hpcd, 0):
 		regs->DADDR = USB_DADDR_EF;
 
@@ -391,7 +422,6 @@ void THwUsbCtrl_stm32::HandleIrq()
 		regs->ISTR &= ~USB_ISTR_ERR;
 	}
 
-#if defined(USB_CNTR_LP_MODE)
 	if (regs->ISTR & USB_ISTR_WKUP)
 	{
 		TRACE("USB WKUP, ISTR=%04X\r\n", regs->ISTR);
@@ -422,8 +452,6 @@ void THwUsbCtrl_stm32::HandleIrq()
 		/* clear of the ISTR bit must be done after setting of CNTR_FSUSP */
 		regs->ISTR &= ~USB_ISTR_SUSP;
 	}
-
-#endif
 
 	if (regs->ISTR & USB_ISTR_SOF)
 	{
@@ -456,25 +484,6 @@ void THwUsbCtrl_stm32::ResetEndpoints()
 
 		eprptr += 2;
 	}
-}
-
-void THwUsbEndpoint_stm32::FinishRecv(bool reenable)
-{
-	clear_epreg_ctr_rx(preg);
-	if (reenable)
-	{
-		EnableRecv();
-	}
-}
-
-void THwUsbEndpoint_stm32::EnableRecv()
-{
-	set_epreg_rx_status(preg, 3);  // restart read
-}
-
-void THwUsbEndpoint_stm32::FinishSend()
-{
-	clear_epreg_ctr_tx(preg);
 }
 
 #endif

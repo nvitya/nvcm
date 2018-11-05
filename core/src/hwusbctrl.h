@@ -94,10 +94,12 @@ class THwUsbEndpoint_noimpl : public THwUsbEndpoint_pre
 public: // mandatory functions
 	bool Configure()  { return false; }  // based on previously set fields
 	int  SendRemaining()  { return 0; }
+	void SendAck()  { }
   int  ReadRecvData(void * buf, uint32_t buflen) { return 0; }
-
   void FinishRecv(bool reenable);
   void EnableRecv();
+  void DisableRecv();
+  void StopSend();
   void FinishSend();
 };
 
@@ -123,6 +125,7 @@ class THwUsbEndpoint : public HWUSBENDPOINT_IMPL
 {
 public: // mandatory
 	int     StartSend(void * buf, unsigned len);
+  void    Reset();
 };
 
 class THwUsbCtrl : public HWUSBCTRL_IMPL

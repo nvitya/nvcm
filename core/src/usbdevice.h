@@ -176,6 +176,8 @@ class TUsbInterface
 public:
 	uint8_t              index = 0xFF;
 
+	bool                 configured = false;
+
 	TUsbInterfaceDesc    intfdesc =
 	{
 		.length = 9,
@@ -209,6 +211,10 @@ public:
 	int                  AppendConfigDesc(uint8_t * dptr, uint16_t maxlen);
 
 	virtual bool         HandleTransferEvent(TUsbEndpoint * aep, bool htod);
+
+	virtual void         OnConfigured();
+
+	void                 SetConfigured();
 };
 
 class TUsbDevice : public THwUsbCtrl
@@ -244,7 +250,7 @@ public:
 		.descriptor_type = USB_DESC_TYPE_CONFIGURATION,
 		.total_length = 0,     // calculated automatically (total length of all descriptors)
 		.num_interfaces = 0,   // calculated automatically
-		.configuration_value = 0,
+		.configuration_value = 1,
 		.stri_configuration = 0,
 		.attributes = 0xE0, // bus powered, supports wakeup
 		.max_power = 0x32 // 100 mA
@@ -271,8 +277,6 @@ public:
 
 protected:
 	bool                  set_devaddr_on_ack = false;
-	bool                  set_configured_on_ack = false;
-	bool                  configured = false;
 
 	void                  MakeDeviceConfig(); // prepares the device config into the txbuf
 
@@ -286,6 +290,7 @@ public:
   void           AddEndpoint(TUsbEndpoint * aep);
   bool           PrepareInterface(uint8_t ifidx, TUsbInterface * pif);
 
+	virtual void   HandleReset();
 	virtual bool   HandleEpTransferEvent(uint8_t epid, bool htod);
 
 	bool           HandleControlEndpoint(bool htod);
@@ -293,8 +298,6 @@ public:
 	void           ProcessControlSendFinished();
 	void           SendControlAck();
 
-	void           SetConfigured();
-	virtual void   OnConfigured();
 };
 
 #endif /* USBDEVICE_H_ */

@@ -55,3 +55,8 @@ int THwUsbEndpoint::StartSend(void * buf, unsigned len)
 	return SendRemaining();
 }
 
+void THwUsbEndpoint::Reset()
+{
+	StopSend();
+	DisableRecv();
+}
