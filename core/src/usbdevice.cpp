@@ -88,6 +88,11 @@ bool TUsbEndpoint::HandleTransferEvent(bool htod) // can be overridden
 	return false;
 }
 
+bool TUsbEndpoint::HandleSetupRequest(TUsbSetupRequest * psrq)
+{
+	return false;
+}
+
 // -----------------------------------------------------------------------------------------
 // TUsbInterface
 // -----------------------------------------------------------------------------------------
@@ -153,7 +158,7 @@ bool TUsbInterface::InitInterface() // must be overridden
 	return false;
 }
 
-bool TUsbInterface::AddDesc(uint8_t atype, void * adataptr, uint16_t alen, uint8_t aflags)
+bool TUsbInterface::AddDesc(uint16_t atype, void * adataptr, uint8_t alen, uint8_t aflags)
 {
 	TUsbDevDescRec * dd = FindDesc(atype);
 	if (!dd)
@@ -175,7 +180,33 @@ bool TUsbInterface::AddDesc(uint8_t atype, void * adataptr, uint16_t alen, uint8
 	return true;
 }
 
-TUsbDevDescRec * TUsbInterface::FindDesc(uint8_t aid)
+bool TUsbInterface::AddConfigDesc(void * adataptr, bool asubtype)
+{
+	uint8_t * ddata = (uint8_t *)adataptr;
+	uint16_t did = ddata[1];
+	if (asubtype)  did |= (ddata[2] << 8);
+
+	TUsbDevDescRec * dd = FindDesc(did);
+	if (!dd)
+	{
+		if (desccount >= USBINTF_MAX_DESCREC)
+		{
+			return false;
+		}
+
+		dd = &desclist[desccount];
+		dd->id = did;
+		++desccount;
+	}
+
+	dd->dataptr = (uint8_t *)adataptr;
+	dd->datalen = ddata[0];
+	dd->flags = (USBDESCF_CONFIG | (asubtype ? USBDESCF_SUBTYPE : 0));
+
+	return true;
+}
+
+TUsbDevDescRec * TUsbInterface::FindDesc(uint16_t aid)
 {
 	for (int i = 0; i < desccount; ++i)
 	{
@@ -197,6 +228,86 @@ void TUsbInterface::AddEndpoint(TUsbEndpoint * aep)
 	aep->interface = this;
 	eplist[epcount] = aep;
 	++epcount;
+}
+
+bool TUsbInterface::HandleSetupRequest(TUsbSetupRequest * psrq)
+{
+	uint8_t rqclass = ((psrq->rqtype >> 5) & 3);
+
+	if (0 == rqclass) // standard
+	{
+		if (0x06 == psrq->request) // get descriptor
+		{
+			void * descptr = nullptr;
+			uint8_t desclen = 0;
+
+			uint8_t descid = (psrq->value >> 8);
+			TUsbDevDescRec * pdr = FindDesc(descid);
+			if (pdr)
+			{
+				descptr = pdr->dataptr;
+				desclen = pdr->datalen;
+			}
+			else
+			{
+				TRACE("Interface descriptor not found: 0x%02Xr\n", descid);
+				return false;
+			}
+
+			if (psrq->length < desclen)  desclen = psrq->length;  // we can not send more than the size was requested !
+
+			TRACE("Sending descriptor 0x%02X, len = %i...\r\n", descid, desclen);
+
+			// send the descriptor
+			device->ep_ctrl.StartSend(descptr, desclen);
+			return true;
+		}
+		else if (0x0A == psrq->request) // get interface
+		{
+			device->ep_ctrl.StartSend(&altsetting, 1);
+			return true;
+		}
+		else if (0x0B == psrq->request) // set interface
+		{
+			altsetting = (psrq->value & 0xFF);
+			device->SendControlAck();
+
+			SetConfigured(); // notify the class driver
+
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+	else // class and vendor requests are not handled here
+	{
+		return false;
+	}
+
+#if 0
+	else if (
+			      ((0x21 == rxbuf[0]) && (0x0A == rxbuf[1]))  // Set interface (HID)
+			      ||
+			      ((0x01 == rxbuf[0]) && (0x0B == rxbuf[1]))  // Set interface (CDC)
+			    )
+	{
+		TRACE("Set interface\r\n");
+		SendControlAck();
+
+		i = rxbuf[4]; // interface index
+		if (i < interface_count)
+		{
+			interfaces[i]->SetConfigured();
+		}
+	}
+	else if ((0xA1 == rxbuf[0])) // vendor request...
+	{
+		//TRACE("Vendor Request %02X\r\n", rxbuf[1]);
+		Se4ndControlAck();
+	}
+#endif
 }
 
 bool TUsbInterface::HandleTransferEvent(TUsbEndpoint * aep, bool htod) // should be overridden
@@ -316,6 +427,7 @@ void TUsbDevice::AddInterface(TUsbInterface * aintf)
 		return;
 	}
 
+	aintf->device = this;
 	interfaces[interface_count] = aintf;
 	++interface_count;
 }
@@ -473,144 +585,147 @@ bool TUsbDevice::ProcessControlRequest()
 	}
 	else if (8 == rxlen) // setup packet
 	{
-		// << RX(8):  80 06 00 01 00 00 12 00  // request main config
+		TUsbSetupRequest * psrq = (TUsbSetupRequest *)&rxbuf[0];
 
-		if ((rxbuf[0] & 0x80) && (0x06 == rxbuf[1])) // Get Descriptor
+		if ((psrq->rqtype & 0x1F) == 0) // recipient = device
 		{
-			uint8_t descid = rxbuf[3];
-			if (3 == descid) // string descriptors have special handling
+			if   (0x06 == psrq->request) // get descriptor
 			{
-				uint8_t strid = rxbuf[2];
-
-				if (0 == strid) // sending supported languages
+				uint8_t descid = (psrq->value >> 8);
+				if (3 == descid) // string descriptors have special handling
 				{
-					//TRACE("Sending string table\r\n");
-					// supported languages
-					// 04 03 09 04
-					txlen = 4;
-					txbuf[0] = txlen;
-					txbuf[1] = 3;
-					txbuf[2] = 0x09;
-					txbuf[3] = 0x04;
+					uint8_t strid = (psrq->value & 0xFF);
 
-					ep_ctrl.StartSend(&txbuf[0], txlen);
-				}
-				else
-				{
-					// string data
-					const char * str = nullptr;
-					if (strid < USBDEV_MAX_STRINGS)
+					if (0 == strid) // sending supported languages
 					{
-						str = stringtable[strid];
+						//TRACE("Sending string table\r\n");
+						// supported languages
+						// 04 03 09 04
+						txlen = 4;
+						txbuf[0] = txlen;
+						txbuf[1] = 3;
+						txbuf[2] = 0x09;
+						txbuf[3] = 0x04;
+
+						ep_ctrl.StartSend(&txbuf[0], txlen);
+						return true;
 					}
-
-					if (!str)
+					else
 					{
-						str = "???";
-						TRACE("GETSTRING: string 0x%02X not found\r\n", strid);
-					}
-
-					//TRACE("Sending string \"%s\"\r\n", str);
-
-					uint8_t slen = strlen(str);
-
-					if (slen > 31)  slen = 31;
-
-					txlen = slen * 2 + 2;
-					txbuf[0] = txlen;
-					txbuf[1] = 3;
-
-					// convert the string to unicode format
-					char * pdst = (char *)&txbuf[2];
-					for (i = 0; i < slen; ++i)
-					{
-						*(pdst++) = *(str++);
-						*(pdst++) = 0;
-					}
-
-					ep_ctrl.StartSend(&txbuf[0], txlen);
-				}
-			}
-			else // normal, static descriptors
-			{
-				void * descptr = nullptr;
-				uint8_t desclen = 0;
-
-				if (USB_DESC_TYPE_DEVICE == descid)
-				{
-					descptr = &devdesc;
-					desclen = devdesc.length;
-				}
-				else if (USB_DESC_TYPE_CONFIGURATION == descid)
-				{
-					// special case, assembly the config descriptor into the txbuf, can be bigger than 64 bytes
-					MakeDeviceConfig();
-					descptr = &txbuf[0];
-					desclen = txlen;
-				}
-				else
-				{
-					// otherwise the descriptor must be registered in an interface
-
-					TUsbDevDescRec * pdr = nullptr;
-
-					for (i = 0; i < interface_count; ++i)
-					{
-						pdr = interfaces[i]->FindDesc(descid);
-						if (pdr)
+						// string data
+						const char * str = nullptr;
+						if (strid < USBDEV_MAX_STRINGS)
 						{
-							descptr = pdr->dataptr;
-							desclen = pdr->datalen;
-							break;
+							str = stringtable[strid];
 						}
+
+						if (!str)
+						{
+							str = "???";
+							TRACE("GETSTRING: string 0x%02X not found\r\n", strid);
+						}
+
+						//TRACE("Sending string \"%s\"\r\n", str);
+
+						uint8_t slen = strlen(str);
+
+						if (slen > 31)  slen = 31;
+
+						txlen = slen * 2 + 2;
+						txbuf[0] = txlen;
+						txbuf[1] = 3;
+
+						// convert the string to unicode format
+						char * pdst = (char *)&txbuf[2];
+						for (i = 0; i < slen; ++i)
+						{
+							*(pdst++) = *(str++);
+							*(pdst++) = 0;
+						}
+
+						ep_ctrl.StartSend(&txbuf[0], txlen);
+						return true;
 					}
 				}
-
-				if (!descptr)
+				else // normal, static descriptors
 				{
-					TRACE("GETDESCRIPTOR: Descriptor 0x%02X not found\r\n", descid);
-					return false;
+					void * descptr = nullptr;
+					uint8_t desclen = 0;
+
+					if (USB_DESC_TYPE_DEVICE == descid)
+					{
+						descptr = &devdesc;
+						desclen = devdesc.length;
+					}
+					else if (USB_DESC_TYPE_CONFIGURATION == descid)
+					{
+						// special case, assembly the config descriptor into the txbuf, can be bigger than 64 bytes
+						MakeDeviceConfig();
+						descptr = &txbuf[0];
+						desclen = txlen;
+					}
+					else
+					{
+						TRACE("Unknown device descriptor request: 0x%02Xr\n", descid);
+						return false;
+					}
+
+					if (psrq->length < desclen)  desclen = psrq->length;  // we can not send more than the size was requested !
+
+					TRACE("Sending descriptor 0x%02X, len = %i...\r\n", descid, desclen);
+
+					// send the descriptor
+					ep_ctrl.StartSend(descptr, desclen);
+					return true;
 				}
 
-				uint16_t rqlen = (rxbuf[6] + (rxbuf[7] << 8));
-				if (rqlen < desclen)  desclen = rqlen;  // we can not send more than the size was requested !
-
-				TRACE("Sending descriptor 0x%02X, len = %i...\r\n", descid, desclen);
-
-				// send the descriptor
-				ep_ctrl.StartSend(descptr, desclen);
-
+			}
+			else if (0x05 == psrq->request) // set address
+			{
+				devaddr = rxbuf[2];
+				set_devaddr_on_ack = true;
+				TRACE("Set device address: %i\r\n", devaddr);
+				SendControlAck();
+				//SetDeviceAddress(devaddr);
 				return true;
 			}
-		}
-		else if ((0x00 == rxbuf[0]) && (0x05 == rxbuf[1])) // Set address
-		{
-			devaddr = rxbuf[2];
-			set_devaddr_on_ack = true;
-			TRACE("Set device address: %i\r\n", devaddr);
-			SendControlAck();
-			//SetDeviceAddress(devaddr);
-		}
-		else if ((0x00 == rxbuf[0]) && (0x09 == rxbuf[1])) // Set configuration
-		{
-			TRACE("Set configuration\r\n");
-			SendControlAck();
-		}
-		else if ((0x21 == rxbuf[0]) && (0x0A == rxbuf[1])) // Set interface
-		{
-			TRACE("Set interface\r\n");
-			SendControlAck();
-
-			i = rxbuf[4]; // interface index
-			if (i < interface_count)
+			else if (0x09 == psrq->request) // set configuration
 			{
-				interfaces[i]->SetConfigured();
+				SendControlAck();
+				SetConfiguration(psrq->value & 0xFF);
+				return true;
+			}
+			else
+			{
+				TRACE("Unhandled device setup request\r\n");
+				return false;
 			}
 		}
-		else if ((0xA1 == rxbuf[0])) // vendor request...
+		else if ((psrq->rqtype & 0x1F) == 1) // interface requests
 		{
-			//TRACE("Vendor Request %02X\r\n", rxbuf[1]);
-			SendControlAck();
+			i = psrq->index;
+			if (i < interface_count)
+			{
+				if (interfaces[i]->HandleSetupRequest(psrq))
+				{
+					return true;
+				}
+			}
+			TRACE("Unhandled interface request!\r\n");
+			return false;
+		}
+		else if ((psrq->rqtype & 0x1F) == 2) // endpoint requests
+		{
+			i = psrq->index;
+			if (i < epcount)
+			{
+				if (eplist[i]->HandleSetupRequest(psrq))
+				{
+					return true;
+				}
+			}
+			TRACE("Unhandled endpoint request!\r\n");
+			return false;
 		}
 		else
 		{
@@ -627,8 +742,18 @@ bool TUsbDevice::ProcessControlRequest()
 		TRACE("Invalid control request, len = %i\r\n", rxlen);
 		return false;
 	}
+}
 
-	return true;
+void TUsbDevice::SetConfiguration(uint8_t aconfig)
+{
+	TRACE("Set configuration: %u\r\n", aconfig);
+  actualconfig = aconfig;
+
+  // notify the interfaces
+  for (int i = 0; i < interface_count; ++i)
+  {
+  	interfaces[i]->SetConfigured();
+  }
 }
 
 void TUsbDevice::ProcessControlSendFinished()
@@ -666,4 +791,3 @@ void TUsbDevice::SendControlAck()
 {
 	ep_ctrl.SendAck();
 }
-

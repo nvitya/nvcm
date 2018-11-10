@@ -36,10 +36,11 @@
 #define USBDEV_MAX_INTERFACES    6
 #define USBDEV_MAX_DESCREC       8
 #define USBDEV_MAX_ENDPOINTS     8
-#define USBINTF_MAX_DESCREC      8
+#define USBINTF_MAX_DESCREC     16
 #define USBINTF_MAX_ENDPOINTS    4
 
 #define USBDESCF_CONFIG    1
+#define USBDESCF_SUBTYPE   2
 
 #define USB_DESC_TYPE_DEVICE                           1
 #define USB_DESC_TYPE_CONFIGURATION                    2
@@ -66,6 +67,18 @@
 #define USBD_STRIDX_SERIAL        0x03
 #define USBD_STRIDX_CONFIG        0x04
 #define USBD_STRIDX_INTERFACE     0x05
+
+typedef struct TUsbSetupRequest
+{
+	uint8_t   rqtype;   // bit0..4: recipient, 0 = device, 1 = interface, 2 = endpoint, 3 = other
+	                    // bit5..6: type, 0 = standard, 1 = class, 2 = vendor, 3 = reserved
+	                    // bit7: data direction, 0 = host to device (htod), 1 = device to host (dtoh)
+	uint8_t   request;
+	uint16_t  value;
+	uint16_t  index;
+	uint16_t  length;
+//
+} __attribute__((__packed__)) TUsbSetupRequest;
 
 typedef struct TUsbDeviceDesc
 {
@@ -128,19 +141,20 @@ typedef struct TUsbEndpointDesc
 
 typedef struct TUsbDevDescRec
 {
-	uint8_t					id;
+	uint16_t				id;
 	uint8_t         flags;
-	uint16_t     		datalen;
+	uint8_t     		datalen;
 	uint8_t  *      dataptr;
 //
 } TUsbDevDescRec;
 
 class TUsbInterface;
+class TUsbDevice;
 
 class TUsbEndpoint : public THwUsbEndpoint
 {
 public:
-	TUsbInterface *      interface = nullptr;
+	TUsbInterface *      interface = nullptr;  // will be set on interface add
 
 	TUsbEndpointDesc     epdesc_dtoh =
 	{
@@ -168,13 +182,18 @@ public:
 	//virtual void OnSendFinished();
 	//virtual void OnDataReceived(int adatalength);
 
-	virtual bool HandleTransferEvent(bool htod);
+	virtual bool         HandleTransferEvent(bool htod);
+	virtual bool         HandleSetupRequest(TUsbSetupRequest * psrq);
+
 };
 
 class TUsbInterface
 {
 public:
+	TUsbDevice *         device = nullptr;  // will be set on device add
+
 	uint8_t              index = 0xFF;
+	uint8_t              altsetting = 0;    // provided for setconfig / getconfig
 
 	bool                 configured = false;
 
@@ -204,13 +223,16 @@ public:
 
 	virtual bool         InitInterface(); // should be overridden
 
-	bool                 AddDesc(uint8_t atype, void * adataptr, uint16_t alen, uint8_t aflags);
-	TUsbDevDescRec *     FindDesc(uint8_t aid);
+	bool                 AddDesc(uint16_t atype, void * adataptr, uint8_t alen, uint8_t aflags);
+	bool                 AddConfigDesc(void * adataptr, bool asubtype);
+
+	TUsbDevDescRec *     FindDesc(uint16_t aid);
 
 	void                 AddEndpoint(TUsbEndpoint * aep);
 	int                  AppendConfigDesc(uint8_t * dptr, uint16_t maxlen);
 
 	virtual bool         HandleTransferEvent(TUsbEndpoint * aep, bool htod);
+	virtual bool         HandleSetupRequest(TUsbSetupRequest * psrq);
 
 	virtual void         OnConfigured();
 
@@ -222,7 +244,8 @@ class TUsbDevice : public THwUsbCtrl
 public:
 	bool                  initialized = false;
 
-	uint8_t  				      devaddr = 0xFF; // assigned address
+	uint8_t  				      devaddr = 0xFF;    // assigned address
+	uint8_t               actualconfig = 0;  // actualy selected configuration, 0 = unconfigured
 
 	TUsbDeviceDesc        devdesc =
 	{
@@ -298,6 +321,7 @@ public:
 	void           ProcessControlSendFinished();
 	void           SendControlAck();
 
+	void           SetConfiguration(uint8_t aconfig);
 };
 
 #endif /* USBDEVICE_H_ */

@@ -308,6 +308,12 @@ void THwUsbEndpoint_stm32::FinishSend()
 	clear_epreg_ctr_tx(preg);
 }
 
+void THwUsbEndpoint_stm32::Stall()
+{
+	if (htod_len) set_epreg_rx_status(preg, 1);
+	if (dtoh_len) set_epreg_tx_status(preg, 1);
+}
+
 /************************************************************************************************************
  * THwUsbCtrl_stm32
  ************************************************************************************************************/

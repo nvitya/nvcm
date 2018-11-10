@@ -97,6 +97,7 @@ public:
   void DisableRecv();
   void StopSend();
   void FinishSend();
+  void Stall();
 };
 
 class THwUsbCtrl_stm32 : public THwUsbCtrl_pre

@@ -101,6 +101,7 @@ public: // mandatory functions
   void DisableRecv();
   void StopSend();
   void FinishSend();
+  void Stall();
 };
 
 class THwUsbCtrl_noimpl : public THwUsbCtrl_pre
