@@ -99,6 +99,20 @@ typedef struct TUsbDeviceDesc
 //
 } __attribute__((__packed__)) TUsbDeviceDesc;
 
+typedef struct TUsbDeviceQualifierDesc
+{
+	uint8_t		length;
+	uint8_t 	descriptor_type;
+	uint16_t 	usb_version;
+	uint8_t  	device_class;
+	uint8_t  	device_sub_class;
+	uint8_t  	device_protocol;
+	uint8_t  	max_packet_size_ep0;
+	uint8_t  	other_speed_configs;
+	uint8_t  	reserved;
+//
+} __attribute__((__packed__)) TUsbDeviceQualifierDesc;
+
 typedef struct TUsbConfigDesc
 {
 	uint8_t		length; // = 9
@@ -279,6 +293,19 @@ public:
 		.max_power = 0x32 // 100 mA
 	};
 
+	TUsbDeviceQualifierDesc  qualifierdesc =
+	{
+		.length = 10,
+		.descriptor_type = USB_DESC_TYPE_DEVICE_QUALIFIER,
+		.usb_version = 0x0200,
+		.device_class = 0,
+		.device_sub_class = 0,
+		.device_protocol = 0,
+		.max_packet_size_ep0 = 64,
+		.other_speed_configs = 0,  // but will be sent the same for all
+		.reserved = 0
+	};
+
 	const char *          manufacturer_name = "Unknown Manufacturer";
 	const char *          device_name = "Unknown Device";
 	const char *          device_serial_number = "12345678";
@@ -301,7 +328,7 @@ public:
 protected:
 	bool                  set_devaddr_on_ack = false;
 
-	void                  MakeDeviceConfig(); // prepares the device config into the txbuf
+	void                  MakeDeviceConfig(TUsbSetupRequest * psrq); // prepares the device config into the txbuf
 
 public:
 	bool           Init();

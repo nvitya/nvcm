@@ -616,7 +616,7 @@ bool TUsbDevice::ProcessControlRequest()
 						const char * str = nullptr;
 						if (strid < USBDEV_MAX_STRINGS)
 						{
-							str = stringtable[strid];
+							str = stringtable[strid-1];
 						}
 
 						if (!str)
@@ -625,7 +625,7 @@ bool TUsbDevice::ProcessControlRequest()
 							TRACE("GETSTRING: string 0x%02X not found\r\n", strid);
 						}
 
-						//TRACE("Sending string \"%s\"\r\n", str);
+						TRACE("Sending string \"%s\"\r\n", str);
 
 						uint8_t slen = strlen(str);
 
@@ -657,16 +657,21 @@ bool TUsbDevice::ProcessControlRequest()
 						descptr = &devdesc;
 						desclen = devdesc.length;
 					}
-					else if (USB_DESC_TYPE_CONFIGURATION == descid)
+					else if (USB_DESC_TYPE_DEVICE_QUALIFIER == descid)
+					{
+						descptr = &qualifierdesc;
+						desclen = qualifierdesc.length;
+					}
+					else if ((USB_DESC_TYPE_CONFIGURATION == descid) || (USB_DESC_TYPE_OTHER_SPEED_CONFIGURATION == descid))
 					{
 						// special case, assembly the config descriptor into the txbuf, can be bigger than 64 bytes
-						MakeDeviceConfig();
+						MakeDeviceConfig(psrq);
 						descptr = &txbuf[0];
 						desclen = txlen;
 					}
 					else
 					{
-						TRACE("Unknown device descriptor request: 0x%02Xr\n", descid);
+						TRACE("Unknown device descriptor request: 0x%02X\r\n", descid);
 						return false;
 					}
 
@@ -765,10 +770,11 @@ void TUsbDevice::ProcessControlSendFinished()
 	}
 }
 
-void TUsbDevice::MakeDeviceConfig()
+void TUsbDevice::MakeDeviceConfig(TUsbSetupRequest * psrq)
 {
 	txlen = confdesc.length;
 	memcpy(&txbuf[0], &confdesc, txlen);
+	txbuf[1] = (psrq->value >> 8); // normal or other speed config
 	uint8_t ind = txlen;
 
 	for (int i = 0; i < interface_count; ++i)
