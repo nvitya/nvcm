@@ -41,6 +41,12 @@
   #define MCU_STM32F103C8
   #define MCU_INPUT_FREQ   8000000
 
+#elif defined(BOARD_MIBO48_STM32F303)
+
+  #define BOARD_NAME "STM32F303Cx 48-pin Develompent Board by nvitya"
+  #define MCU_STM32F303CB
+  #define MCU_INPUT_FREQ   8000000
+
 #elif defined(BOARD_DISCOVERY_F072)
 
   #define BOARD_NAME "STM32F072 Discovery"

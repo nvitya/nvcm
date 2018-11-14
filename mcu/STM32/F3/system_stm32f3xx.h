@@ -1,0 +1,6 @@
+#ifndef __SYSTEM_STM32F3XX_H
+#define __SYSTEM_STM32F3XX_H
+
+
+#endif /*__SYSTEM_STM32F3XX_H */
+

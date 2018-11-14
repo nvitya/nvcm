@@ -92,7 +92,7 @@ public:
 class THwUsbEndpoint_noimpl : public THwUsbEndpoint_pre
 {
 public: // mandatory functions
-	bool Configure()  { return false; }  // based on previously set fields
+	bool ConfigureHwEp()  { return false; }  // based on previously set fields
 	int  SendRemaining()  { return 0; }
 	void SendAck()  { }
   int  ReadRecvData(void * buf, uint32_t buflen) { return 0; }
@@ -112,7 +112,8 @@ public: // mandatory functions
 
 	void SetDeviceAddress(uint8_t aaddr) { }
 
-	//void ResetEndpoints() { }
+	void EnableIrq() { }
+	void ResetEndpoints() { }
 };
 
 #define HWUSBENDPOINT_IMPL   THwUsbEndpoint_noimpl

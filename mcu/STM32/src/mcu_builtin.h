@@ -82,6 +82,13 @@
 
   #include "stm32f301x8.h"
 
+#elif defined(MCU_STM32F303CB) || defined(MCU_STM32F303CC)
+
+  #define MCUF_STM32
+  #define MCUSF_F3
+
+  #include "stm32f303xc.h"
+
 // STM32F4: Cortex-M4F
 
 #elif defined(MCU_STM32F446ZE)

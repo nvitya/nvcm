@@ -438,12 +438,16 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 
 #warning "ADC implementation is missing!"
 
+#define ADC_IMPL_MISSING
+
 bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 {
 	return false;
 }
 
 #endif
+
+#ifndef ADC_IMPL_MISSING
 
 // Shared functions
 
@@ -555,3 +559,5 @@ void THwAdc_stm32::StartRecord(uint32_t achsel, uint32_t acount, uint16_t * adst
 
 	StartContConv();
 }
+
+#endif
