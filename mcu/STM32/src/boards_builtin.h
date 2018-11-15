@@ -47,6 +47,17 @@
   #define MCU_STM32F303CB
   #define MCU_INPUT_FREQ   8000000
 
+#elif defined(BOARD_MIBO20_STM32F070)
+
+  #define BOARD_NAME "STM32F070F6 20-pin Develompent Board by WF"
+  #define MCU_STM32F070F6
+  #define MCU_INPUT_FREQ   8000000
+
+#elif defined(BOARD_MIBO20_STM32F030)
+
+  #define BOARD_NAME "STM32F030F4 20-pin Develompent Board by WF"
+  #define MCU_STM32F030F4
+
 #elif defined(BOARD_DISCOVERY_F072)
 
   #define BOARD_NAME "STM32F072 Discovery"

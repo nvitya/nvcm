@@ -28,13 +28,18 @@
 
 #include "platform.h"
 
-#if defined(MCUSF_F1) || defined(MCUSF_F0)
+#if defined(USB_PMAADDR) //defined(MCUSF_F1) || defined(MCUSF_F0)
 
 #include "string.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <hwusbctrl.h>
 #include "traces.h"
+
+#if defined(USB_CNTR_LPMODE) && !defined(USB_CNTR_LP_MODE)
+  #define USB_CNTR_LP_MODE USB_CNTR_LPMODE
+#endif
+
 
 #define EPREG_INVARIANT_CLEAR_MASK  (~((1 << 14) | (3 << 12) | (1 << 6) | (3 << 4)))
 #define EPREG_INVARIANT_SET_MASK    ((1 << 15) | (1 << 7))

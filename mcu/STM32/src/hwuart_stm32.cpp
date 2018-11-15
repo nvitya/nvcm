@@ -54,12 +54,14 @@ bool THwUart_stm32::Init(int adevnum)
 		RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
 #endif
 	}
+#if defined(USART2_BASE)
 	else if (2 == devnum)
 	{
 		regs = (HW_UART_REGS *)USART2_BASE;
 		RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
 		clockdiv = 2;
 	}
+#endif
 #if defined(USART3_BASE)
 	else if (3 == devnum)
 	{
@@ -133,9 +135,15 @@ bool THwUart_stm32::Init(int adevnum)
 	#endif
 
 	// disable LIN and CLK out
+#if defined(USART_CR2_LINEN)
 	regs->CR2 &= ~(USART_CR2_LINEN | USART_CR2_CLKEN);
 	// disable hadware flow control and others:
 	regs->CR3 &= ~(USART_CR3_RTSE | USART_CR3_CTSE | USART_CR3_SCEN | USART_CR3_HDSEL | USART_CR3_IREN);
+#else // e.g. F030
+	regs->CR2 &= ~(USART_CR2_CLKEN);
+	// disable hadware flow control and others:
+	regs->CR3 &= ~(USART_CR3_RTSE | USART_CR3_CTSE | USART_CR3_HDSEL);
+#endif
 
 	// setup baud rate
 

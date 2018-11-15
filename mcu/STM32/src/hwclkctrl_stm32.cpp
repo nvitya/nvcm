@@ -85,6 +85,9 @@ bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acp
   {
   }
 
+  // the internal oscillator is usually 8 MHz, but it will be divided by 2 at the PLL input
+  if (!aextosc)  abasespeed = (abasespeed >> 1);
+
 	unsigned freqmul = acpuspeed / abasespeed;
 
 	if ((freqmul < 2) or (freqmul > 16))
@@ -141,7 +144,11 @@ bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acp
   }
   else
   {
+#ifdef RCC_CFGR_PLLSRC_HSI_DIV2
+  	RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSI_DIV2);
+#else
   	RCC->CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSI_PREDIV);
+#endif
   }
 
 #endif

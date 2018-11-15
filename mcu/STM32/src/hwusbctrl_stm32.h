@@ -31,7 +31,7 @@
 
 #include "platform.h"
 
-#if defined(MCUSF_F1) || defined(MCUSF_F0)
+#if defined(USB_PMAADDR) //defined(MCUSF_F1) || defined(MCUSF_F0)
 
 #define HWUSBCTRL_PRE_ONLY
 #include "hwusbctrl.h"
