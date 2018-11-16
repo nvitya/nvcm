@@ -107,7 +107,15 @@
 
   #include "stm32f429xx.h"
 
-#elif defined(MCU_STM32F407VE) || defined(MCU_STM32F407VG) || defined(MCU_STM32F407ZE) || defined(MCU_STM32F407ZG)
+#elif defined(MCU_STM32F405RG) || defined(MCU_STM32F405VE) || defined(MCU_STM32F405VG) || defined(MCU_STM32F405ZE) || defined(MCU_STM32F405ZG)
+
+	#define MCUF_STM32
+  #define MCUSF_F4
+  #define MAX_CLOCK_SPEED  168000000
+
+  #include "stm32f405xx.h"
+
+#elif defined(MCU_STM32F407VE)defined(MCU_STM32F407VE) || defined(MCU_STM32F407VG) || defined(MCU_STM32F407ZE) || defined(MCU_STM32F407ZG)
 
 	#define MCUF_STM32
   #define MCUSF_F4
