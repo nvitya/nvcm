@@ -33,6 +33,12 @@
 
 #if defined(USB_PMAADDR) //defined(MCUSF_F1) || defined(MCUSF_F0)
 
+#if defined(MCUSF_F1) || defined(MCUSF_F3) // actually F3 D/E devices are different
+  #define HWUSB_16_32 1
+#else
+  #define HWUSB_16_32 0
+#endif
+
 #define HWUSBCTRL_PRE_ONLY
 #include "hwusbctrl.h"
 
@@ -40,7 +46,7 @@
 
 #define PACKET_MEMORY_SIZE    512
 
-#if defined(MCUSF_F1)
+#if defined(HWUSB_16_32)
 
 typedef struct
 {
@@ -116,18 +122,6 @@ public:
 	inline void SetDeviceAddress(uint8_t aaddr) { regs->DADDR = (USB_DADDR_EF | (aaddr & 0x7F)); }
 
 	void ResetEndpoints();
-
-public:
-
-#if 0
-	bool 		ep_add(uint8_t aid, uint16_t atxbufsize, uint16_t arxbufsize, uint16_t aflags);
-
-	int     ep_recv(int epid, void * buf, unsigned len, unsigned flags);
-	int     ep_send(int epid, void * buf, unsigned len, unsigned flags);
-	int     ep_send_remaining(int epid);
-
-  void    set_device_address(uint8_t aaddr);
-#endif
 };
 
 #define HWUSBENDPOINT_IMPL   THwUsbEndpoint_stm32

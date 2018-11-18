@@ -28,7 +28,7 @@
 
 #include "platform.h"
 
-#if defined(USB_PMAADDR) //defined(MCUSF_F1) || defined(MCUSF_F0)
+#if defined(USB_PMAADDR)
 
 #include "string.h"
 #include <stdio.h>
@@ -203,7 +203,7 @@ int THwUsbEndpoint_stm32::ReadRecvData(void * buf, uint32_t buflen)
 	}
 
 	uint16_t * psrc = (uint16_t *)(USB_PMAADDR);
-#ifdef MCUSF_F1
+#ifdef HWUSB_16_32
 	psrc += pdesc->ADDR_RX; // ADDR_RX in bytes but this will increment words
 #else
 	psrc += pdesc->ADDR_RX / 2; // increment in bytes
@@ -215,7 +215,7 @@ int THwUsbEndpoint_stm32::ReadRecvData(void * buf, uint32_t buflen)
 	for (unsigned i = 0; i < ccnt; ++i)
 	{
 		*pdst = *psrc;
-#ifdef MCUSF_F1
+#ifdef HWUSB_16_32
 		psrc += 2;
 #else
 		psrc += 1;
@@ -231,7 +231,7 @@ int THwUsbEndpoint_stm32::SendRemaining()
 	// copy words
 
 	uint16_t * pdst = (uint16_t *)(USB_PMAADDR);
-#ifdef MCUSF_F1
+#ifdef HWUSB_16_32
 	pdst += pdesc->ADDR_TX;  // ADDR_TX in bytes but this will increment words !
 #else
 	pdst += pdesc->ADDR_TX / 2;  // increment in bytes
@@ -251,7 +251,7 @@ int THwUsbEndpoint_stm32::SendRemaining()
 	{
 		*pdst = *psrc;
 		psrc += 1;
-#ifdef MCUSF_F1
+#ifdef HWUSB_16_32
 		pdst += 2;
 #else
 		pdst += 1;

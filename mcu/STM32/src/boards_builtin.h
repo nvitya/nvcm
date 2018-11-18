@@ -58,6 +58,12 @@
   #define BOARD_NAME "STM32F030F4 20-pin Develompent Board by WF"
   #define MCU_STM32F030F4
 
+#elif defined(BOARD_MIBO64_STM32F070)
+
+  #define BOARD_NAME "STM32F070RB 64-pin Develompent Board by nvitya"
+  #define MCU_STM32F070RB
+  #define MCU_INPUT_FREQ   8000000
+
 #elif defined(BOARD_MIBO64_STM32F405)
 
   #define BOARD_NAME "STM32F405RG 64-pin Develompent Board by nvitya"

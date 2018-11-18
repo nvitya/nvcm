@@ -147,9 +147,6 @@ bool THwUart_stm32::Init(int adevnum)
 
 	// setup baud rate
 
-#ifdef MCUSF_F3
-	clockdiv = (clockdiv << 1);
-#else
 	if (SystemCoreClock <= 48000000)
 	{
 		clockdiv = 1;
@@ -158,7 +155,6 @@ bool THwUart_stm32::Init(int adevnum)
 	{
 		clockdiv = (clockdiv << 1);
 	}
-#endif
 
 	unsigned periphclock;
 	periphclock = SystemCoreClock / clockdiv;
