@@ -71,6 +71,7 @@ public:
 
 	virtual ~THwUsbCtrl_pre() { }
 	virtual void HandleReset() { }
+	virtual void SetPullUp(bool aenable) { }
 	virtual bool HandleEpTransferEvent(uint8_t epid, bool htod) { return false; }
 };
 

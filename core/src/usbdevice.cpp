@@ -413,6 +413,8 @@ bool TUsbDevice::Init()
 
 	HandleReset();
 
+	SetPullUp(true);
+
 	EnableIrq();
 
 	initialized = true;

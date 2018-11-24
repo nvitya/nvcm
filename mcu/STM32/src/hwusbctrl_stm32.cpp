@@ -203,7 +203,7 @@ int THwUsbEndpoint_stm32::ReadRecvData(void * buf, uint32_t buflen)
 	}
 
 	uint16_t * psrc = (uint16_t *)(USB_PMAADDR);
-#ifdef HWUSB_16_32
+#if HWUSB_16_32
 	psrc += pdesc->ADDR_RX; // ADDR_RX in bytes but this will increment words
 #else
 	psrc += pdesc->ADDR_RX / 2; // increment in bytes
@@ -215,7 +215,7 @@ int THwUsbEndpoint_stm32::ReadRecvData(void * buf, uint32_t buflen)
 	for (unsigned i = 0; i < ccnt; ++i)
 	{
 		*pdst = *psrc;
-#ifdef HWUSB_16_32
+#if HWUSB_16_32
 		psrc += 2;
 #else
 		psrc += 1;
@@ -231,7 +231,7 @@ int THwUsbEndpoint_stm32::SendRemaining()
 	// copy words
 
 	uint16_t * pdst = (uint16_t *)(USB_PMAADDR);
-#ifdef HWUSB_16_32
+#if HWUSB_16_32
 	pdst += pdesc->ADDR_TX;  // ADDR_TX in bytes but this will increment words !
 #else
 	pdst += pdesc->ADDR_TX / 2;  // increment in bytes
@@ -251,7 +251,7 @@ int THwUsbEndpoint_stm32::SendRemaining()
 	{
 		*pdst = *psrc;
 		psrc += 1;
-#ifdef HWUSB_16_32
+#if HWUSB_16_32
 		pdst += 2;
 #else
 		pdst += 1;
@@ -330,13 +330,15 @@ bool THwUsbCtrl_stm32::InitHw()
 	regs = (HWUSBCTRL_REGS *)USB_BASE;
 	RCC->APB1ENR |= RCC_APB1ENR_USBEN;
 
-	#if defined(MCUSF_F0)
-			// for STM32F070F6 remap the PA11 + PA12 from UART to USB
-			RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
-			SYSCFG->CFGR1 |= (1 << 4); // select PA11 + PA12 on pins 17,18 (USBDP, USBDM)
+#if defined(MCUSF_F0)
+	// for STM32F070F6 remap the PA11 + PA12 from UART to USB
+	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
+	SYSCFG->CFGR1 |= (1 << 4); // select PA11 + PA12 on pins 17,18 (USBDP, USBDM)
+#endif
 
-			RCC->CFGR3 |= RCC_CFGR3_USBSW; // enable USB clock !
-	#endif
+#if defined(RCC_CFGR3_USBSW)
+		RCC->CFGR3 |= RCC_CFGR3_USBSW; // enable USB clock !
+#endif
 
 	if (!regs)
 	{
@@ -495,6 +497,20 @@ void THwUsbCtrl_stm32::ResetEndpoints()
 
 		eprptr += 2;
 	}
+}
+
+void THwUsbCtrl_stm32::SetPullUp(bool aenable)
+{
+#ifdef USB_BCDR_DPPU
+	if (aenable)
+	{
+		regs->BCDR |= USB_BCDR_DPPU;
+	}
+	else
+	{
+		regs->BCDR &= ~USB_BCDR_DPPU;
+	}
+#endif
 }
 
 #endif

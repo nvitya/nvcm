@@ -46,7 +46,7 @@
 
 #define PACKET_MEMORY_SIZE    512
 
-#if defined(HWUSB_16_32)
+#if HWUSB_16_32
 
 typedef struct
 {
@@ -61,7 +61,7 @@ typedef struct
 //
 } TUsbPmaDescriptor;
 
-#elif defined(MCUSF_F0)
+#else
 
 typedef struct
 {
@@ -71,10 +71,6 @@ typedef struct
   __IO uint16_t COUNT_RX;
 //
 } TUsbPmaDescriptor;
-
-#else
-
-#error "unimplemented MCU sub-family"
 
 #endif
 
@@ -120,6 +116,7 @@ public:
 	inline void DisableIrq() {  regs->CNTR &= ~irq_mask; }
 	inline void EnableIrq()  {  regs->CNTR |=  irq_mask; }
 	inline void SetDeviceAddress(uint8_t aaddr) { regs->DADDR = (USB_DADDR_EF | (aaddr & 0x7F)); }
+	virtual void SetPullUp(bool aenable);
 
 	void ResetEndpoints();
 };
