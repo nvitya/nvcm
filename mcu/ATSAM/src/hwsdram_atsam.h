@@ -19,55 +19,39 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (ATSAM)
- *  brief:    ATSAM list of implemented NVCM core peripherals
+ *  file:     hwsdram_atsam.h
+ *  brief:    ATSAM SDRAM controller
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-11-24
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_atsam.h"
-#endif
+#ifndef HWSDRAM_ATSAM_H_
+#define HWSDRAM_ATSAM_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_atsam.h"
-#endif
+#define HWSDRAM_PRE_ONLY
+#include "hwsdram.h"
 
-#ifdef HWDMA_H_
-  #include "hwdma_atsam.h"
-#endif
+#define HWSDRAM_ADDRESS  0x70000000
 
-#ifdef HWUART_H_
-  #include "hwuart_atsam.h"
-#endif
+#define HW_SDRAM_REGS    Sdramc
 
-#ifdef HWSPI_H_
-  #include "hwspi_atsam.h"
-#endif
+class THwSdram_atsam : public THwSdram_pre
+{
+public:
+	HW_SDRAM_REGS *  regs = nullptr;
 
-#ifdef HWI2C_H_
-  #include "hwi2c_atsam.h"
-#endif
+	bool InitHw();
 
-#ifdef HWADC_H_
-  #include "hwadc_atsam.h"
-#endif
+	void Cmd_Nop();
+	void Cmd_AllBankPrecharge();
+	void Cmd_AutoRefresh(int acount);
+	void Cmd_LoadModeRegister(uint16_t aregvalue);
+	void Cmd_LoadExtModeRegister(uint16_t aregvalue);
+	void SetNormalMode();
+	void SetRefreshTime(uint32_t atime_ns);
+};
 
-#ifdef QSPI
-	#ifdef HWQSPI_H_
-		#include "hwqspi_atsam.h"
-	#endif
-#endif
+#define HWSDRAM_IMPL THwSdram_atsam
 
-#if defined(HWETH_H_) && defined(GMAC)
-  #include "hweth_atsam.h"
-#endif
-
-#if defined(HSMCI) && defined(HWSDCARD_H_)
-  #include "hwsdcard_atsam.h"
-#endif
-
-#if defined(SDRAMC) && defined(HWSDRAM_H_)
-  #include "hwsdram_atsam.h"
-#endif
+#endif /* HWSDRAM_ATSAM_H_ */
