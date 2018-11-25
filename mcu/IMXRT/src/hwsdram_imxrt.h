@@ -19,25 +19,42 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (IMXRT)
- *  brief:    IMXRT list of implemented NVCM core peripherals
+ *  file:     hwsdram_imxrt.h
+ *  brief:    IMXRT SDRAM controller
  *  version:  1.00
- *  date:     2018-11-23
+ *  date:     2018-11-24
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_imxrt.h"
-#endif
+#ifndef HWSDRAM_IMXRT_H_
+#define HWSDRAM_IMXRT_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_imxrt.h"
-#endif
+#define HWSDRAM_PRE_ONLY
+#include "hwsdram.h"
 
-#ifdef HWUART_H_
-  #include "hwuart_imxrt.h"
-#endif
+#define HWSDRAM_ADDRESS  0x80000000 // by IMXRT it is actually selectable
 
-#if defined(HWSDRAM_H_)
-  #include "hwsdram_imxrt.h"
-#endif
+#define HW_SDRAM_REGS    SEMC_Type
+
+class THwSdram_imxrt : public THwSdram_pre
+{
+public:
+	HW_SDRAM_REGS *  regs = nullptr;
+
+	bool InitHw();
+
+	void Cmd_Nop();
+	void Cmd_AllBankPrecharge();
+	void Cmd_AutoRefresh(int acount);
+	void Cmd_LoadModeRegister(uint16_t aregvalue);
+	void Cmd_LoadExtModeRegister(uint16_t aregvalue);
+	void SetNormalMode();
+	void SetRefreshTime(uint32_t atime_ns);
+
+public:
+	void SendIpCommand(uint32_t address, uint16_t command, uint32_t data);
+};
+
+#define HWSDRAM_IMPL THwSdram_imxrt
+
+#endif /* HWSDRAM_IMXRT_H_ */

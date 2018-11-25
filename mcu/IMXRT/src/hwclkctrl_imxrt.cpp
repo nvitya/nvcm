@@ -241,7 +241,7 @@ bool THwClkCtrl_imxrt::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acp
 	tmp &= ~CCM_CBCDR_SEMC_CLK_SEL_MASK;
 	tmp |=  CCM_CBCDR_SEMC_CLK_SEL(0);
 	tmp &= ~CCM_CBCDR_SEMC_PODF_MASK;
-	tmp |=  CCM_CBCDR_SEMC_PODF(3);       // select main clock / 4 for SEMC
+	tmp |=  CCM_CBCDR_SEMC_PODF(3);       // select main clock / 4 for SEMC = 125 MHz
 	CCM->CBCDR = tmp;
 
 #else
