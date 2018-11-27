@@ -43,7 +43,7 @@ public:
 
 	bool InitHw();
 
-	void Cmd_Nop();
+	void Cmd_ClockEnable();
 	void Cmd_AllBankPrecharge();
 	void Cmd_AutoRefresh(int acount);
 	void Cmd_LoadModeRegister(uint16_t aregvalue);

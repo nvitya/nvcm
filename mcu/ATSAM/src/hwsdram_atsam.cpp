@@ -76,7 +76,7 @@ bool THwSdram_atsam::InitHw()
 	return true;
 }
 
-void THwSdram_atsam::Cmd_Nop()
+void THwSdram_atsam::Cmd_ClockEnable()
 {
 	SDRAMC->SDRAMC_MR = SDRAMC_MR_MODE_NOP;
 	*(volatile uint16_t *)(HWSDRAM_ADDRESS) = 0x0;
@@ -100,7 +100,7 @@ void THwSdram_atsam::Cmd_AllBankPrecharge()
 void THwSdram_atsam::Cmd_LoadModeRegister(uint16_t aregvalue)
 {
 	SDRAMC->SDRAMC_MR = SDRAMC_MR_MODE_LOAD_MODEREG;
-	*(volatile uint16_t *)(HWSDRAM_ADDRESS + aregvalue) = 0xCAFE;
+	*(volatile uint16_t *)(HWSDRAM_ADDRESS + (aregvalue << (data_bus_width >> 3))) = 0xCAFE;
 }
 
 void THwSdram_atsam::Cmd_LoadExtModeRegister(uint16_t aregvalue)

@@ -36,6 +36,8 @@ void THwSdram_pre::PrepareParams()
 {
 	byte_size = (1 << (row_bits + column_bits)) * bank_count * (data_bus_width >> 3);
 	bank1_offset = (1 << (row_bits + column_bits + (data_bus_width >> 3)));
+
+	refresh_time_ns = refresh_period_ns / (1 << row_bits);
 }
 
 bool THwSdram::Init()
@@ -54,8 +56,8 @@ bool THwSdram::Init()
 
 	// program the SDRAM device
 
-	// A NOP command is issued to the SDR-SDRAM. Now the clock which drives SDR-SDRAM device is enabled.
-	Cmd_Nop();
+	// A NOP/ClkEnable command is issued to the SDR-SDRAM. Now the clock which drives SDR-SDRAM device is enabled.
+	Cmd_ClockEnable();
 
 	// An all banks precharge command is issued to the SDR-SDRAM.
 	Cmd_AllBankPrecharge();

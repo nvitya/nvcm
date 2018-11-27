@@ -19,24 +19,24 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     hwsdram_imxrt.h
- *  brief:    IMXRT SDRAM controller
+ *  file:     hwsdram_stm32.h
+ *  brief:    STM32 SDRAM controller
  *  version:  1.00
- *  date:     2018-11-24
+ *  date:     2018-11-27
  *  authors:  nvitya
 */
 
-#ifndef HWSDRAM_IMXRT_H_
-#define HWSDRAM_IMXRT_H_
+#ifndef HWSDRAM_STM32_H_
+#define HWSDRAM_STM32_H_
 
 #define HWSDRAM_PRE_ONLY
 #include "hwsdram.h"
 
-#define HWSDRAM_ADDRESS  0x80000000 // by IMXRT it is actually selectable
+#define HWSDRAM_ADDRESS  0xC0000000
 
-#define HW_SDRAM_REGS    SEMC_Type
+#define HW_SDRAM_REGS    FMC_Bank5_6_TypeDef
 
-class THwSdram_imxrt : public THwSdram_pre
+class THwSdram_stm32 : public THwSdram_pre
 {
 public:
 	HW_SDRAM_REGS *  regs = nullptr;
@@ -51,10 +51,11 @@ public:
 	void SetNormalMode();
 	void SetRefreshTime(uint32_t atime_ns);
 
-public:
-	void SendIpCommand(uint32_t address, uint16_t command, uint32_t data);
+public: // helper function
+	void SendCommand(uint16_t command, uint32_t mrdata, uint32_t refrcnt);
+
 };
 
-#define HWSDRAM_IMPL THwSdram_imxrt
+#define HWSDRAM_IMPL THwSdram_stm32
 
-#endif /* HWSDRAM_IMXRT_H_ */
+#endif /* HWSDRAM_STM32_H_ */

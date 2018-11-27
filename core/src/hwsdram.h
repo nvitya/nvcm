@@ -41,6 +41,7 @@ public:	// controller settings
 public: // calculated values
 	uint32_t       byte_size = 0; // will be calculated
 	uint32_t       bank1_offset = 0;
+	uint32_t       refresh_time_ns = 15625;
 
 public: // settings
 	uint8_t        row_bits = 13;
@@ -48,16 +49,15 @@ public: // settings
 	uint8_t        bank_count = 4;
 	uint8_t        cas_latency = 3;
 	uint8_t        data_bus_width = 16;
-	uint32_t       refresh_time_ns = 15625;
 
-	uint8_t        row_precharge_delay = 3;
-	uint8_t        row_to_column_delay = 3;
-	uint8_t        recovery_delay = 2;
-	uint8_t        row_cycle_delay = 9;
+	uint32_t       refresh_period_ns = 64000;
 
-	uint8_t        self_refresh_time = 4; // STM32
-	uint8_t        active_to_precharge_delay = 6; // ATSAM
-	uint8_t        exit_self_refresh_delay = 10;
+	uint8_t        row_precharge_delay = 3;       // TRP
+	uint8_t        row_to_column_delay = 3;       // TRCD
+	uint8_t        recovery_delay = 2;            // TWR
+	uint8_t        row_cycle_delay = 9;           // TRC
+	uint8_t        active_to_precharge_delay = 6; // TRAS
+	uint8_t        exit_self_refresh_delay = 10;  // TXSR
 
 public: // SDRAM IC settings
 	uint8_t        burst_length = 1;     // valid: 1, 2, 3, 8,  128 = full page
@@ -82,12 +82,20 @@ public:
 
 #ifndef HWSDRAM_IMPL
 
+| (5 <<  4)  // TXSR(4):
+| (3 <<  8)  // TRAS(4):
+| (5 << 12)  // TRC(4):
+| (1 << 16)  // TWR(4):
+| (1 << 20)  // TRP(4):
+| (1 << 24)  // TRCD(4):
+
+
 class THwSdram_noimpl : public THwSdram_pre
 {
 public: // mandatory
 	bool InitHw() { return false; }
 
-	void Cmd_Nop() { }
+	void Cmd_ClockEnable() { }
 	void Cmd_AllBankPrecharge() { }
 	void Cmd_AutoRefresh(int acount) { }
 	void Cmd_LoadModeRegister(uint16_t aregvalue) { }

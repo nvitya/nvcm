@@ -115,7 +115,7 @@
 
   #include "stm32f405xx.h"
 
-#elif defined(MCU_STM32F407VE)defined(MCU_STM32F407VE) || defined(MCU_STM32F407VG) || defined(MCU_STM32F407ZE) || defined(MCU_STM32F407ZG)
+#elif defined(MCU_STM32F407VE) || defined(MCU_STM32F407VE) || defined(MCU_STM32F407VG) || defined(MCU_STM32F407ZE) || defined(MCU_STM32F407ZG)
 
 	#define MCUF_STM32
   #define MCUSF_F4

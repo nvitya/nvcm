@@ -65,3 +65,7 @@
 #if defined(QUADSPI) && defined(HWQSPI_H_)
   #include "hwqspi_stm32.h"
 #endif
+
+#if defined(FMC_SDCR1_CAS) && defined(HWSDRAM_H_)
+  #include "hwsdram_stm32.h"
+#endif

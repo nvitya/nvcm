@@ -64,6 +64,7 @@ bool THwSdram_imxrt::InitHw()
   	| SEMC_MCR_DQSMD(0)  // 0 = Dummy read strobe loopbacked internally
   ;
 
+#if 1
   // Configure Queue 0/1 for AXI bus.
   regs->BMCR0 = 0
   	| (5  <<  0)  // WQOS(4): Weight of QoS
@@ -79,6 +80,7 @@ bool THwSdram_imxrt::InitHw()
   	| (0x24 << 16)  // WRWS(8): Weight of Read/Write switch
   	| (0x40 << 24)  // WBR(8): Weight of Bank Rotation
   ;
+#endif
 
   // Enable SEMC.
   regs->MCR &= ~SEMC_MCR_MDIS_MASK;
@@ -203,7 +205,7 @@ bool THwSdram_imxrt::InitHw()
 	return true;
 }
 
-void THwSdram_imxrt::Cmd_Nop()
+void THwSdram_imxrt::Cmd_ClockEnable()
 {
 	// not required for IMXRT ?
 }
