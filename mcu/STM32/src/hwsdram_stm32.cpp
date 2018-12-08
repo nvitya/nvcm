@@ -35,6 +35,9 @@
 
 bool THwSdram_stm32::InitHw()
 {
+	uint32_t commonbits;
+	uint32_t bankbits;
+
   // Enable the FMC interface clock
   RCC->AHB3ENR |= RCC_AHB3ENR_FMCEN;
 
@@ -43,29 +46,70 @@ bool THwSdram_stm32::InitHw()
   /*##-1- Configure the SDRAM device #########################################*/
   /* SDRAM device configuration */
 
-  regs->SDCR[0] = 0
-  	| (((column_bits - 8)     & 3) <<  0)  // NC(2): 0 = 8 bits
-  	| (((row_bits - 11)       & 3) <<  2)  // NR(2): 0 = 11 bits
-  	| (((data_bus_width >> 4) & 3) <<  4)  // MWID(2): 1 = 16 bit memory width
-  	| (((bank_count >> 2)     & 1) <<  6)  // NB: 0 = 2 banks, 1 = 4 Banks
-  	| (((cas_latency)         & 3) <<  7)  // CAS(2): 2
-  	| ((0                     & 1) <<  9)  // WP: 0 = write access allowed
-  	| ((2                     & 3) << 10)  // SDCLK(2): 2 or 3 x HCLK
-  	| (1                           << 12)  // RBURST: Read burst enable
-  	| ((0                     & 3) << 13)  // RPIPE(2): Read pipe
-  ;
+  if (2 == bank)
+  {
+  	address = 0xD0000000;
+  }
+  else
+  {
+  	address = 0xC0000000;
+  }
+
+  int bankidx = bank - 1;
+
+  commonbits = 0
+		| ((hclk_div              & 3) << 10)  // SDCLK(2): 2 or 3 x HCLK
+		| ((read_burst_enable ? 1 : 0) << 12)  // RBURST: Read burst enable
+		| ((rpipe_delay           & 3) << 13)  // RPIPE(2): Read pipe delay
+	;
+
+  bankbits = 0
+		| (((column_bits - 8)     & 3) <<  0)  // NC(2): 0 = 8 bits
+		| (((row_bits - 11)       & 3) <<  2)  // NR(2): 0 = 11 bits
+		| (((data_bus_width >> 4) & 3) <<  4)  // MWID(2): 1 = 16 bit memory width
+		| (((bank_count >> 2)     & 1) <<  6)  // NB: 0 = 2 banks, 1 = 4 Banks
+		| (((cas_latency)         & 3) <<  7)  // CAS(2): 2
+		| ((0                     & 1) <<  9)  // WP: 0 = write access allowed
+	;
+
+  //st lib F429: 0x2c00 for bank 0
+
+  if (2 == bank)
+  {
+  	regs->SDCR[0] = commonbits;
+  	regs->SDCR[1] = bankbits;
+  }
+  else
+  {
+  	regs->SDCR[0] = (commonbits | bankbits);
+  	regs->SDCR[1] = 0;
+  }
 
   // SDRAM Timing
 
-  regs->SDTR[0] = 0
-  	| ((1                         & 15) <<  0)  // TMRD(4): Load Mode Register to Active
-  	| ((exit_self_refresh_delay   & 15) <<  4)  // TXSR(4): Exit Self-refresh delay
-  	| ((active_to_precharge_delay & 15) <<  8)  // TRAS(4): Self refresh time
+  commonbits = 0
+		| ((4                         & 15) <<  0)  // TMRD(4): Load Mode Register to Active
+		| ((exit_self_refresh_delay   & 15) <<  4)  // TXSR(4): Exit Self-refresh delay
+		| ((active_to_precharge_delay & 15) <<  8)  // TRAS(4): Self refresh time
   	| ((row_cycle_delay           & 15) << 12)  // TRC(4): Row cycle delay
-  	| ((recovery_delay            & 15) << 16)  // TWR(4): Recovery delay
-  	| ((row_precharge_delay       & 15) << 20)  // TRP(4): Row precharge delay
   	| ((row_to_column_delay       & 15) << 24)  // TRCD(4): Row to column delay
   ;
+
+  bankbits = 0
+  	| ((recovery_delay            & 15) << 16)  // TWR(4): Recovery delay
+  	| ((row_precharge_delay       & 15) << 20)  // TRP(4): Row precharge delay
+  ;
+
+  if (2 == bank)
+  {
+  	regs->SDTR[0] = commonbits;
+  	regs->SDTR[1] = bankbits;
+  }
+  else
+  {
+  	regs->SDTR[0] = (commonbits | bankbits);
+  	regs->SDTR[1] = 0;
+  }
 
   // let the HwSdram class do the configuration of the SDRAM device
 
@@ -110,16 +154,16 @@ void THwSdram_stm32::SetRefreshTime(uint32_t atime_ns)
 	clks *= atime_ns;
 	clks /= 1000000;
 	regs->SDRTR = (clks << 1) | 1;  // bit0: clear refresh error
-
   delay_us(1000); // extra delay required ?
 }
 
 void THwSdram_stm32::SendCommand(uint16_t command, uint32_t mrdata, uint32_t refrcnt)
 {
+	uint32_t banksel = (bank == 2 ? 1 : 2);
+
 	regs->SDCMR = 0
 		| ((command & 7)        <<  0)  // MODE(3): 0 = normal mode
-		| (0                    <<  3)  // CBT2: 1 = Send the command to the Bank-2
-		| (1                    <<  4)  // CBT1: 1 = Send the command to the Bank-1
+		| (banksel              <<  3)  // CBT2: 1 = Send the command to the Bank2, 2 = send bank-1
 		| (((refrcnt - 1) & 15) <<  5)  // NRFS(4): Number of Auto-refresh, 0 = 1, 1 = 2, ... 15 = 16 cycles
 		| ((mrdata & 0x1FFF)    <<  9)  // MRD(13): Mode register data
 	;

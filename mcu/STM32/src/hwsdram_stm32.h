@@ -32,12 +32,16 @@
 #define HWSDRAM_PRE_ONLY
 #include "hwsdram.h"
 
-#define HWSDRAM_ADDRESS  0xC0000000
-
 #define HW_SDRAM_REGS    FMC_Bank5_6_TypeDef
 
 class THwSdram_stm32 : public THwSdram_pre
 {
+public:  // special ST settings
+	uint8_t          bank = 1;
+	uint32_t         hclk_div = 2;
+	uint32_t         rpipe_delay = 0;
+	bool             read_burst_enable = true;
+
 public:
 	HW_SDRAM_REGS *  regs = nullptr;
 

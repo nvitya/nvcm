@@ -107,6 +107,11 @@
 
   #define MAX_CLOCK_SPEED  200000000
 
+#elif defined(BOARD_DISCOVERY_F429)
+
+  #define BOARD_NAME "STM32F429 Discovery"
+  #define MCU_STM32F429ZI
+  #define MCU_INPUT_FREQ   8000000
 
 #else
 

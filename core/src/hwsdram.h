@@ -37,6 +37,7 @@ class THwSdram_pre
 {
 public:	// controller settings
 	bool 					 initialized = false;
+	uint32_t       address = 0x80000000;
 
 public: // calculated values
 	uint32_t       byte_size = 0; // will be calculated
