@@ -51,7 +51,7 @@ public: // settings
 	uint8_t        cas_latency = 3;
 	uint8_t        data_bus_width = 16;
 
-	uint32_t       refresh_period_ns = 64000;
+	uint32_t       refresh_period_ns = 64000000;  // usually 64 ms
 
 	uint8_t        row_precharge_delay = 3;       // TRP
 	uint8_t        row_to_column_delay = 3;       // TRCD

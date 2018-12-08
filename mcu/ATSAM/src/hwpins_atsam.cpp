@@ -161,8 +161,17 @@ bool THwPinCtrl_atsam::PinSetup(int aportnum, int apinnum, unsigned flags)
     regs->PIO_PUDR = pinbit;
   }
 
+#ifdef PIO_DRIVER_LINE0
   // 5. set speed
-  // no speed options for SAM3
+  if (flags & PINCFG_DRIVE_STRONG)
+  {
+  	regs->PIO_DRIVER |= pinbit;
+  }
+  else
+  {
+  	regs->PIO_DRIVER &= ~pinbit;
+  }
+#endif
 
   return true;
 }

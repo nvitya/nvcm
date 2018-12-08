@@ -149,7 +149,7 @@ void THwSdram_stm32::SetNormalMode()
 
 void THwSdram_stm32::SetRefreshTime(uint32_t atime_ns)
 {
-	uint32_t sdramclock = SystemCoreClock / 2;
+	uint32_t sdramclock = SystemCoreClock / hclk_div;
 	uint32_t clks = sdramclock / 1000;
 	clks *= atime_ns;
 	clks /= 1000000;

@@ -34,6 +34,10 @@ THwSdram hwsdram;
 
 void THwSdram_pre::PrepareParams()
 {
+#if defined(HWSDRAM_ADDRESS)
+	address = HWSDRAM_ADDRESS;
+#endif
+
 	byte_size = (1 << (row_bits + column_bits)) * bank_count * (data_bus_width >> 3);
 	bank1_offset = (1 << (row_bits + column_bits + (data_bus_width >> 3)));
 

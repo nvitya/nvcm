@@ -114,22 +114,6 @@ bool THwSdram_imxrt::InitHw()
 
   uint32_t sdramclk = SystemCoreClock / 4; // = 125 MHz
 
-
-
-#if 0
-   sdramconfig.tPrecharge2Act_Ns = 18; /* Trp 18ns */
-   sdramconfig.tAct2ReadWrite_Ns = 18; /* Trcd 18ns */
-   sdramconfig.tRefreshRecovery_Ns = (60 + 67);
-   sdramconfig.tWriteRecovery_Ns = 12; /* 12ns */
-   sdramconfig.tCkeOff_Ns = 42; /* The minimum cycle of SDRAM CLK off state. CKE is off in self refresh at a minimum period tRAS.*/
-   sdramconfig.tAct2Prechage_Ns = 42;   /* Tras 42ns */
-   sdramconfig.tSelfRefRecovery_Ns = 67;
-   sdramconfig.tRefresh2Refresh_Ns = 60;
-   sdramconfig.tAct2Act_Ns = 60;
-#endif
-
-
-#if 1
   // Timing settings
   regs->SDRAMCR1 = 0
   	| SEMC_SDRAMCR1_PRE2ACT(row_precharge_delay - 1) // Trp
@@ -147,58 +131,7 @@ bool THwSdram_imxrt::InitHw()
     | SEMC_SDRAMCR2_ITO(0x80) // idle timeout in prescaled (=x16) clocks
   ;
 
-#else // experimental timing
-
-  // Timing settings
-  regs->SDRAMCR1 = 0
-  	| SEMC_SDRAMCR1_PRE2ACT(2 - 1) // Trp
-    | SEMC_SDRAMCR1_ACT2RW(2 - 1) // Trcd
-    | SEMC_SDRAMCR1_RFRC(21 - 1) // Refresh recovery time, cycle delay between REFRESH command to ACTIVE command
-    | SEMC_SDRAMCR1_WRC(recovery_delay - 1) // write recovery clocks + 1
-    | SEMC_SDRAMCR1_CKEOFF(4 - 1) // The minimum cycle of SDRAM CLK off state. CKE is off in self refresh at a minimum period tRAS.
-    | SEMC_SDRAMCR1_ACT2PRE(4 - 1) // Tras
-  ;
-
-  regs->SDRAMCR2 = 0
-    | SEMC_SDRAMCR2_SRRC(exit_self_refresh_delay - 1)
-    | SEMC_SDRAMCR2_REF2REF(exit_self_refresh_delay)
-    | SEMC_SDRAMCR2_ACT2ACT(5)
-    | SEMC_SDRAMCR2_ITO(0x80) // idle timeout in prescaled (=x16) clocks
-  ;
-
-#endif
-
   SetRefreshTime(refresh_time_ns);
-
-#if 0
-  regs->IPCR1 = 0x2;  // set data size to 2
-  regs->IPCR2 = 0;
-
-  result = SEMC_SendIPCommand(base, kSEMC_MemType_SDRAM, config->address, kSEMC_SDRAMCM_Prechargeall, 0, NULL);
-  if (result != kStatus_Success)
-  {
-      return result;
-  }
-  result = SEMC_SendIPCommand(base, kSEMC_MemType_SDRAM, config->address, kSEMC_SDRAMCM_AutoRefresh, 0, NULL);
-  if (result != kStatus_Success)
-  {
-      return result;
-  }
-  result = SEMC_SendIPCommand(base, kSEMC_MemType_SDRAM, config->address, kSEMC_SDRAMCM_AutoRefresh, 0, NULL);
-  if (result != kStatus_Success)
-  {
-      return result;
-  }
-  /* Mode setting value. */
-  mode = (uint16_t)config->burstLen | (uint16_t)(config->casLatency << SEMC_SDRAM_MODESETCAL_OFFSET);
-  result = SEMC_SendIPCommand(base, kSEMC_MemType_SDRAM, config->address, kSEMC_SDRAMCM_Modeset, mode, NULL);
-  if (result != kStatus_Success)
-  {
-      return result;
-  }
-  /* Enables refresh */
-  base->SDRAMCR3 |= SEMC_SDRAMCR3_REN_MASK;
-#endif
 
   // let the HwSdram class do the configuration of the SDRAM device
 

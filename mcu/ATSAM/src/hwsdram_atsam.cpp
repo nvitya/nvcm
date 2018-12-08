@@ -39,6 +39,8 @@ bool THwSdram_atsam::InitHw()
 	MATRIX->CCFG_SMCNFCS = CCFG_SMCNFCS_SDRAMEN;
 	PMC->PMC_PCER1 = (1 << 30);
 
+	address = HWSDRAM_ADDRESS;
+
 	regs = SDRAMC;
 
 	// configure the SDRAM Controller
