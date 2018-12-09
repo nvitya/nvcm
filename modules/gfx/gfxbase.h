@@ -141,6 +141,8 @@ public:
 
   void DrawChar(char achar);
   void DrawString(char * astr);
+  inline void DrawString(const char * astr) { DrawString((char *)astr); }
+
 	void printf(const char * fmt, ...);
   void DrawGlyph(TGfxFont * afont, TGfxGlyph * glyph);
 
