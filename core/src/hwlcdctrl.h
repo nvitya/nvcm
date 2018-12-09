@@ -19,57 +19,69 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwlcdctrl.h
+ *  brief:    A minimal interface to the integrated LCD controller
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-12-09
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
+#ifndef _HWLCDCTRL_H_PRE_
+#define _HWLCDCTRL_H_PRE_
+
+#include "platform.h"
+#include "hwpins.h"
+
+class THwLcdCtrl_pre
+{
+public:
+	uint16_t         hsync   = 41;
+	uint16_t         hbp     = 13;
+	uint16_t         hfp     = 32;
+
+	uint16_t         vsync   = 10;
+	uint16_t         vbp     =  2;
+	uint16_t         vfp     =  2;
+
+	uint16_t         hwwidth  = 480;
+	uint16_t         hwheight = 272;
+
+	uint8_t *        framebuffer = nullptr;
+};
+
+#endif // ndef _HWLCDCTRL_H_PRE_
+
+#ifndef HWLCDCTRL_PRE_ONLY
+
+//-----------------------------------------------------------------------------
+
+#ifndef HWLCDCTRL_H_
+#define HWLCDCTRL_H_
+
+#include "mcu_impl.h"
+
+#ifndef HWLCDCTRL_IMPL
+
+class THwLcdCtrl_noimpl : public THwLcdCtrl_pre
+{
+public: // mandatory
+	bool Init(uint16_t awidth, uint16_t aheight, void * aframebuffer)  { return false; }
+};
+
+#define HWLCDCTRL_IMPL   THwLcdCtrl_noimpl
+
+#endif // ndef HWLCDCTRL_IMPL
+
+//-----------------------------------------------------------------------------
+
+class THwLcdCtrl : public HWLCDCTRL_IMPL
+{
+
+};
+
+#endif // HWLCDCTRL_H_
+
+#else
+  #undef HWLCDCTRL_PRE_ONLY
 #endif
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
-
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
-
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
-
-#ifdef HWI2C_H_
-  #include "hwi2c_stm32.h"
-#endif
-
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
-
-#ifdef HWADC_H_
-  #include "hwadc_stm32.h"
-#endif
-
-#ifdef HWUSBCTRL_H_
-  #include "hwusbctrl_stm32.h"
-#endif
-
-#ifdef HWETH_H_
-  #include "hweth_stm32.h"
-#endif
-
-#if defined(QUADSPI) && defined(HWQSPI_H_)
-  #include "hwqspi_stm32.h"
-#endif
-
-#if defined(FMC_SDCR1_CAS) && defined(HWSDRAM_H_)
-  #include "hwsdram_stm32.h"
-#endif
-
-#if defined(LTDC_SRCR_IMR) && defined(HWLCDCTRL_H_)
-  #include "hwlcdctrl_stm32.h"
-#endif

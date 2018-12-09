@@ -41,6 +41,7 @@
 #define PORTNUM_H            7
 #define PORTNUM_I            8
 #define PORTNUM_J            9
+#define PORTNUM_K           10
 
 #define PINCFG_INPUT         0x0000
 #define PINCFG_OUTPUT        0x0001
@@ -58,6 +59,7 @@
 #define PINCFG_SPEED_MEDIUM  0x0000
 #define PINCFG_SPEED_SLOW    0x0100
 #define PINCFG_SPEED_MED2    0x0200
+#define PINCFG_SPEED_MEDIUM2 0x0200  // alias
 #define PINCFG_SPEED_FAST    0x0300
 
 #define PINCFG_GPIO_INIT_1   0x8000

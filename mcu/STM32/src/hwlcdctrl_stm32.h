@@ -19,57 +19,33 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwlcdctrl_stm32.h
+ *  brief:    STM32 Integrated LCD controller implementation
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2018-12-09
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
+#ifndef HWLCDCTRL_STM32_H_
+#define HWLCDCTRL_STM32_H_
+
+#define HWLCDCTRL_PRE_ONLY
+#include "hwlcdctrl.h"
+
+#if defined(LTDC_SRCR_IMR)
+
+class THwLcdCtrl_stm32 : public THwLcdCtrl_pre
+{
+public:
+	bool                  Init(uint16_t awidth, uint16_t aheight, void * aframebuffer);
+
+public:
+	LTDC_TypeDef *        regs = nullptr;
+	LTDC_Layer_TypeDef *  lregs = nullptr;
+};
+
+#define HWLCDCTRL_IMPL THwLcdCtrl_stm32
+
 #endif
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
-
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
-
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
-
-#ifdef HWI2C_H_
-  #include "hwi2c_stm32.h"
-#endif
-
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
-
-#ifdef HWADC_H_
-  #include "hwadc_stm32.h"
-#endif
-
-#ifdef HWUSBCTRL_H_
-  #include "hwusbctrl_stm32.h"
-#endif
-
-#ifdef HWETH_H_
-  #include "hweth_stm32.h"
-#endif
-
-#if defined(QUADSPI) && defined(HWQSPI_H_)
-  #include "hwqspi_stm32.h"
-#endif
-
-#if defined(FMC_SDCR1_CAS) && defined(HWSDRAM_H_)
-  #include "hwsdram_stm32.h"
-#endif
-
-#if defined(LTDC_SRCR_IMR) && defined(HWLCDCTRL_H_)
-  #include "hwlcdctrl_stm32.h"
-#endif
+#endif // def HWLCDCTRL_STM32_H_
