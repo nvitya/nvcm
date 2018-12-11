@@ -83,14 +83,6 @@ public:
 
 #ifndef HWSDRAM_IMPL
 
-| (5 <<  4)  // TXSR(4):
-| (3 <<  8)  // TRAS(4):
-| (5 << 12)  // TRC(4):
-| (1 << 16)  // TWR(4):
-| (1 << 20)  // TRP(4):
-| (1 << 24)  // TRCD(4):
-
-
 class THwSdram_noimpl : public THwSdram_pre
 {
 public: // mandatory
