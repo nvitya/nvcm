@@ -50,8 +50,13 @@ bool THwLcdCtrl_stm32::Init(uint16_t awidth, uint16_t aheight, void * aframebuff
 
 	uint32_t freq = 192000000;
 	// todo: search the best value
+#if 1 // 9.6 MHz for 480x272
 	uint32_t divr = 5;
-	uint32_t postdiv = 4;
+	uint32_t postdiv = 1; // 0 = /2, 1 = /4, 2 = /8, 3 = /16
+#else // 6 MHz for 240x320
+	uint32_t divr = 4;
+	uint32_t postdiv = 2; // 0 = /2, 1 = /4, 2 = /8, 3 = /16
+#endif
 
 	tmp = RCC->PLLSAICFGR;
 	tmp &= ~(0x1FF <<  6);
@@ -60,10 +65,17 @@ bool THwLcdCtrl_stm32::Init(uint16_t awidth, uint16_t aheight, void * aframebuff
 	tmp |=  (divr  << 28);
 	RCC->PLLSAICFGR = tmp;
 
+#if defined(RCC_DCKCFGR1_PLLSAIDIVR)
 	tmp = RCC->DCKCFGR1;
 	tmp &= ~(3       << 16);
 	tmp |=  (postdiv << 16);
 	RCC->DCKCFGR1 = tmp;
+#else
+	tmp = RCC->DCKCFGR;
+	tmp &= ~(3       << 16);
+	tmp |=  (postdiv << 16);
+	RCC->DCKCFGR = tmp;
+#endif
 
 	RCC->CR |= RCC_CR_PLLSAION; // turn on...
 
