@@ -34,44 +34,23 @@
 // TUsbEndpoint
 // -----------------------------------------------------------------------------------------
 
-bool TUsbEndpoint::Init(uint8_t aattr, uint16_t ahtod_len, uint16_t adtoh_len)
+bool TUsbEndpoint::Init(uint8_t aattr, bool adir_htod, uint16_t amaxlen)
 {
 	index = 0xFF; // invalid index
 
-	htod_len = ahtod_len;
-	dtoh_len = adtoh_len;
+	maxlen = amaxlen;
+	dir_htod = adir_htod;
 
 	attr = aattr;
 
-	uint8_t descattr = 0; // descriptor attribute
-	// bits0..1: Transfer type, 0 = control, 1 = isochronous, 2 = bulk, 3 = interrupt
-	// bits2..3: isochronous mode sync. type, 0 = no sync, 1 = async, 2 = adaptive, 3 = synchronous
-	// bits4..5: isochronous mode usage type, 0 = data endpoint, 1 = feedback endpoint, 2 = Explicit Feedback Data Endpoint, 3 = reserved
-
-	uint8_t eptype = (aattr & HWUSB_EP_TYPE_MASK);
-
-	if (HWUSB_EP_TYPE_CONTROL == eptype)
+	if (HWUSB_EP_TYPE_CONTROL == (attr & HWUSB_EP_TYPE_MASK))
 	{
-		descattr = 0;
+		iscontrol = true;
 	}
-	else if (HWUSB_EP_TYPE_INTERRUPT == eptype)
+	else
 	{
-		descattr = 3;
+		iscontrol = false;
 	}
-	else if (HWUSB_EP_TYPE_BULK == eptype)
-	{
-		descattr = 2;
-	}
-	else if (HWUSB_EP_TYPE_ISO == eptype)
-	{
-		descattr = 1; //TODO: implement other ISO attributes
-	}
-
-	epdesc_dtoh.attributes = descattr;
-	epdesc_dtoh.max_packet_size = dtoh_len;
-
-	epdesc_htod.attributes = descattr;
-	epdesc_htod.max_packet_size = htod_len;
 
 	return true;
 }
@@ -79,8 +58,6 @@ bool TUsbEndpoint::Init(uint8_t aattr, uint16_t ahtod_len, uint16_t adtoh_len)
 void TUsbEndpoint::SetIndex(uint8_t aindex)
 {
 	index = aindex;
-	if (htod_len > 0)  epdesc_htod.endpoint_address = aindex;
-	if (dtoh_len > 0)  epdesc_dtoh.endpoint_address = (aindex | 0x80);
 }
 
 bool TUsbEndpoint::HandleTransferEvent(bool htod) // can be overridden
@@ -97,13 +74,13 @@ bool TUsbEndpoint::HandleSetupRequest(TUsbSetupRequest * psrq)
 // TUsbInterface
 // -----------------------------------------------------------------------------------------
 
-int TUsbInterface::AppendConfigDesc(uint8_t * dptr, uint16_t maxlen)
+int TUsbInterface::AppendConfigDesc(uint8_t * dptr, uint16_t amaxlen)
 {
 	uint8_t i;
 	uint8_t *  dp = dptr;
-	uint16_t   remaining = maxlen;
+	uint16_t   remaining = amaxlen;
 	uint16_t   result = 0;
-	uint16_t   dsize;
+	uint8_t    dsize;
 
 	// first add the interface descriptor
 	dsize = sizeof(intfdesc);
@@ -128,23 +105,54 @@ int TUsbInterface::AppendConfigDesc(uint8_t * dptr, uint16_t maxlen)
 
 	// and then the endpoint descriptors
 
+	TUsbEndpointDesc epdesc = {0};
+	dsize = sizeof(epdesc);
+	epdesc.length = dsize;
+	epdesc.descriptor_type = USB_DESC_TYPE_ENDPOINT;
+
 	for (i = 0; i < epcount; ++i)
 	{
 		TUsbEndpoint * ep = eplist[i];
-		if (ep->dtoh_len > 0)
+
+		epdesc.max_packet_size = ep->maxlen;
+		epdesc.interval = ep->interval;
+		// descriptor attribute:
+		//   bits0..1: Transfer type, 0 = control, 1 = isochronous, 2 = bulk, 3 = interrupt
+		//   bits2..3: isochronous mode sync. type, 0 = no sync, 1 = async, 2 = adaptive, 3 = synchronous
+		//   bits4..5: isochronous mode usage type, 0 = data endpoint, 1 = feedback endpoint, 2 = Explicit Feedback Data Endpoint, 3 = reserved
+
+		uint8_t eptype = (ep->attr & HWUSB_EP_TYPE_MASK);
+		if (HWUSB_EP_TYPE_CONTROL == eptype)
 		{
-			dsize = sizeof(ep->epdesc_dtoh);
+			epdesc.attributes = 0;
+		}
+		else if (HWUSB_EP_TYPE_INTERRUPT == eptype)
+		{
+			epdesc.attributes = 3;
+		}
+		else if (HWUSB_EP_TYPE_BULK == eptype)
+		{
+			epdesc.attributes = 2;
+		}
+		else if (HWUSB_EP_TYPE_ISO == eptype)
+		{
+			epdesc.attributes = 1; //TODO: implement other ISO attributes
+		}
+
+		if (ep->iscontrol || !ep->dir_htod)
+		{
+			epdesc.endpoint_address = (ep->index | 0x80);
 			if (remaining < dsize)		return 0;
-			memcpy(dp, &ep->epdesc_dtoh, dsize);
+			memcpy(dp, &epdesc, dsize);
 			dp += dsize;
 			remaining -= dsize;
 		}
 
-		if (ep->htod_len > 0)
+		if (ep->iscontrol || ep->dir_htod)
 		{
-			dsize = sizeof(ep->epdesc_htod);
+			epdesc.endpoint_address = ep->index;
 			if (remaining < dsize)		return 0;
-			memcpy(dp, &ep->epdesc_htod, dsize);
+			memcpy(dp, &epdesc, dsize);
 			dp += dsize;
 			remaining -= dsize;
 		}
@@ -365,7 +373,7 @@ bool TUsbDevice::Init()
 	// build up internal structures
 
 	epcount = 0;
-	ep_ctrl.Init(HWUSB_EP_TYPE_CONTROL, 64, 64);  // this must be always the first endpoint (id = 0)
+	ep_ctrl.Init(HWUSB_EP_TYPE_CONTROL, false, 64);  // this must be always the first endpoint (id = 0)
   AddEndpoint(&ep_ctrl);
 
 	// prepare the descriptors

@@ -170,27 +170,9 @@ class TUsbEndpoint : public THwUsbEndpoint
 public:
 	TUsbInterface *      interface = nullptr;  // will be set on interface add
 
-	TUsbEndpointDesc     epdesc_dtoh =
-	{
-		.length = 7,
-		.descriptor_type = USB_DESC_TYPE_ENDPOINT,
-		.endpoint_address = 0,  // including direction
-		.attributes = 0,
-		.max_packet_size = 0,
-		.interval = 10  // polling interval
-	};
+	uint8_t              interval = 10; // polling interval
 
-	TUsbEndpointDesc     epdesc_htod =
-	{
-		.length = 7,
-		.descriptor_type = USB_DESC_TYPE_ENDPOINT,
-		.endpoint_address = 0,  // including direction
-		.attributes = 0,
-		.max_packet_size = 0,
-		.interval = 10  // polling interval
-	};
-
-	bool Init(uint8_t aattr, uint16_t ahtod_len, uint16_t adtoh_len);
+	bool Init(uint8_t aattr, bool adir_htod, uint16_t amaxlen);
 	void SetIndex(uint8_t aindex);
 
 	//virtual void OnSendFinished();
@@ -243,7 +225,7 @@ public:
 	TUsbDevDescRec *     FindDesc(uint16_t aid);
 
 	void                 AddEndpoint(TUsbEndpoint * aep);
-	int                  AppendConfigDesc(uint8_t * dptr, uint16_t maxlen);
+	int                  AppendConfigDesc(uint8_t * dptr, uint16_t amaxlen);
 
 	virtual bool         HandleTransferEvent(TUsbEndpoint * aep, bool htod);
 	virtual bool         HandleSetupRequest(TUsbSetupRequest * psrq);

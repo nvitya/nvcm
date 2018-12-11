@@ -53,8 +53,10 @@ public:
 
 	uint8_t         index = 0xFF;  // will be set later
 
-	uint16_t        htod_len = 0;  // host -> device max packet length
-	uint16_t        dtoh_len = 0;  // device -> host max packet length
+	bool            dir_htod = false;
+	bool            iscontrol = false;
+
+	uint16_t        maxlen = 0;
 
 	uint32_t        attr = 0;
 

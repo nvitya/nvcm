@@ -107,15 +107,36 @@ bool THwUsbEndpoint_stm32::ConfigureHwEp()
 		return false;
 	}
 
-	if (htod_len > 62)
+	if (maxlen > 62)
 	{
 		// in 32 byte granularity
-		htod_len = ((htod_len + 0x1F) & 0xFE0);
+		maxlen = ((maxlen + 0x1F) & 0xFE0);
 	}
 	else
 	{
 		// in 2 byte granularity
-		htod_len = ((htod_len + 0x01) & 0x3E);
+		maxlen = ((maxlen + 0x01) & 0x3E);
+	}
+
+	uint16_t htod_len;
+	uint16_t dtoh_len;
+	if (attr & HWUSB_EP_TYPE_CONTROL)
+	{
+		htod_len = maxlen;
+		dtoh_len = maxlen;
+	}
+	else
+	{
+		if (dir_htod)
+		{
+			htod_len = maxlen;
+			dtoh_len = 0;
+		}
+		else
+		{
+			htod_len = 0;
+			dtoh_len = maxlen;
+		}
 	}
 
 	if (htod_len + dtoh_len + usbctrl->pma_mem_end > PACKET_MEMORY_SIZE)
@@ -147,13 +168,13 @@ bool THwUsbEndpoint_stm32::ConfigureHwEp()
 
 	// set the buffer size:
 	pdesc->ADDR_RX   = rxbufoffs;
-	if (htod_len >= 32)
+	if (maxlen >= 32)
 	{
-		pdesc->COUNT_RX = ((htod_len >> 5) << 10) | 0x8000;  // the size is presented in 32 byte blocks
+		pdesc->COUNT_RX = ((maxlen >> 5) << 10) | 0x8000;  // the size is presented in 32 byte blocks
 	}
 	else
 	{
-		pdesc->COUNT_RX = ((htod_len >> 1) << 10);  // the size is presented in 2 byte blocks
+		pdesc->COUNT_RX = ((maxlen >> 1) << 10);  // the size is presented in 2 byte blocks
 	}
 
 	// set EPxR base configuration
@@ -240,7 +261,7 @@ int THwUsbEndpoint_stm32::SendRemaining()
 	uint16_t * psrc = (uint16_t *)(tx_remaining_dataptr);
 
 	uint16_t  sendlen = tx_remaining_len;
-	if (sendlen > dtoh_len)  sendlen = dtoh_len;
+	if (sendlen > maxlen)  sendlen = maxlen;
 
 	uint16_t remaining = sendlen;
 
@@ -315,8 +336,8 @@ void THwUsbEndpoint_stm32::FinishSend()
 
 void THwUsbEndpoint_stm32::Stall()
 {
-	if (htod_len) set_epreg_rx_status(preg, 1);
-	if (dtoh_len) set_epreg_tx_status(preg, 1);
+	if (iscontrol || dir_htod)  set_epreg_rx_status(preg, 1);
+	if (iscontrol || !dir_htod) set_epreg_tx_status(preg, 1);
 }
 
 /************************************************************************************************************
