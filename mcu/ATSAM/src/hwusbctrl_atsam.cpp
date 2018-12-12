@@ -86,6 +86,8 @@ bool THwUsbEndpoint_atsam::ConfigureHwEp()
 
 	*csreg = tmp;
 
+	usbctrl->regs->UDP_IER = (1 << index); // enable the usb interrupt
+
 	return true;
 }
 
@@ -275,7 +277,9 @@ bool THwUsbCtrl_atsam::InitHw()
 
   // clear device address:
   regs->UDP_FADDR = 0;
-  regs->UDP_GLB_STAT = 0;
+  regs->UDP_GLB_STAT = UDP_GLB_STAT_RMWUPE | UDP_GLB_STAT_ESR;
+
+  regs->UDP_IER = (0x3F << 8); // enable all special interrupts
 
   ResetEndpoints();
 
@@ -332,12 +336,14 @@ void THwUsbCtrl_atsam::HandleIrq()
 		TRACE("USB RESET, ISR=%04X\r\n", regs->UDP_ISR);
 
 		// disable address, configured state
-		regs->UDP_GLB_STAT = 0;
+
+		HandleReset();
 
 		// clear the address
 		regs->UDP_FADDR = UDP_FADDR_FEN | (0 << 0);  // enable address, set address to 0
 
-		HandleReset();
+	  regs->UDP_GLB_STAT = UDP_GLB_STAT_RMWUPE; // | UDP_GLB_STAT_ESR;
+	  regs->UDP_IER = (0x3F << 8); // enable all special interrupts
 
 		regs->UDP_ICR = UDP_ISR_ENDBUSRES;
 	}
@@ -345,29 +351,36 @@ void THwUsbCtrl_atsam::HandleIrq()
 	if (regs->UDP_ISR & UDP_ISR_WAKEUP)
 	{
 		TRACE("USB WKUP, ISR=%04X\r\n", regs->UDP_ISR);
-		regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_RMWUPE);
-		regs->UDP_GLB_STAT |=  (UDP_GLB_STAT_ESR);
-		regs->UDP_ICR = UDP_ISR_WAKEUP;
-	}
-
-	if (regs->UDP_ISR & UDP_ISR_RXSUSP)
-	{
-		TRACE("USB SUSP, ISTR=%04X\r\n", regs->UDP_ISR);
-		regs->UDP_GLB_STAT |= (UDP_GLB_STAT_RMWUPE);
+		regs->UDP_ICR = (UDP_ISR_RXRSM | UDP_ISR_EXTRSM | UDP_ISR_WAKEUP);
+		if (regs->UDP_ISR) { }
+		if (regs->UDP_ISR) { }
+		if (regs->UDP_ISR) { }
+		//regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_RMWUPE);
+		//regs->UDP_GLB_STAT |=  (UDP_GLB_STAT_ESR);
 		regs->UDP_ICR = UDP_ISR_RXSUSP;
 	}
 
 	if (regs->UDP_ISR & UDP_ISR_RXRSM)
 	{
 		TRACE("USB RESUME, ISTR=%04X\r\n", regs->UDP_ISR);
-		regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_ESR);
-		regs->UDP_ICR = UDP_ISR_RXRSM;
+		regs->UDP_ICR = (UDP_ISR_RXRSM | UDP_ISR_EXTRSM | UDP_ISR_WAKEUP);
+		//regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_ESR);
+		regs->UDP_ICR = UDP_ISR_RXSUSP;
+	}
+
+
+	if (regs->UDP_ISR & UDP_ISR_RXSUSP)
+	{
+		TRACE("USB SUSP, ISTR=%04X\r\n", regs->UDP_ISR);
+		//regs->UDP_ICR = (UDP_ISR_RXRSM | UDP_ISR_EXTRSM | UDP_ISR_WAKEUP);
+		//regs->UDP_GLB_STAT |= (UDP_GLB_STAT_RMWUPE);
+		regs->UDP_ICR = UDP_ISR_RXSUSP;
 	}
 
 
 	if (regs->UDP_ISR & UDP_ISR_SOFINT)
 	{
-		//strace("USB SOF, ISTR=%04X\r\n", regs->ISTR);
+		//TRACE("USB SOF, ISTR=%04X\r\n", regs->UDP_ISR);
 		regs->UDP_ICR = UDP_ISR_SOFINT;
 	}
 }
