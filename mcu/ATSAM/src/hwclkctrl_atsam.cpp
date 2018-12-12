@@ -180,6 +180,30 @@ bool THwClkCtrl_atsam::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acp
 	{
 	}
 
+#if defined(REG_PMC_USB)
+	// Prepare the PLLB for USB, 48 MHz
+
+	unsigned usbdiv = 1;
+	freqmul = usbdiv * 480000000 / abasespeed;
+	// the minimal multiplier is 7, so we use a /2 divider here
+	while (freqmul < 7)
+	{
+		++usbdiv;
+		freqmul = usbdiv * 480000000 / abasespeed;
+	}
+
+	// setup PLLB for the USB clock
+	PMC->CKGR_PLLBR =	CKGR_PLLBR_PLLBCOUNT(0x3f)	| CKGR_PLLBR_MULB(freqmul) | CKGR_PLLBR_DIVB(usbdiv);
+	while (!(PMC->PMC_SR & PMC_SR_LOCKB))
+	{
+	}
+
+	PMC->PMC_USB = 0
+		| (1 << 0)   // select PLLB for the USB
+		| (0 << 8)   // no more dividing
+	;
+#endif
+
   return true;
 }
 
