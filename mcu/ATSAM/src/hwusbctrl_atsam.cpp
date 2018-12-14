@@ -34,6 +34,8 @@
 #include <hwusbctrl.h>
 #include "traces.h"
 
+#if defined(UDP_CSR_TXPKTRDY)
+
 #define UDP_REG_NO_EFFECT_1_ALL (UDP_CSR_RX_DATA_BK0 | UDP_CSR_RX_DATA_BK1 | UDP_CSR_STALLSENT | UDP_CSR_RXSETUP | UDP_CSR_TXCOMP)
 
 bool THwUsbEndpoint_atsam::ConfigureHwEp()
@@ -422,3 +424,5 @@ void THwUsbCtrl_atsam::SetDeviceAddress(uint8_t aaddr)
 	regs->UDP_GLB_STAT |= UDP_GLB_STAT_FADDEN;
 
 }
+
+#endif

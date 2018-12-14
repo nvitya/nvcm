@@ -180,7 +180,7 @@ bool THwClkCtrl_atsam::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acp
 	{
 	}
 
-#if defined(REG_PMC_USB)
+#if defined(REG_PMC_USB) && defined(CKGR_PLLBR_PLLBCOUNT)
 	// Prepare the PLLB for USB, 48 MHz
 
 	unsigned usbdiv = 1;

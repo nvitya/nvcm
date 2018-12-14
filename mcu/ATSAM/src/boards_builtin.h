@@ -60,6 +60,12 @@
   #define MCU_INPUT_FREQ    12000000
   #define MCU_CLOCK_SPEED  288000000  // because the SDRAM shares the data bus with the FPGA
 
+#elif defined(BOARD_ENEBO_A)
+
+  #define BOARD_NAME "ENEBO-A by nvitya"
+	#define MCU_ATSAME70N20
+  #define MCU_INPUT_FREQ    12000000
+
 #elif defined(BOARD_MIBO64_ATSAM4S)
 
   #define BOARD_NAME "MIBO-64 ATSAM4S by nvitya"
