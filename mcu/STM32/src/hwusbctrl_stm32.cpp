@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <hwusbctrl.h>
+#include "clockcnt.h"
 #include "traces.h"
 
 #if defined(USB_CNTR_LPMODE) && !defined(USB_CNTR_LP_MODE)
@@ -349,7 +350,8 @@ bool THwUsbCtrl_stm32::InitHw()
 	regs = nullptr;
 
 	regs = (HWUSBCTRL_REGS *)USB_BASE;
-	RCC->APB1ENR |= RCC_APB1ENR_USBEN;
+
+	RCC->APB1ENR |= RCC_APB1ENR_USBEN; // enable USB
 
 #if defined(MCUSF_F0)
 	// for STM32F070F6 remap the PA11 + PA12 from UART to USB
@@ -357,8 +359,21 @@ bool THwUsbCtrl_stm32::InitHw()
 	SYSCFG->CFGR1 |= (1 << 4); // select PA11 + PA12 on pins 17,18 (USBDP, USBDM)
 #endif
 
+	// enable USB clock
 #if defined(RCC_CFGR3_USBSW)
-		RCC->CFGR3 |= RCC_CFGR3_USBSW; // enable USB clock !
+	RCC->CFGR3 |= RCC_CFGR3_USBSW;
+#endif
+
+#if defined(RCC_CFGR_USBPRE)
+  // set USB clock divider for 72 / 48 MHz
+	if (SystemCoreClock == 48000000)
+	{
+		RCC->CFGR |= RCC_CFGR_USBPRE_DIV1;
+	}
+	else
+	{
+		RCC->CFGR &= ~(RCC_CFGR_USBPRE);  // divide by 1.5 (for 72 MHz)
+	}
 #endif
 
 	if (!regs)
@@ -374,6 +389,7 @@ bool THwUsbCtrl_stm32::InitHw()
   // USB_DevInit(hpcd->Instance, hpcd->Init) ->
   regs->CNTR = USB_CNTR_FRES; // reset USB registers
   if (regs->CNTR) { } // synchronize HW
+
   regs->CNTR = 0; // remove reset
   regs->ISTR = 0;
   regs->BTABLE = 0;  // the descriptor table is at the beginning

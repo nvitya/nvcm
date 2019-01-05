@@ -308,6 +308,10 @@ bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acp
   {
   }
 
+#if defined(RCC_APB2ENR_SYSCFGEN)
+  RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
+#endif
+
   return true;
 }
 
