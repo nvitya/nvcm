@@ -157,7 +157,7 @@ bool THwUsbEndpoint_stm32::ConfigureHwEp()
 	// setup the pointers
 
 	preg = &usbctrl->regs->EP0R;
-	preg += (index * 2);
+	preg += (index * 2);  // the register distance is always 32 bit
 
 	pdesc = PUsbPmaDescriptor(USB_PMAADDR);
 	pdesc += index;
@@ -224,26 +224,34 @@ int THwUsbEndpoint_stm32::ReadRecvData(void * buf, uint32_t buflen)
 		return USBERR_BUFFER_TOO_SMALL;
 	}
 
-	uint16_t * psrc = (uint16_t *)(USB_PMAADDR);
+	uint16_t * psrc = (uint16_t *)(USB_PMAADDR); // the PMA allows only 16 bit accesses !
+
 #if HWUSB_16_32
 	psrc += pdesc->ADDR_RX; // ADDR_RX in bytes but this will increment words
-#else
-	psrc += pdesc->ADDR_RX / 2; // increment in bytes
-#endif
-
 	uint16_t * pdst = (uint16_t *)(buf);
 
 	unsigned ccnt = ((cnt + 1) >> 1);
 	for (unsigned i = 0; i < ccnt; ++i)
 	{
-		*pdst = *psrc;
-#if HWUSB_16_32
-		psrc += 2;
-#else
-		psrc += 1;
-#endif
-		pdst += 1;
+		*pdst++ = *psrc++;
+		psrc++;
 	}
+
+#else
+
+	// do the copiing bytewise (to handle unaligned buffers on Cortex-M0 processors):
+
+	psrc += (pdesc->ADDR_RX / 2);
+	uint8_t * pdst = (uint8_t *)(buf);
+
+	unsigned ccnt = ((cnt + 1) >> 1);
+	for (unsigned i = 0; i < ccnt; ++i)
+	{
+		uint16_t tmp16 = *psrc++;
+		*pdst++ = tmp16;
+		*pdst++ = (tmp16 >> 8);
+	}
+#endif
 
 	return cnt;
 }
@@ -252,15 +260,6 @@ int THwUsbEndpoint_stm32::SendRemaining()
 {
 	// copy words
 
-	uint16_t * pdst = (uint16_t *)(USB_PMAADDR);
-#if HWUSB_16_32
-	pdst += pdesc->ADDR_TX;  // ADDR_TX in bytes but this will increment words !
-#else
-	pdst += pdesc->ADDR_TX / 2;  // increment in bytes
-#endif
-
-	uint16_t * psrc = (uint16_t *)(tx_remaining_dataptr);
-
 	uint16_t  sendlen = tx_remaining_len;
 	if (sendlen > maxlen)  sendlen = maxlen;
 
@@ -268,23 +267,40 @@ int THwUsbEndpoint_stm32::SendRemaining()
 
 	//strace("  sending %i bytes...\r\n", remaining);
 
+	uint16_t * pdst = (uint16_t *)(USB_PMAADDR); // the PMA allows only 16 bit accesses !
+
+#if HWUSB_16_32
+
+	pdst += pdesc->ADDR_TX;  // ADDR_TX in bytes but this will increment words !
+	uint16_t * psrc = (uint16_t *)(tx_remaining_dataptr);
 	// do the copiing:
 	while (remaining >= 2)
 	{
-		*pdst = *psrc;
-		psrc += 1;
-#if HWUSB_16_32
-		pdst += 2;
-#else
-		pdst += 1;
-#endif
+		*pdst++ = *psrc++;
+		++pdst;
 		remaining -= 2;
   }
+
+#else
+
+	pdst += (pdesc->ADDR_TX / 2);
+	uint8_t * psrc = (uint8_t *)(tx_remaining_dataptr);
+
+	while (remaining >= 2)
+	{
+		uint16_t tmp16;
+		tmp16 = *psrc++;  // do the copiing bytewise (to handle unaligned buffers on Cortex-M0 processors):
+		tmp16 |= ((*psrc++) << 8);
+		*pdst++ = tmp16;
+		remaining -= 2;
+  }
+
+#endif
 
 	if (remaining == 1)
 	{
 		// the last byte
-		*(uint8_t *)pdst = *(uint8_t *)psrc;
+		*pdst = *psrc;
 	}
 
 	tx_remaining_dataptr += sendlen;
@@ -368,7 +384,7 @@ bool THwUsbCtrl_stm32::InitHw()
   // set USB clock divider for 72 / 48 MHz
 	if (SystemCoreClock == 48000000)
 	{
-		RCC->CFGR |= RCC_CFGR_USBPRE_DIV1;
+		RCC->CFGR |= RCC_CFGR_USBPRE;
 	}
 	else
 	{
