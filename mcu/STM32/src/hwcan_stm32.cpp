@@ -179,9 +179,9 @@ void THwCan_stm32::HandleTx()
 
 			CAN_TxMailBox_TypeDef * txmb = &regs->sTxMailBox[tmi];
 
-			txmb->TDLR = msg.len;
 			txmb->TDLR = *(uint32_t *)&msg.data[0];
 			txmb->TDHR = *(uint32_t *)&msg.data[4];
+			txmb->TDTR = msg.len;
 			txmb->TIR = 0
 				| (msg.cobid << 21)
 				| (1 << 0) // request to start
