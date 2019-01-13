@@ -19,61 +19,50 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwcan_stm32.h
+ *  brief:    STM32 CAN
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-01-12
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
+#ifndef HWCAN_STM32_H_
+#define HWCAN_STM32_H_
+
+#include "platform.h"
+
+#if defined(CAN_BASE)
+
+#define HWCAN_PRE_ONLY
+#include "hwcan.h"
+
+#define HW_CAN_REGS CAN_TypeDef
+
+class THwCan_stm32 : public THwCan_pre
+{
+public: // mandatory
+	bool HwInit(int adevnum);
+
+	void Enable();
+	bool Enabled();
+
+	void HandleTx();
+	void HandleRx();
+
+	void AcceptListClear();
+	void AcceptAdd(uint16_t cobid, uint16_t amask);
+
+	bool IsBusOff();
+	bool IsWarning();
+
+public:
+	HW_CAN_REGS *      regs = nullptr;
+
+	uint8_t            filtercnt = 0;
+};
+
+#define HWCAN_IMPL THwCan_stm32
+
 #endif
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
-
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
-
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
-
-#ifdef HWI2C_H_
-  #include "hwi2c_stm32.h"
-#endif
-
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
-
-#ifdef HWADC_H_
-  #include "hwadc_stm32.h"
-#endif
-
-#ifdef HWUSBCTRL_H_
-  #include "hwusbctrl_stm32.h"
-#endif
-
-#ifdef HWETH_H_
-  #include "hweth_stm32.h"
-#endif
-
-#if defined(HWCAN_H_) && (defined(CAN_BASE) || defined(CAN1_BASE))
-  #include "hwcan_stm32.h"
-#endif
-
-#if defined(QUADSPI) && defined(HWQSPI_H_)
-  #include "hwqspi_stm32.h"
-#endif
-
-#if defined(FMC_SDCR1_CAS) && defined(HWSDRAM_H_)
-  #include "hwsdram_stm32.h"
-#endif
-
-#if defined(LTDC_SRCR_IMR) && defined(HWLCDCTRL_H_)
-  #include "hwlcdctrl_stm32.h"
-#endif
+#endif /* HWCAN_STM32_H_ */
