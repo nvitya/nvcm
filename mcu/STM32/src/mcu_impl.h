@@ -62,7 +62,7 @@
   #include "hweth_stm32.h"
 #endif
 
-#if defined(HWCAN_H_) && (defined(CAN_BASE) || defined(CAN1_BASE))
+#if defined(HWCAN_H_)
   #include "hwcan_stm32.h"
 #endif
 
