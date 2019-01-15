@@ -124,7 +124,7 @@ bool THwPinCtrl_atsam_v2::GpioPortEnable(int aportnum)
 		return false;
 	}
 
-#ifdef MCUSF_E5X
+#ifdef MCLK_APBBMASK_MASK
 	MCLK->APBBMASK.reg |= (1 << 4); // Enable PORT clock
 #else
 	PM->APBBMASK.reg |= (1 << 3);

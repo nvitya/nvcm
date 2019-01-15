@@ -31,8 +31,10 @@
 
 bool THwClkCtrl_atsam_v2::ExtOscReady()
 {
-#ifdef OSCCTRL
+#if defined(OSCCTRL_STATUS_XOSCRDY0)
 	return (OSCCTRL->STATUS.bit.XOSCRDY0 != 0);
+#elif defined(OSCCTRL_STATUS_XOSCRDY)
+	return (OSCCTRL->STATUS.bit.XOSCRDY != 0);
 #else
 	return (SYSCTRL->PCLKSR.bit.XOSCRDY != 0);
 #endif
@@ -46,15 +48,27 @@ void THwClkCtrl_atsam_v2::StartExtOsc()
 	MCLK->AHBMASK.bit.NVMCTRL_ = 1;
 	MCLK->APBAMASK.bit.GCLK_ = 1;
 
-	OSCCTRL->XOSCCTRL[0].bit.STARTUP = 8; // ~ 8 ms
-	OSCCTRL->XOSCCTRL[0].bit.ENALC = 1; // automatic amplitude
-	OSCCTRL->XOSCCTRL[0].bit.ONDEMAND = 0; // always run
-	// settings for 8-16 MHz Crystal:
-	OSCCTRL->XOSCCTRL[0].bit.XTALEN = 1;
-	OSCCTRL->XOSCCTRL[0].bit.IMULT = 4;
-	OSCCTRL->XOSCCTRL[0].bit.IPTAT = 3;
+	#if defined(OSCCTRL_STATUS_XOSCRDY0)
+		OSCCTRL->XOSCCTRL[0].bit.STARTUP = 8; // ~ 8 ms
+		OSCCTRL->XOSCCTRL[0].bit.ENALC = 1; // automatic amplitude
+		OSCCTRL->XOSCCTRL[0].bit.ONDEMAND = 0; // always run
+		// settings for 8-16 MHz Crystal:
+		OSCCTRL->XOSCCTRL[0].bit.XTALEN = 1;
+		OSCCTRL->XOSCCTRL[0].bit.IMULT = 4;
+		OSCCTRL->XOSCCTRL[0].bit.IPTAT = 3;
 
-	OSCCTRL->XOSCCTRL[0].bit.ENABLE = 1;
+		OSCCTRL->XOSCCTRL[0].bit.ENABLE = 1;
+	#elif defined(OSCCTRL_STATUS_XOSCRDY)
+		OSCCTRL->XOSCCTRL.bit.STARTUP = 8; // ~ 8 ms
+		OSCCTRL->XOSCCTRL.bit.GAIN = 3; // for 12 MHz Crystal
+		OSCCTRL->XOSCCTRL.bit.AMPGC = 1; // automatic amplitude
+		OSCCTRL->XOSCCTRL.bit.ONDEMAND = 0; // always run
+		// settings for 8-16 MHz Crystal:
+		OSCCTRL->XOSCCTRL.bit.XTALEN = 1;
+
+		OSCCTRL->XOSCCTRL.bit.ENABLE = 1;
+	#endif
+
 #else
 	SYSCTRL->XOSC.bit.STARTUP = 8;
 	SYSCTRL->XOSC.bit.AMPGC = 1;
@@ -120,7 +134,7 @@ void THwClkCtrl_atsam_v2::PrepareHiSpeed(unsigned acpuspeed)
 
 #ifdef OSCCTRL
 
-// ATSAME5X
+// ATSAME5X / ATSAMC2x
 
 bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed)
 {
@@ -142,6 +156,8 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 	tmpldr = (acpuspeed << 4) / refclk;
 	tmpldrfrac = tmpldr & 0x0f;
 	tmpldr = (tmpldr >> 4) - 1;
+
+#if defined(MCUSF_E5X)
 
 	OSCCTRL->Dpll[0].DPLLRATIO.reg = (tmpldr << 0) | (tmpldrfrac << 16);
 
@@ -182,6 +198,45 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 	MCLK->CPUDIV.reg = 1;
 
 	//MCLK->APBBMASK.bit.RAMECC_ = 0;
+
+#else  // MCUSF_C2X
+
+	OSCCTRL->DPLLRATIO.reg = (tmpldr << 0) | (tmpldrfrac << 16);
+
+	OSCCTRL->DPLLCTRLB.reg = 0
+		| (refdiv << 16)
+		| (0 << 12)  // Lock bypass
+		| (0 <<  8)  // lock time
+		| (1 <<  4)  // reference clock, 1 = XOSC
+	;
+
+	OSCCTRL->DPLLCTRLA.reg = (1 << 6) | (1 << 1);  // run in standby, enable
+
+	while (!(OSCCTRL->DPLLSTATUS.bit.LOCK))
+	{
+		// wait for lock
+	}
+
+	// set up DPLL0 as main clock
+	GCLK->GENCTRL[0].reg = 0x00010107; // select DPLL96
+	while (GCLK->SYNCBUSY.bit.GENCTRL & (1 << (2 + 0))) // wait until GENCLK SYNC 0 busy
+	{
+		// wait until synced
+	}
+
+	// use GCLK3 as slow clock from the internal 32k source
+	GCLK->GENCTRL[3].reg = 0x00010104;
+	while (GCLK->SYNCBUSY.bit.GENCTRL & (1 << (2 + 3)))  // wait until GENCLK SYNC 3 busy
+	{
+		// wait until synced
+	}
+
+	// turn on the slow clock, some peripherals require it
+	//GCLK->PCHCTRL[3].reg = 0x00000043;
+
+	//MCLK->CPUDIV.reg = 1;
+
+#endif
 
 	return true;
 }

@@ -50,7 +50,7 @@ bool THwUart_atsam_v2::Init(int adevnum)  // devnum: 0 - 7 = SERCOM ID
 	{
 		return false;
 	}
-#ifdef MCUSF_E5X
+#if defined(MCUSF_E5X)
 	else if (devnum < 2)
 	{
 		MCLK->APBAMASK.reg |= (1 << (12 + devnum));  // Enable/unmask CPU interface (register access)
@@ -74,6 +74,22 @@ bool THwUart_atsam_v2::Init(int adevnum)  // devnum: 0 - 7 = SERCOM ID
 	// setup peripheral clock
 	GCLK->PCHCTRL[perid].reg = ((0 << 0) | (1 << 6));   // select main clock frequency (120 MHz) + enable
 
+#elif defined(MCUSF_C2X)
+	else
+	{
+		MCLK->APBCMASK.reg |= (1 << (1 + devnum));  // enable register interface
+		perid = 19 + devnum;
+		if (devnum == 5)
+		{
+			GCLK->PCHCTRL[25].reg = (1 << 6) | (0 << 0);  // Enable the peripheral and select GEN0 (main clock)
+			GCLK->PCHCTRL[24].reg = (1 << 6) | (3 << 0);  // Select the SERCOM5 slow clock
+		}
+		else
+		{
+			GCLK->PCHCTRL[19 + devnum].reg = (1 << 6) | (0 << 0);  // Enable the peripheral and select GEN0 (main clock)
+			GCLK->PCHCTRL[18].reg = (1 << 6) | (3 << 0);  // Select the SERCOM slow clock
+		}
+	}
 #elif defined(MCUSF_D10)
 	else
 	{

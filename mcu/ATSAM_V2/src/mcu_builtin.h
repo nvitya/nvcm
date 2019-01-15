@@ -43,6 +43,14 @@
   #define __SAMD51J20A__
   #include "sam.h"
 
+#elif defined(MCU_ATSAMC21J18)
+
+  #define MCUF_ATSAM_V2
+  #define MCUSF_C2X
+
+  #define __SAMC21J18A__
+  #include "samc21.h"
+
 #else
 
   #error "Unknown MCU"
