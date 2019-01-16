@@ -120,14 +120,32 @@ void THwClkCtrl_atsam_v2::StartIntHSOsc()
 
 void THwClkCtrl_atsam_v2::PrepareHiSpeed(unsigned acpuspeed)
 {
+#if defined(MCUSF_E5X)
+
 	// automatic Flash wait state is enabled by default
-#ifndef OSCCTRL
-	NVMCTRL->CTRLB.bit.RWS = 1;
+
+#elif defined(MCUSF_C2X) || defined(MCUSF_DXX)
+
+	if (acpuspeed > 38000000)
+	{
+		NVMCTRL->CTRLB.bit.RWS = 2;
+	}
+	else if (acpuspeed > 19000000)
+	{
+		NVMCTRL->CTRLB.bit.RWS = 1;
+	}
+	else
+	{
+		NVMCTRL->CTRLB.bit.RWS = 0;
+	}
+
 	NVMCTRL->CTRLB.bit.CACHEDIS = 0;
+#else
+  #warning "unimplemented FLASH wait states !"
 #endif
 
-#if defined(CMCC)
 	// enable cache
+#if defined(CMCC)
 	CMCC->CTRL.bit.CEN = 1;
 #endif
 }
@@ -234,7 +252,7 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 	// turn on the slow clock, some peripherals require it
 	//GCLK->PCHCTRL[3].reg = 0x00000043;
 
-	//MCLK->CPUDIV.reg = 1;
+	MCLK->CPUDIV.reg = 1;
 
 #endif
 

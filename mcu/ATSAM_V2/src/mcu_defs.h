@@ -30,7 +30,7 @@
 #define __MCU_DEFS_H
 
 // SUB-FAMILIES
-#if defined(MCUSF_D10) || defined(MCUSF_D20)
+#if defined(MCUSF_DXX) || defined(MCUSF_C2X)
 
   #define MAX_CLOCK_SPEED   48000000
 
@@ -51,9 +51,17 @@
 #endif
 
 #if __CORTEX_M < 3
-  #define CLOCKCNT       (TC1->COUNT32.COUNT.reg)
   #define CLOCKCNT_BITS  32
+
+	#if defined(MCUSF_C2X)
+	  uint32_t atsam_v2_clockcnt_read();
+	  #define CLOCKCNT       (atsam_v2_clockcnt_read())
+	#else
+		#define CLOCKCNT       (TC1->COUNT32.COUNT.reg)
+	#endif
 #endif
+
+
 
 inline void __attribute__((always_inline)) mcu_preinit_code()
 {

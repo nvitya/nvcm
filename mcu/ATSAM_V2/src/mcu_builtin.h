@@ -51,6 +51,14 @@
   #define __SAMC21J18A__
   #include "samc21.h"
 
+#elif defined(MCU_ATSAMD10J18)
+
+  #define MCUF_ATSAM_V2
+  #define MCUSF_DXX
+
+  #define __SAMD10J18A__
+  #include "samd10.h"
+
 #else
 
   #error "Unknown MCU"
