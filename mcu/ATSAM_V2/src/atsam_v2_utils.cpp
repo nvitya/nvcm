@@ -19,26 +19,56 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (ATSAM_V2)
- *  brief:    ATSAM_V2 list of implemented NVCM core peripherals
+ *  file:     atsam_v2_utils.cpp
+ *  brief:    ATSAM V2 Utilities
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-01-18
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_atsam_v2.h"
-#endif
+#include "atsam_v2_utils.h"
 
-#ifdef HWPINS_H_
-  #include "hwpins_atsam_v2.h"
-#endif
+void atsam2_enable_mclk(bool isahb, uint8_t regid, uint8_t bitid)
+{
+	volatile uint32_t * pu32;
 
-#ifdef HWUART_H_
-  #include "hwuart_atsam_v2.h"
+#if defined(MCUSF_DXX)
+	if (isahb)
+	{
+		pu32 = (volatile uint32_t *)&(PM->AHBMASK);
+	}
+	else
+	{
+		pu32 = (volatile uint32_t *)&(PM->APBAMASK);
+		pu32 += regid;
+	}
+#else	// E5X, C2X
+	if (isahb)
+	{
+		pu32 = (volatile uint32_t *)&(MCLK->AHBMASK);
+	}
+	else
+	{
+		pu32 = (volatile uint32_t *)&(MCLK->APBAMASK);
+		pu32 += regid;
+	}
 #endif
+	*pu32 |= (1 << bitid);
+}
 
-#ifdef HWSPI_H_
-  #include "hwspi_atsam_v2.h"
+void atsam2_set_periph_gclk(uint32_t perid, uint8_t gclk)
+{
+#if defined(MCUSF_DXX)
+	GCLK->CLKCTRL.reg = 0
+		| (1     << 14)  // enable
+		| (gclk  <<  8)  // select GCLK (generator)
+		| (perid <<  0)  // select peripheral
+	;
+#else	// E5X, C2X
+	GCLK->PCHCTRL[perid].reg = 0
+		| (1 << 6)     // enable
+		| (gclk << 0)  // select generator
+	;
 #endif
+}
 

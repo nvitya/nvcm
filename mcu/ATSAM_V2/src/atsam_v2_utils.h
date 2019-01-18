@@ -19,26 +19,20 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (ATSAM_V2)
- *  brief:    ATSAM_V2 list of implemented NVCM core peripherals
+ *  file:     atsam_v2_utils.h
+ *  brief:    ATSAM V2 Utilities
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-01-18
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_atsam_v2.h"
-#endif
+#ifndef ATSAM_V2_UTILS_H_
+#define ATSAM_V2_UTILS_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_atsam_v2.h"
-#endif
+#include "platform.h"
 
-#ifdef HWUART_H_
-  #include "hwuart_atsam_v2.h"
-#endif
+void atsam2_enable_mclk(bool isahb, uint8_t regid, uint8_t bitid);
+void atsam2_set_periph_gclk(uint32_t perid, uint8_t gclk);
 
-#ifdef HWSPI_H_
-  #include "hwspi_atsam_v2.h"
-#endif
 
+#endif /* ATSAM_V2_UTILS_H_ */

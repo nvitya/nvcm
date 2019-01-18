@@ -19,26 +19,39 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (ATSAM_V2)
- *  brief:    ATSAM_V2 list of implemented NVCM core peripherals
+ *  file:     hwspi_atsam_v2.h
+ *  brief:    ATSAM_V2 SPI
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-01-17
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_atsam_v2.h"
-#endif
+#ifndef HWSPI_ATSAM_V2_H_
+#define HWSPI_ATSAM_V2_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_atsam_v2.h"
-#endif
+#define HWSPI_PRE_ONLY
+#include "hwspi.h"
 
-#ifdef HWUART_H_
-  #include "hwuart_atsam_v2.h"
-#endif
+#define HW_SPI_REGS  SercomSpi
 
-#ifdef HWSPI_H_
-  #include "hwspi_atsam_v2.h"
-#endif
+class THwSpi_atsam_v2 : public THwSpi_pre
+{
+public:
+	bool Init(int adevnum);
 
+	bool TrySendData(unsigned short adata);
+	bool TryRecvData(unsigned short * dstptr);
+	bool SendFinished();
+
+	//void DmaAssign(bool istx, THwDmaChannel * admach);
+
+	//bool DmaStartSend(THwDmaTransfer * axfer);
+	//bool DmaStartRecv(THwDmaTransfer * axfer);
+
+public:
+	HW_SPI_REGS *      regs = nullptr;
+};
+
+#define HWSPI_IMPL THwSpi_atsam_v2
+
+#endif /* def HWSPI_ATSAM_V2_H_ */

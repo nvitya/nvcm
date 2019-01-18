@@ -19,23 +19,23 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     hwuart_atsam_v2.cpp
- *  brief:    ATSAM_V2 UART
+ *  file:     hwspi_atsam_v2.cpp
+ *  brief:    ATSAM_V2 SPI
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-01-17
  *  authors:  nvitya
 */
 
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "hwuart.h"
+#include "hwspi_atsam_v2.h"
 
 static const Sercom * sercom_inst_list[] = SERCOM_INSTS;
 
-bool THwUart_atsam_v2::Init(int adevnum)  // devnum: 0 - 7 = SERCOM ID
+bool THwSpi_atsam_v2::Init(int adevnum)  // devnum: 0 - 7 = SERCOM ID
 {
-	unsigned code;
+	uint32_t tmp;
 	unsigned perid;
 
 	devnum = adevnum;
@@ -106,73 +106,59 @@ bool THwUart_atsam_v2::Init(int adevnum)  // devnum: 0 - 7 = SERCOM ID
 #endif
 
 
-	regs = (HW_UART_REGS *)sercom_inst_list[devnum];
+	regs = (HW_SPI_REGS *)sercom_inst_list[devnum];
 
 	regs->CTRLA.bit.ENABLE = 0; // disable
 	//regs->CTRLA.bit.SWRST = 1; // reset
 	//while (regs->SYNCBUSY.bit.SWRST) { } // wait for reset
-
 	//regs->CTRLA.bit.SWRST = 0; // reset
 
-	// baud rate calculation
-	// fbaud = fref / oversampling * (1 - baudvalue / 65536)
-	// baudvalue = 65536 * (1 - oversampling * fbaud / fref)
+	while (regs->SYNCBUSY.bit.ENABLE) { } // wait for sync
 
-	unsigned oversampling = 16;
-	unsigned brdiv = SystemCoreClock / ((oversampling / 8) * baudrate);  // the lower 3 bits are the fractional part
-	unsigned baudvalue = (((brdiv >> 3) & 0x1FFF) | ((brdiv & 7) << 13));
+	uint32_t periphclock = (SystemCoreClock >> 1);
 
-	regs->BAUD.reg = baudvalue;
+	unsigned brdiv = (periphclock / speed);
+	if (brdiv < 1)  brdiv = 1;
+
+	regs->BAUD.reg = (brdiv - 1);
+
+	while (regs->SYNCBUSY.bit.CTRLB) { } // wait for sync
 
 	// CTRLB
-	code = 0
-		| (1 << 17)  // RXEN
-		| (1 << 16)  // TXEN
-		| ((((halfstopbits-2) / 2) & 1) << 6) // SBMODE
-		| (0 <<  0)  // CHSIZE(3): 0 = 8 bit characters
+	regs->CTRLB.reg = 0
+		| (1 << 17)  // RXEN: RX Enable
+		| (0 << 14)  // AMODE(2): Address mode
+		| (0 << 13)  // MSSEN: 1 = HW CS(SS) control + inter character spacing
+		| (0 <<  9)  // SSDE: 1 = Slave Select Low Detect Enable
+		| (0 <<  6)  // PLOADEN: 1 = data preload enable
+		| (0 <<  0)  // CHSIZE(3): 0 = 8 bit, 1 = 9 bit, more options are not supported
 	;
 
-	if (parity and oddparity)
-	{
-		code |= (1 << 13);
-	}
-
-	// 0x30000
-
 	while (regs->SYNCBUSY.bit.CTRLB) { } // wait for sync
-	regs->CTRLB.reg = code;
-	while (regs->SYNCBUSY.bit.CTRLB) { } // wait for sync
-
-	// CTRLC
-  #ifdef REG_SERCOM0_USART_CTRLC
-	  regs->CTRLC.reg = 0x700002; //((7 << 20) | (2 << 0));
-  #endif
 
 	// CTRLA
-	code = 0
+	tmp = 0
 		| (1 << 30)  // DORD: 1 = LSB first
-		| (0 << 28)  // CMODE: async mode
-		| (0 << 24)  // FORM(4): frame format, 0 = USART without parity
-		| (0 << 22)  // SAMPA(2): sample adjustment
-		| (1 << 20)  // RXPO(2): RX pad select, 1 = PAD[1] for RX
-		| (0 << 16)  // TXPO(2): TX pad select, 2 = PAD[0] for TX, RTS=PAD[2], CTS=PAD[3]
-		| (1 << 13)  // SAMPR(3): Sample rate, 16x oversampling, fractional b.r.g.
-		| (1 <<  2)  // MODE(3): Mode, 1 = USART with internal clock
+		| (0 << 29)  // CPOL: Clock Polarity, 1 = SCK is high on idle
+		| (0 << 28)  // CPHA: 1 = late sample
+		| (0 << 24)  // FORM(4): frame format, 0 = SPI, 2 = SPI with address
+		| (3 << 20)  // DIPO(2): Data In Pinout, pad select for MISO
+		| (0 << 20)  // DOPO(2): Data Out Pinout, 0 = P0:MOSI|P1:SCK|P2:SS
+		| (0 <<  8)  // IBON: Immediate Buffer Overflow Notification
+		| (0 <<  7)  // RUNSTDBY: Run In Standby, 1 = run in stdby
+		| (3 <<  2)  // MODE(3): Mode, 3 = SPI Master
 		| (0 <<  1)  // ENABLE
+		| (0 <<  0)  // SWRST: Software Reset
 	;
 
-	if (parity)
-	{
-		code |= (1 << 24);
-	}
+	if (idleclk_high)     tmp |= (1 << 29);
+	if (datasample_late)  tmp |= (1 << 28);
 
-	regs->CTRLA.reg = code;
-
-	regs->RXPL.reg = 0;
+	regs->CTRLA.reg = tmp;
 	regs->DBGCTRL.reg = 0;
 
 	while (regs->SYNCBUSY.bit.ENABLE) { } // wait for enable
-	regs->CTRLA.reg = (code | (1 << 1)); // enable it
+	regs->CTRLA.reg = (tmp | (1 << 1)); // enable it
 	while (regs->SYNCBUSY.bit.ENABLE) { } // wait for enable
 
 	initialized = true;
@@ -180,11 +166,11 @@ bool THwUart_atsam_v2::Init(int adevnum)  // devnum: 0 - 7 = SERCOM ID
 	return true;
 }
 
-bool THwUart_atsam_v2::TrySendChar(char ach)
+bool THwSpi_atsam_v2::TrySendData(unsigned short adata)
 {
 	if (regs->INTFLAG.bit.DRE)
 	{
-		regs->DATA.reg = ach;
+		regs->DATA.reg = adata;
 		return true;
 	}
 	else
@@ -193,31 +179,19 @@ bool THwUart_atsam_v2::TrySendChar(char ach)
 	}
 }
 
-void THwUart_atsam_v2::DmaAssign(bool istx, THwDmaChannel * admach)
+bool THwSpi_atsam_v2::TryRecvData(unsigned short * dstptr)
 {
-	if (istx)
+	if (regs->INTFLAG.bit.RXC)
 	{
-		txdma = admach;
+		*dstptr = regs->DATA.reg;
+		return true;
 	}
 	else
 	{
-		rxdma = admach;
-	}
-
-	//admach->Prepare(istx, (void *)&regs->UART_THR, 0);
-}
-
-bool THwUart_atsam_v2::DmaStartSend(THwDmaTransfer * axfer)
-{
-	if (!txdma)
-	{
 		return false;
 	}
-
-	// On Atmel no peripheral preparation is required.
-
-	//txdma->StartTransfer(axfer);
-
-	return true;
 }
+
+
+
 
