@@ -156,6 +156,7 @@ void THwDmaChannel_atsam_v2::PrepareTransfer(THwDmaTransfer * axfer)
 
 	// you have to set the last address for the incremented ones !
 	uint32_t addrplus = (axfer->bytewidth * axfer->count);
+	uint32_t addrplus2 = addrplus;
 
 	if (axfer->flags & DMATR_MEM_TO_MEM)
 	{
@@ -163,13 +164,22 @@ void THwDmaChannel_atsam_v2::PrepareTransfer(THwDmaTransfer * axfer)
 		{
 			ccreg |= (1 << 10);
 		}
+		else
+		{
+			addrplus = 0;
+		}
+
 		if ((axfer->flags & DMATR_NO_DST_INC) == 0)
 		{
 			ccreg |= (1 << 11);
 		}
+		else
+		{
+			addrplus2 = 0;
+		}
 
 		regs->SRCADDR = ((uint32_t)axfer->srcaddr) + addrplus;
-		regs->DSTADDR = ((uint32_t)axfer->dstaddr) + addrplus;
+		regs->DSTADDR = ((uint32_t)axfer->dstaddr) + addrplus2;
 	}
 	else
 	{
@@ -183,6 +193,10 @@ void THwDmaChannel_atsam_v2::PrepareTransfer(THwDmaTransfer * axfer)
 			{
 				ccreg |= (1 << 10);
 			}
+			else
+			{
+				addrplus = 0;
+			}
 
 			regs->SRCADDR = ((uint32_t)axfer->srcaddr) + addrplus;
 			regs->DSTADDR = (uint32_t)periphaddr;
@@ -192,6 +206,10 @@ void THwDmaChannel_atsam_v2::PrepareTransfer(THwDmaTransfer * axfer)
 			if ((axfer->flags & DMATR_NO_DST_INC) == 0)
 			{
 				ccreg |= (1 << 11);
+			}
+			else
+			{
+				addrplus = 0;
 			}
 
 			regs->SRCADDR = (uint32_t)periphaddr;
