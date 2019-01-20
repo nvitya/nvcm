@@ -40,7 +40,7 @@ public:
 	bool TrySendChar(char ach);
 	bool TryRecvChar(char * ach);
 
-	bool SendFinished();
+	inline bool SendFinished()   { return regs->INTFLAG.bit.TXC; }
 
 	void DmaAssign(bool istx, THwDmaChannel * admach);
 

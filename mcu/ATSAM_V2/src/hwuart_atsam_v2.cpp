@@ -193,6 +193,19 @@ bool THwUart_atsam_v2::TrySendChar(char ach)
 	}
 }
 
+bool THwUart_atsam_v2::TryRecvChar(char * ach)
+{
+	if (regs->INTFLAG.bit.RXC)
+	{
+		*ach = regs->DATA.reg;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
 void THwUart_atsam_v2::DmaAssign(bool istx, THwDmaChannel * admach)
 {
 	if (istx)
@@ -204,8 +217,9 @@ void THwUart_atsam_v2::DmaAssign(bool istx, THwDmaChannel * admach)
 		rxdma = admach;
 	}
 
-	//admach->Prepare(istx, (void *)&regs->UART_THR, 0);
+	admach->Prepare(istx, (void *)&regs->DATA.reg, 0);
 }
+
 
 bool THwUart_atsam_v2::DmaStartSend(THwDmaTransfer * axfer)
 {
@@ -214,10 +228,19 @@ bool THwUart_atsam_v2::DmaStartSend(THwDmaTransfer * axfer)
 		return false;
 	}
 
-	// On Atmel no peripheral preparation is required.
-
-	//txdma->StartTransfer(axfer);
+	txdma->StartTransfer(axfer);
 
 	return true;
 }
 
+bool THwUart_atsam_v2::DmaStartRecv(THwDmaTransfer * axfer)
+{
+	if (!rxdma)
+	{
+		return false;
+	}
+
+	rxdma->StartTransfer(axfer);
+
+	return true;
+}

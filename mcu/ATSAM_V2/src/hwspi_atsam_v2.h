@@ -41,12 +41,13 @@ public:
 
 	bool TrySendData(unsigned short adata);
 	bool TryRecvData(unsigned short * dstptr);
-	bool SendFinished();
 
-	//void DmaAssign(bool istx, THwDmaChannel * admach);
+	inline bool SendFinished()   { return regs->INTFLAG.bit.TXC; }
 
-	//bool DmaStartSend(THwDmaTransfer * axfer);
-	//bool DmaStartRecv(THwDmaTransfer * axfer);
+	void DmaAssign(bool istx, THwDmaChannel * admach);
+
+	bool DmaStartSend(THwDmaTransfer * axfer);
+	bool DmaStartRecv(THwDmaTransfer * axfer);
 
 public:
 	HW_SPI_REGS *      regs = nullptr;

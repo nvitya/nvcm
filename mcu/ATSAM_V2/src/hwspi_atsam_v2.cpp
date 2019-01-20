@@ -138,7 +138,7 @@ bool THwSpi_atsam_v2::Init(int adevnum)  // devnum: 0 - 7 = SERCOM ID
 
 	// CTRLA
 	tmp = 0
-		| (1 << 30)  // DORD: 1 = LSB first
+		| (0 << 30)  // DORD: 0 = MSB First, 1 = LSB first
 		| (0 << 29)  // CPOL: Clock Polarity, 1 = SCK is high on idle
 		| (0 << 28)  // CPHA: 1 = late sample
 		| (0 << 24)  // FORM(4): frame format, 0 = SPI, 2 = SPI with address
@@ -151,6 +151,7 @@ bool THwSpi_atsam_v2::Init(int adevnum)  // devnum: 0 - 7 = SERCOM ID
 		| (0 <<  0)  // SWRST: Software Reset
 	;
 
+	if (lsb_first)        tmp |= (1 << 30);
 	if (idleclk_high)     tmp |= (1 << 29);
 	if (datasample_late)  tmp |= (1 << 28);
 
@@ -192,6 +193,44 @@ bool THwSpi_atsam_v2::TryRecvData(unsigned short * dstptr)
 	}
 }
 
+void THwSpi_atsam_v2::DmaAssign(bool istx, THwDmaChannel * admach)
+{
+	if (istx)
+	{
+		txdma = admach;
+	}
+	else
+	{
+		rxdma = admach;
+	}
+
+	admach->Prepare(istx, (void *)&regs->DATA.reg, 0);
+}
+
+
+bool THwSpi_atsam_v2::DmaStartSend(THwDmaTransfer * axfer)
+{
+	if (!txdma)
+	{
+		return false;
+	}
+
+	txdma->StartTransfer(axfer);
+
+	return true;
+}
+
+bool THwSpi_atsam_v2::DmaStartRecv(THwDmaTransfer * axfer)
+{
+	if (!rxdma)
+	{
+		return false;
+	}
+
+	rxdma->StartTransfer(axfer);
+
+	return true;
+}
 
 
 

@@ -42,3 +42,6 @@
   #include "hwspi_atsam_v2.h"
 #endif
 
+#ifdef HWDMA_H_
+  #include "hwdma_atsam_v2.h"
+#endif

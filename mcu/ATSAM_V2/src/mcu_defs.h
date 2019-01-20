@@ -44,12 +44,6 @@
 #define HW_GPIO_REGS      PortGroup
 #define HW_UART_REGS      SercomUsart
 
-#ifdef REG_DMAC_CHCTRLA0
-  #define HW_DMA_REGS  			DmacChannel
-#else
-  #define HW_DMA_REGS  			void
-#endif
-
 #if __CORTEX_M < 3
   #define CLOCKCNT_BITS  32
 
