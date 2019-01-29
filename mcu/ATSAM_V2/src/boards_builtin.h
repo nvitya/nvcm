@@ -38,7 +38,7 @@
 #elif defined(BOARD_MIBO64_ATSAME5X)
 
   #define BOARD_NAME "MIBO-64 ATSAME5X by nvitya"
-  #define MCU_ATSAMD51J20
+  #define MCU_ATSAME51J20
   #define MCU_INPUT_FREQ   12000000
 
 #else

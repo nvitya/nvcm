@@ -41,7 +41,15 @@
   #define MCUSF_E5X
 
   #define __SAMD51J20A__
-  #include "sam.h"
+  #include "samd51.h"
+
+#elif defined(MCU_ATSAME51J20)
+
+  #define MCUF_ATSAM_V2
+  #define MCUSF_E5X
+
+  #define __SAME51J20A__
+  #include "same51.h"
 
 #elif defined(MCU_ATSAMC21J18)
 

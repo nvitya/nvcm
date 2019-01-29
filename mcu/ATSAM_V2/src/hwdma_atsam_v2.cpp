@@ -91,6 +91,8 @@ bool THwDmaChannel_atsam_v2::Init(int achnum, int aperid)  // perid = peripheral
   regs = &dma_channel_descriptors[chnum];
   wbregs = &dma_channel_wb_descriptors[chnum];
 
+#ifdef DMAC_CHID_OFFSET
+
   ctrlregs->CHID.reg = chnum;  // select the channel
 
   ctrlregs->CHCTRLA.bit.ENABLE = 0; // disable
@@ -108,6 +110,41 @@ bool THwDmaChannel_atsam_v2::Init(int achnum, int aperid)  // perid = peripheral
 
   ctrlregs->CHINTENCLR.reg = 0x7;
 
+#else
+
+  chregs = &(ctrlregs->Channel[chnum]);
+
+  chregs->CHCTRLA.bit.ENABLE = 0; // disable
+
+  chregs->CHCTRLA.reg = 0
+  	| (0 << 28)  // THESHOLD(2): 0 = 1 beat
+  	| (0 << 24)  // BURSTLEN(4): 0 = single
+  	| (0 << 20)  // TRIGACT(2): 0 = block, 2 = burst/beat, 3 = transaction
+  	| (perid <<  8)  // TRIGSRC(8):
+  	| (1 <<  6)  // RUNSTDBY:
+  	| (0 <<  1)  // ENABLE:
+  	| (0 <<  0)  // SWRST:
+  ;
+
+  chregs->CHPRILVL.reg = priority;
+  chregs->CHEVCTRL.reg = 0; // disable event generation
+
+#if 0
+  chregs->
+  	| (0 << 24) // CMD(2)
+  	| (2 << 22) // TRIGACT(2): 0 = block, 2 = beat, 3 = transaction
+  	| (perid <<  8) // TRIGSRC(6): 0 = SW only
+  	| (0 <<  5) // LVL(2):
+  	| (0 <<  4) // EVOE: 1 = event output enable
+  	| (0 <<  3) // EVIE: 1 = event input enable
+  	| (0 <<  0) // EVACT(3):
+  ;
+#endif
+
+  chregs->CHINTENCLR.reg = 0x7;
+
+#endif
+
   // initialize the descriptor
 
   regs->BTCTRL = 0;   // invalidate the channel descriptor
@@ -124,6 +161,8 @@ void THwDmaChannel_atsam_v2::Prepare(bool aistx, void * aperiphaddr, unsigned af
 	periphaddr = aperiphaddr;
 }
 
+#ifdef DMAC_CHID_OFFSET
+
 void THwDmaChannel_atsam_v2::Disable()
 {
 	// TODO: disable interrupts
@@ -137,6 +176,8 @@ void THwDmaChannel_atsam_v2::Enable()
   ctrlregs->CHID.reg = chnum;  // select the channel
   ctrlregs->CHCTRLA.bit.ENABLE = 1;
 }
+
+#endif
 
 void THwDmaChannel_atsam_v2::PrepareTransfer(THwDmaTransfer * axfer)
 {
