@@ -60,6 +60,10 @@
 	#endif
 #endif
 
+#if defined(HWCAN_H_)
+  #include "hwcan_atsam.h"
+#endif
+
 #if defined(HWUSBCTRL_H_) && defined(UDP)
   #include "hwusbctrl_atsam.h"
 #endif

@@ -45,3 +45,7 @@
 #ifdef HWDMA_H_
   #include "hwdma_atsam_v2.h"
 #endif
+
+#ifdef HWCAN_H_
+  #include "hwcan_atsam_v2.h"
+#endif
