@@ -88,6 +88,7 @@ public:
 	// within the same 64k Address Range, because on ATSAME70 they share the upper 16 Address bits
 
 	__IO uint32_t      stdfilters[HWCAN_MAX_FILTERS];
+	__IO uint32_t      extfilters[1];
 	hwcan_rx_fifo_t    rxfifo[HWCAN_RX_FIFO_SIZE];
 	hwcan_tx_fifo_t    txfifo[HWCAN_RX_FIFO_SIZE];
 };

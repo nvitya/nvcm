@@ -31,6 +31,7 @@
 
 #include "platform.h"
 
+void atsam2_gclk_setup(uint8_t genid, uint8_t reference, uint32_t division);
 void atsam2_enable_mclk(bool isahb, uint8_t regid, uint8_t bitid);
 void atsam2_set_periph_gclk(uint32_t perid, uint8_t gclk);
 

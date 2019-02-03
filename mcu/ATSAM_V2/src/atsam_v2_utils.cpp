@@ -72,3 +72,46 @@ void atsam2_set_periph_gclk(uint32_t perid, uint8_t gclk)
 #endif
 }
 
+void atsam2_gclk_setup(uint8_t genid, uint8_t reference, uint32_t division)
+{
+#if defined(MCUSF_DXX)
+
+	GCLK->GENCTRL.reg = 0
+	  | (genid     <<  0)  // ID(4)
+		| (reference <<  8)  // SRC(5)
+		| (1         << 16)  // GENEN
+		| (1         << 17)  // IDC
+		| (1         << 21)  // RUNSTDBY
+	;
+
+	GCLK->GENDIV.reg  = 0
+    | (genid     <<  0)  // ID(4)
+		| ((division - 1)  <<  8)  // DIV(16)
+	;
+
+	while (GCLK->STATUS.bit.SYNCBUSY)
+	{
+		// wait until synced
+	}
+
+#else
+	GCLK->GENCTRL[genid].reg = 0
+		| (reference << 0) // SRC(5)
+		| (1        <<  8) // GENEN: 1 = ENABLE
+		| (1        <<  9) // IDC
+		| (0        << 10) // OOV
+		| (0        << 11) // OE: output enable
+		| (0        << 12) // DIVSEL: 0 = normal division, 1 = 2^DIVSEL division
+		| (1        << 13) // RUNSTDBY: 1 = run in standby
+		| ((division - 1) << 16) // DIV(16)
+	;
+
+	while (GCLK->SYNCBUSY.reg & (1 << (GCLK_SYNCBUSY_GENCTRL0_Pos + genid)))
+	{
+		// wait until synced
+	}
+
+#endif
+
+}
+

@@ -92,6 +92,14 @@
 #define PINCFG_AF_F        0x150000
 #define PINCFG_AF_G        0x160000
 #define PINCFG_AF_H        0x170000
+#define PINCFG_AF_I        0x180000
+#define PINCFG_AF_J        0x190000
+#define PINCFG_AF_K        0x1A0000
+#define PINCFG_AF_L        0x1B0000
+#define PINCFG_AF_M        0x1C0000
+#define PINCFG_AF_N        0x1D0000
+#define PINCFG_AF_O        0x1E0000
+#define PINCFG_AF_P        0x1F0000
 
 class THwPinCtrl_pre
 {

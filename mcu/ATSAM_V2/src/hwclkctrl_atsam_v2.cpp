@@ -28,6 +28,7 @@
 
 #include "platform.h"
 #include "hwclkctrl.h"
+#include "atsam_v2_utils.h"
 
 bool THwClkCtrl_atsam_v2::ExtOscReady()
 {
@@ -150,53 +151,59 @@ void THwClkCtrl_atsam_v2::PrepareHiSpeed(unsigned acpuspeed)
 #endif
 }
 
+// GCLK allocation:
+//   GCLK0: CPU Clock and Main Peripheral clock (DFPLL / DPLL)
+//   GCLK1: reserved for low frequencies (only this GCLK has 16 bit divider)
+//   GCLK2: -
+//   GCLK3: 32 kHz Slow Clock
+
 bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed)
 {
+#if defined(MCUSF_DXX)
+	uint32_t dfll48id = 7;
+	uint32_t pllid = 8;
+#else
+	uint32_t dfll48id = 6;
+	uint32_t pllid = 7;
+#endif
+
+	uint32_t xoscid = 0;
+
 	if (!aextosc)
 	{
-		// use the 48 MHz internal oscillator
+		// use the internal 48 MHz oscillator
+
 		abasespeed = 48000000;
 
-		uint32_t speeddiv = abasespeed / acpuspeed;
-		if (speeddiv > 0)  --speeddiv;
+		uint32_t division = abasespeed / acpuspeed;
+		if (division < 1)  division = 1;
 
-#if defined(MCUSF_DXX)
-		// GCLK0: main clock
-		GCLK->GENCTRL.reg = 0x00010700; // Select DFLL48M
-		GCLK->GENDIV.reg  = speeddiv;
-#else
-		GCLK->GENCTRL[0].reg = 0
-		  | (speeddiv << 16) // set the division
-		  | (1 << 8) // enable
-		  | (6 << 0) // select DFLL48
-		;
-#endif
+		atsam2_gclk_setup(0, dfll48id, division);  // use the DFLL48M directly as main clock (GCLK0)
 	}
 	else
 	{
-		// Setup DPLL0
+		// The DPLLs have the maximum reference input clock frequency of 2 MHz (3.2 MHz on E5X)
+		// so we have to divide the XOSC clock to 2 MHz, a fix /2 is included
 
-		uint32_t tmpldr;
-		uint8_t  tmpldrfrac;
+		unsigned refdiv = abasespeed / (2 * 2000000);  // divisor for 2 MHz
+		if (refdiv < 1)  refdiv = 1;
 
-		unsigned refclk;
-		unsigned refdiv = 0;
-		refclk = abasespeed / (2 * (refdiv + 1));
+		uint32_t cpumul = acpuspeed / 2000000;
 
-		// Calculate LDRFRAC and LDR
-		tmpldr = (acpuspeed << 4) / refclk;
-		tmpldrfrac = tmpldr & 0x0f;
-		tmpldr = (tmpldr >> 4) - 1;
+		// the fractional divider won't be used because it makes jitter
 
 #if defined(MCUSF_E5X)
 
-		OSCCTRL->Dpll[0].DPLLRATIO.reg = (tmpldr << 0) | (tmpldrfrac << 16);
+		OSCCTRL->Dpll[0].DPLLRATIO.reg = 0
+			| ((cpumul - 1) <<  0)  // LDR(13): loop divider
+			| (0            << 16)  // LDRFRAC(5): fractional
+		;
 
 		OSCCTRL->Dpll[0].DPLLCTRLB.reg = 0
-			| (refdiv << 16)
-			| (1 << 11)  // Lock bypass
-			| (0 <<  8)  // lock time
-			| (2 <<  5)  // reference clock
+			| ((refdiv - 1) << 16)  // DIV(11): reference divisor = (2 * (DIV + 1))
+			| (1      << 11)  // LBYPASS: Lock bypass
+			| (0      <<  8)  // LTIME(3): lock time
+			| (2      <<  5)  // REFCLK(3): 2 = XOSC0
 		;
 
 		OSCCTRL->Dpll[0].DPLLCTRLA.reg = (1 << 6) | (1 << 1);  // run in standby, enable
@@ -206,23 +213,18 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 			// wait for lock
 		}
 
-		// set up DPLL0 as main clock
-		//GCLK->GENCTRL[0].reg = 0x00000100; // select XOSC0
-		//GCLK->GENCTRL[0].reg = 0x00000106; // select DFLL48
-		GCLK->GENCTRL[0].reg = 0x00010107; // select DPLL0
-		while (GCLK->SYNCBUSY.bit.GENCTRL0)
-		{
-			// wait until synced
-		}
 #elif defined(MCUSF_C2X)
 
-		OSCCTRL->DPLLRATIO.reg = (tmpldr << 0) | (tmpldrfrac << 16);
+		OSCCTRL->DPLLRATIO.reg = 0
+			| ((cpumul - 1) <<  0)  // LDR(13): loop divider
+			| (0            << 16)  // LDRFRAC(5): fractional
+		;
 
 		OSCCTRL->DPLLCTRLB.reg = 0
-			| (refdiv << 16)
-			| (0 << 12)  // Lock bypass
-			| (0 <<  8)  // lock time
-			| (1 <<  4)  // reference clock, 1 = XOSC
+			| (refdiv << 16)  // DIV(11): reference divisor = (2 * (DIV + 1))
+			| (1      << 11)  // LBYPASS: Lock bypass
+			| (0      <<  8)  // LTIME(3): lock time
+			| (2      <<  5)  // REFCLK(3): 2 = XOSC0
 		;
 
 		OSCCTRL->DPLLCTRLA.reg = (1 << 6) | (1 << 1);  // run in standby, enable
@@ -232,21 +234,16 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 			// wait for lock
 		}
 
-		// set up DPLL0 as main clock
-		GCLK->GENCTRL[0].reg = 0x00010107; // select DPLL96
-		while (GCLK->SYNCBUSY.bit.GENCTRL & (1 << (2 + 0))) // wait until GENCLK SYNC 0 busy
-		{
-			// wait until synced
-		}
 #else
 
 	  return false; // PLL is not implemented for this family
 
 #endif
 
+		atsam2_gclk_setup(0, pllid, 1);  // use the PLL as main clock (GCLK0)
 	}
 
-	// setup other GCLK
+	// Other setups
 
 #if defined(MCUSF_E5X)
 
@@ -256,27 +253,17 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 	//MCLK->APBBMASK.bit.RAMECC_ = 0;
 
 	// use GCLK3 as slow clock from the internal 32k source
-	GCLK->GENCTRL[3].reg = 0x00010104;
-	while (GCLK->SYNCBUSY.bit.GENCTRL3)
-	{
-		// wait until synced
-	}
+	atsam2_gclk_setup(3, 4, 1);
 
-	// turn on the slow clock, some peripherals require it
+	// turn on the slow clock, some peripherals (e.g. SERCOM) require it
 	GCLK->PCHCTRL[3].reg = 0x00000043;
-
 
 #elif defined(MCUSF_C2X)
 
 	MCLK->CPUDIV.reg = 1;
 
 	// use GCLK3 as slow clock from the internal 32k source
-	GCLK->GENCTRL[3].reg = 0x00010104;
-	while (GCLK->SYNCBUSY.bit.GENCTRL & (1 << (2 + 3)))  // wait until GENCLK SYNC 3 busy
-	{
-		// wait until synced
-	}
-
+	atsam2_gclk_setup(3, 4, 1);
 
 #elif defined(MCUSF_DXX)
 

@@ -101,6 +101,13 @@ bool THwCan_atsam_v2::HwInit(int adevnum)
 
 	regs->XIDFC.reg = 0; // no extended filters
 
+	regs->GFC.reg = 0
+		| (1 << 0)  // RRFE: 1 = reject remote frames with extended ID
+		| (1 << 1)  // RRFS: 1 = reject remote frames with standard ID
+		| (3 << 2)  // ANFE(2): 3 = reject non-matching extended ID
+		| (3 << 4)  // ANFS(2): 3 = reject non-matching standard ID
+	;
+
 	regs->RXF0C.reg = 0 // RX FIFO
 		| (((uint32_t)(&rxfifo[0]) & 0xFFFF) << 0)
 		| (HWCAN_RX_FIFO_SIZE << 16)

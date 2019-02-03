@@ -96,7 +96,17 @@ bool THwCan_atsam::HwInit(int adevnum)
 		| (HWCAN_MAX_FILTERS << 16)
 	;
 
-	regs->MCAN_XIDFC = 0; // no extended filters
+	regs->MCAN_XIDFC = 0 // no extended filters
+		| (((uint32_t)(&extfilters[0]) & 0xFFFF) << 0)
+		| (0 << 16)
+	;
+
+	regs->MCAN_GFC = 0
+		| (1 << 0)  // RRFE: 1 = reject remote frames with extended ID
+		| (1 << 1)  // RRFS: 1 = reject remote frames with standard ID
+		| (3 << 2)  // ANFE(2): 3 = reject non-matching extended ID
+		| (3 << 4)  // ANFS(2): 3 = reject non-matching standard ID
+	;
 
 	regs->MCAN_RXF0C = 0 // RX FIFO
 		| (((uint32_t)(&rxfifo[0]) & 0xFFFF) << 0)
@@ -156,16 +166,16 @@ bool THwCan_atsam::HwInit(int adevnum)
 
 
 	uint32_t bitclocks = periphclock / (brp * speed);
-	while (bitclocks > 80)
+	while (bitclocks > 48)
 	{
 		++brp;
 		bitclocks = periphclock / (brp * speed);
 	}
 
-	ts2 = (bitclocks - 3) / 4;
+	ts2 = (bitclocks - 1) / 3;
 	if (ts2 > 16) ts2 = 16;
 	if (ts2 < 1) ts2 = 1;
-	ts1 = bitclocks - 3 - ts2;  // should not be bigger than 64
+	ts1 = bitclocks - 1 - ts2;  // should not be bigger than 64
 
 	// normal bit timing
 	regs->MCAN_BTP = 0
@@ -194,6 +204,7 @@ void THwCan_atsam::Enable()
 {
 	regs->MCAN_CCCR &= ~MCAN_CCCR_CCE;
 	regs->MCAN_CCCR &= ~MCAN_CCCR_INIT;
+	//while (regs->MCAN_CCCR & MCAN_CCCR_INIT) { }
 }
 
 void THwCan_atsam::HandleTx()
@@ -221,7 +232,7 @@ void THwCan_atsam::HandleTx()
 		txmb->DATAL = *(uint32_t *)&msg.data[0]; // must be aligned
 		txmb->DATAH = *(uint32_t *)&msg.data[4];
 		txmb->DLC = (msg.len << 16);
-		txmb->IDFL = (msg.cobid << 0);
+		txmb->IDFL = (msg.cobid << 18);
 
 		regs->MCAN_TXBAR = (1 << tpi); // add the transmit request
 	}
@@ -245,7 +256,7 @@ void THwCan_atsam::HandleRx()
 
 		TCanMsg msg;
 
-		msg.cobid = ((rxmb->ID >> 0) & 0x7FF);
+		msg.cobid = ((rxmb->ID >> 18) & 0x7FF);
 		*((uint32_t *)&(msg.data[0])) = rxmb->DATAL;
 		*((uint32_t *)&(msg.data[4])) = rxmb->DATAH;
 		uint32_t dt = rxmb->DLCTS;
