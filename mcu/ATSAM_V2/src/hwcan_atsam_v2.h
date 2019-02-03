@@ -66,6 +66,7 @@ public: // mandatory
 	bool HwInit(int adevnum);
 
 	void Enable();
+	void Disable();
 	bool Enabled();
 
 	void HandleTx();

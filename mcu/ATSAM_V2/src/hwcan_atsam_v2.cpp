@@ -208,6 +208,11 @@ void THwCan_atsam_v2::Enable()
 	regs->CCCR.bit.INIT = 0;
 }
 
+void THwCan_atsam_v2::Disable()
+{
+	regs->CCCR.bit.INIT = 1;
+}
+
 void THwCan_atsam_v2::HandleTx()
 {
 	if (HasTxMessage())

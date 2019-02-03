@@ -114,6 +114,7 @@ public: // mandatory
 	bool IsWarning()                                  { return false; }
 
 	void Enable()                                     { }
+	void Disable()                                    { }
 	bool Enabled()                                    { return false; }
 };
 

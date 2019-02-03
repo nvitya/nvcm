@@ -66,6 +66,7 @@ public: // mandatory
 	bool HwInit(int adevnum);
 
 	void Enable();
+	void Disable();
 	bool Enabled();
 
 	void HandleTx();
@@ -76,6 +77,8 @@ public: // mandatory
 
 	bool IsBusOff();
 	bool IsWarning();
+
+	void SetSpeed(uint32_t aspeed);
 
 public:
 	HW_CAN_REGS *      regs = nullptr;

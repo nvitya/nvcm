@@ -77,7 +77,19 @@ bool THwCan_atsam::HwInit(int adevnum)
 
 	atsam_enable_peripheral(perid);
 
-	unsigned periphclock = atsam_peripheral_clock();
+#ifdef MCUSF_E70
+
+	// the internal PCK5 provides the clock for the MCAN units
+	// set it to the main clock (MCK)
+
+	PMC->PMC_PCK[5] = 0
+		| (4 << 0)  // CSS(3): 4 = MCK
+		| (0 << 4)  // PRES(8): divisor - 1
+	;
+
+	PMC->PMC_SCER = (1 << (8 + 5)); // enable PCK5
+
+#endif
 
 	// set to init mode
 	regs->MCAN_CCCR |= MCAN_CCCR_INIT;
@@ -154,9 +166,31 @@ bool THwCan_atsam::HwInit(int adevnum)
 		| (0 << 15)  // NISO: Non-Iso Operation, 0 = ISO operation
 	;
 
+	SetSpeed(speed);
+
+	regs->MCAN_ILE = 1;    // enable interrupt 1 only
+
+	return true;
+}
+
+void THwCan_atsam::SetSpeed(uint32_t aspeed)
+{
+	bool wasenabled = Enabled();
+	if (wasenabled)
+	{
+		Disable();
+		regs->MCAN_CCCR |= MCAN_CCCR_CCE;
+	}
+
+	speed = aspeed;
+
+	unsigned periphclock = atsam_peripheral_clock();
 
 	uint32_t brp = 1;
 	uint32_t ts1, ts2;
+
+	uint32_t ts2max = 128;
+	uint32_t maxbitclocks = 3 * ts2max;
 
 	// timing:
   //   1 + ts1 + ts2 = total number of clocks for one CAN bit time
@@ -166,45 +200,45 @@ bool THwCan_atsam::HwInit(int adevnum)
 
 
 	uint32_t bitclocks = periphclock / (brp * speed);
-	while (bitclocks > 48)
+	while (bitclocks > maxbitclocks)
 	{
 		++brp;
 		bitclocks = periphclock / (brp * speed);
 	}
 
-	ts2 = (bitclocks - 1) / 3;
-	if (ts2 > 16) ts2 = 16;
+	uint32_t fixbits = 1;
+
+	ts2 = (bitclocks - fixbits) / 3;
+	if (ts2 > ts2max) ts2 = ts2max;
 	if (ts2 < 1) ts2 = 1;
-	ts1 = bitclocks - 1 - ts2;  // should not be bigger than 64
+	ts1 = bitclocks - fixbits - ts2;  // should not be bigger than 48
 
-	// normal bit timing
+	// warning! the old ATSAM documentation (with Atmel logo) is wrong about the content of this register !
+
 	regs->MCAN_BTP = 0
-    | (3         <<  0)  // SJW(4): Resynchronization jump width
-    | ((ts2 - 1) <<  4)  // TSEG2(4):
-	  | ((ts1 - 1) <<  8)  // TSEG1(6):
-	  | ((brp - 1) << 16)  // BRP(10): baud rate prescaler
+		| (3         << 25)  // NSJW(7): Resynchronization jump width
+		| ((brp - 1) << 16)  // NBRP(9): baud rate prescaler
+		| ((ts1 - 1) <<  8)  // NTSEG1(8):
+		| ((ts2 - 1) <<  0)  // NTSEG2(7):
 	;
 
-	// fast bit timing (not used)
-	regs->MCAN_FBTP = 0
-    | (3         <<  0)  // SJW(4): Resynchronization jump width
-    | ((ts2 - 1) <<  4)  // TSEG2(4):
-	  | ((ts1 - 1) <<  8)  // TSEG1(6):
-	  | ((brp - 1) << 16)  // BRP(10): baud rate prescaler
-	  | (0         << 23)  // TDC: 1 = Transceiver Delay Compensation Enabled
-	  | (0         << 24)  // TDCO(5):  Transceiver Delay Compensation Offset
-	;
-
-	regs->MCAN_ILE = 1;    // enable interrupt 1 only
-
-	return true;
+	if (wasenabled)
+	{
+		Enable();
+	}
 }
 
 void THwCan_atsam::Enable()
 {
 	regs->MCAN_CCCR &= ~MCAN_CCCR_CCE;
 	regs->MCAN_CCCR &= ~MCAN_CCCR_INIT;
-	//while (regs->MCAN_CCCR & MCAN_CCCR_INIT) { }
+	while (regs->MCAN_CCCR & MCAN_CCCR_INIT) { }
+}
+
+void THwCan_atsam::Disable()
+{
+	regs->MCAN_CCCR |= MCAN_CCCR_INIT;
+	while ((regs->MCAN_CCCR & MCAN_CCCR_INIT) == 0) { }
 }
 
 void THwCan_atsam::HandleTx()
