@@ -94,6 +94,25 @@ bool THwCan_atsam_v2::HwInit(int adevnum)
 	memset((void *)&rxfifo[0], 0, sizeof(rxfifo));
 	memset((void *)&txfifo[0], 0, sizeof(txfifo));
 
+	regs->CCCR.reg = 0
+		| (1 <<  0)  // INIT: 1 = initialization mode
+		| (1 <<  1)  // CCE: Configuration Change Enable, 0 = protected, 1 = configurable
+		| (0 <<  2)  // ASM: Restricted Operation Mode, 0 = normal mode
+		| (0 <<  3)  // CSA: Clock Stop Acknowledge(ro)
+		| (0 <<  4)  // CSR: Clock Stop Request
+		| (0 <<  5)  // MON: Bus Monitoring Mode, 0 = disabled
+		| (0 <<  6)  // DAR: Disable Automatic Retransmission, 0 = automati retransmit enabled
+		| (0 <<  7)  // TEST: Test Mode Enable
+		| (0 <<  8)  // FDOE: CAN FD Operation Enable, 0 = disabled
+		| (0 <<  9)  // BRSE: Bit Rate Switching Enable, 0 = disabled
+		| (0 << 12)  // PXHD: 0 = Protocol exception handling enabled
+		| (0 << 13)  // EFBI: Edge Filtering during Bus Integration, 0 = disabled
+		| (0 << 14)  // TXP: Tranmit Pause, 0 = disabled
+		| (0 << 15)  // NISO: Non-Iso Operation, 0 = ISO operation
+	;
+
+	regs->MRCFG.reg = 0; // no sensitive operation
+
 	regs->SIDFC.reg = 0 // standard filters
 		| (((uint32_t)(&stdfilters[0]) & 0xFFFF) << 0)
 		| (HWCAN_MAX_FILTERS << 16)
@@ -136,23 +155,6 @@ bool THwCan_atsam_v2::HwInit(int adevnum)
 	;
 
 	regs->TOCC.reg = 0; // disable timeout counter
-
-	regs->CCCR.reg = 0
-		| (1 <<  0)  // INIT: 1 = initialization mode
-		| (1 <<  1)  // CCE: Configuration Change Enable, 0 = protected, 1 = configurable
-		| (0 <<  2)  // ASM: Restricted Operation Mode, 0 = normal mode
-		| (0 <<  3)  // CSA: Clock Stop Acknowledge(ro)
-		| (0 <<  4)  // CSR: Clock Stop Request
-		| (0 <<  5)  // MON: Bus Monitoring Mode, 0 = disabled
-		| (0 <<  6)  // DAR: Disable Automatic Retransmission, 0 = automati retransmit enabled
-		| (0 <<  7)  // TEST: Test Mode Enable
-		| (0 <<  8)  // FDOE: CAN FD Operation Enable, 0 = disabled
-		| (0 <<  9)  // BRSE: Bit Rate Switching Enable, 0 = disabled
-		| (0 << 12)  // PXHD: 0 = Protocol exception handling enabled
-		| (0 << 13)  // EFBI: Edge Filtering during Bus Integration, 0 = disabled
-		| (0 << 14)  // TXP: Tranmit Pause, 0 = disabled
-		| (0 << 15)  // NISO: Non-Iso Operation, 0 = ISO operation
-	;
 
 
 	uint32_t brp = 1;

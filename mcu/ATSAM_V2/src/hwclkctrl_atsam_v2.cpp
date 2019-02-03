@@ -201,9 +201,9 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 
 		OSCCTRL->Dpll[0].DPLLCTRLB.reg = 0
 			| ((refdiv - 1) << 16)  // DIV(11): reference divisor = (2 * (DIV + 1))
-			| (1      << 11)  // LBYPASS: Lock bypass
-			| (0      <<  8)  // LTIME(3): lock time
-			| (2      <<  5)  // REFCLK(3): 2 = XOSC0
+			| (1            << 11)  // LBYPASS: Lock bypass
+			| (0            <<  8)  // LTIME(3): lock time
+			| (2            <<  5)  // REFCLK(3): 2 = XOSC0
 		;
 
 		OSCCTRL->Dpll[0].DPLLCTRLA.reg = (1 << 6) | (1 << 1);  // run in standby, enable
@@ -221,10 +221,10 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 		;
 
 		OSCCTRL->DPLLCTRLB.reg = 0
-			| (refdiv << 16)  // DIV(11): reference divisor = (2 * (DIV + 1))
-			| (1      << 11)  // LBYPASS: Lock bypass
-			| (0      <<  8)  // LTIME(3): lock time
-			| (2      <<  5)  // REFCLK(3): 2 = XOSC0
+			| ((refdiv - 1) << 16)  // DIV(11): reference divisor = (2 * (DIV + 1))
+			| (1            << 11)  // LBYPASS: Lock bypass
+			| (0            <<  8)  // LTIME(3): lock time
+			| (2            <<  5)  // REFCLK(3): 2 = XOSC0
 		;
 
 		OSCCTRL->DPLLCTRLA.reg = (1 << 6) | (1 << 1);  // run in standby, enable
