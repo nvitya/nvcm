@@ -49,6 +49,9 @@ public:
 	bool DmaStartSend(THwDmaTransfer * axfer);
 	bool DmaStartRecv(THwDmaTransfer * axfer);
 
+	bool DmaSendCompleted();
+	bool DmaRecvCompleted();
+
 public:
 	HW_SPI_REGS *      regs = nullptr;
 };

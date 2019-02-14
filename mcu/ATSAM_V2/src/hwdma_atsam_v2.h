@@ -77,6 +77,7 @@ public:
 	inline void Enable()  { chregs->CHCTRLA.bit.ENABLE = 1; }
 #endif
 	inline bool Enabled() { return ((wbregs->BTCTRL & 1) != 0); }
+	//inline bool Enabled() { return (chregs->CHSTATUS.bit.BUSY != 0); }
 	inline bool Active()  { return Enabled(); }
 
 	void PrepareTransfer(THwDmaTransfer * axfer);

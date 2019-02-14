@@ -119,7 +119,7 @@ bool THwDmaChannel_atsam_v2::Init(int achnum, int aperid)  // perid = peripheral
   chregs->CHCTRLA.reg = 0
   	| (0 << 28)  // THESHOLD(2): 0 = 1 beat
   	| (0 << 24)  // BURSTLEN(4): 0 = single
-  	| (0 << 20)  // TRIGACT(2): 0 = block, 2 = burst/beat, 3 = transaction
+  	| (2 << 20)  // TRIGACT(2): 0 = block, 2 = burst/beat, 3 = transaction
   	| (perid <<  8)  // TRIGSRC(8):
   	| (1 <<  6)  // RUNSTDBY:
   	| (0 <<  1)  // ENABLE:
@@ -128,18 +128,6 @@ bool THwDmaChannel_atsam_v2::Init(int achnum, int aperid)  // perid = peripheral
 
   chregs->CHPRILVL.reg = priority;
   chregs->CHEVCTRL.reg = 0; // disable event generation
-
-#if 0
-  chregs->
-  	| (0 << 24) // CMD(2)
-  	| (2 << 22) // TRIGACT(2): 0 = block, 2 = beat, 3 = transaction
-  	| (perid <<  8) // TRIGSRC(6): 0 = SW only
-  	| (0 <<  5) // LVL(2):
-  	| (0 <<  4) // EVOE: 1 = event output enable
-  	| (0 <<  3) // EVIE: 1 = event input enable
-  	| (0 <<  0) // EVACT(3):
-  ;
-#endif
 
   chregs->CHINTENCLR.reg = 0x7;
 

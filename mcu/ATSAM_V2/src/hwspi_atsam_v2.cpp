@@ -24,12 +24,19 @@
  *  version:  1.00
  *  date:     2019-01-17
  *  authors:  nvitya
+ *  notes:
+ *    the SERCOM pads are used as follows:
+ *      pad 0 = MOSI
+ *      pad 1 = SCK
+ *      pad 2 = CS
+ *      pad 3 = MISO
 */
 
 #include <stdio.h>
 #include <stdarg.h>
 
 #include "hwspi_atsam_v2.h"
+#include "hwspi.h"  // for eclipse indexer
 
 static const Sercom * sercom_inst_list[] = SERCOM_INSTS;
 
@@ -143,7 +150,7 @@ bool THwSpi_atsam_v2::Init(int adevnum)  // devnum: 0 - 7 = SERCOM ID
 		| (0 << 28)  // CPHA: 1 = late sample
 		| (0 << 24)  // FORM(4): frame format, 0 = SPI, 2 = SPI with address
 		| (3 << 20)  // DIPO(2): Data In Pinout, pad select for MISO
-		| (0 << 20)  // DOPO(2): Data Out Pinout, 0 = P0:MOSI|P1:SCK|P2:SS
+		| (0 << 16)  // DOPO(2): Data Out Pinout, 0 = P0:MOSI|P1:SCK|P2:SS
 		| (0 <<  8)  // IBON: Immediate Buffer Overflow Notification
 		| (0 <<  7)  // RUNSTDBY: Run In Standby, 1 = run in stdby
 		| (3 <<  2)  // MODE(3): Mode, 3 = SPI Master
@@ -156,6 +163,8 @@ bool THwSpi_atsam_v2::Init(int adevnum)  // devnum: 0 - 7 = SERCOM ID
 	if (datasample_late)  tmp |= (1 << 28);
 
 	regs->CTRLA.reg = tmp;
+	regs->CTRLC.reg = (0 << 24);
+
 	regs->DBGCTRL.reg = 0;
 
 	while (regs->SYNCBUSY.bit.ENABLE) { } // wait for enable
@@ -231,6 +240,29 @@ bool THwSpi_atsam_v2::DmaStartRecv(THwDmaTransfer * axfer)
 
 	return true;
 }
+
+bool THwSpi_atsam_v2::DmaSendCompleted()
+{
+	if (txdma && txdma->Active())
+	{
+		// Send DMA is still active
+		return false;
+	}
+
+	return SendFinished();
+}
+
+bool THwSpi_atsam_v2::DmaRecvCompleted()
+{
+	if (rxdma && rxdma->Active())
+	{
+		// Recv DMA is still active
+		return false;
+	}
+
+	return true;
+}
+
 
 
 

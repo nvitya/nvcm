@@ -125,6 +125,22 @@ void THwClkCtrl_atsam_v2::PrepareHiSpeed(unsigned acpuspeed)
 
 	// automatic Flash wait state is enabled by default
 
+#if defined(CMCC)
+
+	// this family has a slow flash system, which can degrade the execution speed below 50%
+
+	// enable cache, with data cacheing disabled
+
+	CMCC->CTRL.reg = 0;
+	while (CMCC->SR.bit.CSTS) // wait until the cache is disabled
+
+	CMCC->CFG.bit.DCDIS = 1; // disable data cacheing
+	CMCC->CFG.bit.ICDIS = 0; // enable instruction cacheing
+
+	CMCC->CTRL.reg = 1;
+
+#endif
+
 #elif defined(MCUSF_C2X) || defined(MCUSF_DXX)
 
 	if (acpuspeed > 38000000)
@@ -145,10 +161,6 @@ void THwClkCtrl_atsam_v2::PrepareHiSpeed(unsigned acpuspeed)
   #warning "unimplemented FLASH wait states !"
 #endif
 
-	// enable cache
-#if defined(CMCC)
-	CMCC->CTRL.bit.CEN = 1;
-#endif
 }
 
 // GCLK allocation:
