@@ -75,7 +75,7 @@ The microcontroller vendors produce a lot of different microcontrollers. They mi
 __Family__   | __Sub-Family__
 -------------|------------------------
 __ATSAM__    | [3X, 4S, E70/S70/V70](https://github.com/nvitya/nvcm/blob/master/mcu/ATSAM/src/mcu_builtin.h)
-__ATSAM_V2__ | [D51/E5x, D10](https://github.com/nvitya/nvcm/blob/master/mcu/ATSAM_V2/src/mcu_builtin.h)
+__ATSAM_V2__ | [D51/E5x, C2x, D10](https://github.com/nvitya/nvcm/blob/master/mcu/ATSAM_V2/src/mcu_builtin.h)
 __IMXRT__    | [IMXRT1020](https://github.com/nvitya/nvcm/blob/master/mcu/IMXRT/src/mcu_builtin.h)
 __KINETIS__  | [K20, KL03, KV30](https://github.com/nvitya/nvcm/blob/master/mcu/KINETIS/src/mcu_builtin.h)
 __LPC__      | [LPC43xx](https://github.com/nvitya/nvcm/blob/master/mcu/LPC/src/mcu_builtin.h)
@@ -88,21 +88,22 @@ __XMC__      | [XMC1xxx](https://github.com/nvitya/nvcm/blob/master/mcu/XMC/src/
 
 #### Main MCUs
 
-  Family     | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __UART__ | __DMA__ | __SPI__ | __I2C__ | __ADC__ | __QSPI__
--------------|-----------------------|-------------------|----------|---------|---------|---------|---------|---------
-__ATSAM__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK      | OK
-__LPC__      | OK                    | OK                | OK       | OK      | Master  | -       | OK      | OK
-__STM32__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK      | OK
+  Family     | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __UART__ | __DMA__ | __SPI__ | __I2C__ | __ADC__ | __QSPI__ | __CAN__
+-------------|-----------------------|-------------------|----------|---------|---------|---------|---------|----------|---------
+__ATSAM__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK      | OK       | OK
+__ATSAM_V2__ | OK                    | OK                | OK       | OK      | Master  | -       | -       | OK       | OK
+__LPC__      | OK                    | OK                | OK       | OK      | Master  | -       | OK      | OK       | -
+__STM32__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK      | OK       | OK
 
 #### Experimental MCUs
 
   Family     | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __UART__ | __DMA__ | __SPI__ | __I2C__ | __ADC__ | __QSPI__
 -------------|-----------------------|-------------------|----------|---------|---------|---------|---------|---------
-__ATSAM_V2__ | OK                    | OK                | OK       | -       | -       | -       | -       | -
 __IMXRT__    | OK                    | OK                | OK       | -       | -       | -       | -       | -
 __KINETIS__  | OK                    | partial           | OK       | -       | -       | -       | -       | -
 __LPC_V2__   | OK                    | restricted        | OK       | -       | -       | -       | -       | -
 __LPC_V3__   | OK                    | OK                | OK       | OK      | Master  | -       | -       | -
+__XMC__      | OK                    | OK                | OK       | -       | Master  | -       | -       | -
 
 ### Planned Drivers
  * Simple PWM

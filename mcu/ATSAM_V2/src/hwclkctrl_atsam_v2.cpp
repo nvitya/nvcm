@@ -131,13 +131,13 @@ void THwClkCtrl_atsam_v2::PrepareHiSpeed(unsigned acpuspeed)
 
 	// enable cache, with data cacheing disabled
 
+	// data cacheing can provide quite problematic effects specially with DMA, so its better to keep it off
+
 	CMCC->CTRL.reg = 0;
-	while (CMCC->SR.bit.CSTS) // wait until the cache is disabled
-
-	CMCC->CFG.bit.DCDIS = 1; // disable data cacheing
+	while (CMCC->SR.bit.CSTS) { } // wait until the cache is disabled
+	CMCC->CFG.bit.DCDIS = 1; // disable Data cacheing
 	CMCC->CFG.bit.ICDIS = 0; // enable instruction cacheing
-
-	CMCC->CTRL.reg = 1;
+	CMCC->CTRL.reg = 1; // enable the cache module
 
 #endif
 

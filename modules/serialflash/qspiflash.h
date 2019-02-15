@@ -52,8 +52,8 @@ public:
 
 protected:
 	// smaller buffers for simple things
-	unsigned char  txbuf[8];
-	unsigned char  rxbuf[8];
+	unsigned char  txbuf[8]  __attribute__((aligned(4)));
+	unsigned char  rxbuf[8]  __attribute__((aligned(4)));
 
 	unsigned       curcmdlen = 0;
 

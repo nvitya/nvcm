@@ -91,6 +91,9 @@ bool THwDmaChannel_atsam_v2::Init(int achnum, int aperid)  // perid = peripheral
   regs = &dma_channel_descriptors[chnum];
   wbregs = &dma_channel_wb_descriptors[chnum];
 
+  uint32_t trigact = 2; // TRIGACT(2): 0 = block, 2 = beat, 3 = transaction
+  if (perid == 0)	trigact = 3; // for sw triggers run the whole transaction through
+
 #ifdef DMAC_CHID_OFFSET
 
   ctrlregs->CHID.reg = chnum;  // select the channel
@@ -100,8 +103,8 @@ bool THwDmaChannel_atsam_v2::Init(int achnum, int aperid)  // perid = peripheral
 
   ctrlregs->CHCTRLB.reg = 0
   	| (0 << 24) // CMD(2)
-  	| (2 << 22) // TRIGACT(2): 0 = block, 2 = beat, 3 = transaction
-  	| (perid <<  8) // TRIGSRC(6): 0 = SW only
+  	| (trigact << 22) // TRIGACT(2): 0 = block, 2 = beat, 3 = transaction
+  	| (perid   <<  8) // TRIGSRC(6): 0 = SW only
   	| (0 <<  5) // LVL(2):
   	| (0 <<  4) // EVOE: 1 = event output enable
   	| (0 <<  3) // EVIE: 1 = event input enable
@@ -119,8 +122,8 @@ bool THwDmaChannel_atsam_v2::Init(int achnum, int aperid)  // perid = peripheral
   chregs->CHCTRLA.reg = 0
   	| (0 << 28)  // THESHOLD(2): 0 = 1 beat
   	| (0 << 24)  // BURSTLEN(4): 0 = single
-  	| (2 << 20)  // TRIGACT(2): 0 = block, 2 = burst/beat, 3 = transaction
-  	| (perid <<  8)  // TRIGSRC(8):
+  	| (trigact << 20)  // TRIGACT(2): 0 = block, 2 = burst/beat, 3 = transaction
+  	| (perid   <<  8)  // TRIGSRC(8):
   	| (1 <<  6)  // RUNSTDBY:
   	| (0 <<  1)  // ENABLE:
   	| (0 <<  0)  // SWRST:
@@ -163,6 +166,16 @@ void THwDmaChannel_atsam_v2::Enable()
 	// TODO: disable interrupts
   ctrlregs->CHID.reg = chnum;  // select the channel
   ctrlregs->CHCTRLA.bit.ENABLE = 1;
+
+  if (perid == 0)  ctrlregs->SWTRIGCTRL.reg |= chbit; // software trigger
+}
+
+#else
+
+void THwDmaChannel_atsam_v2::Enable()
+{
+	chregs->CHCTRLA.bit.ENABLE = 1;
+  if (perid == 0) 	ctrlregs->SWTRIGCTRL.reg |= chbit; // software trigger
 }
 
 #endif

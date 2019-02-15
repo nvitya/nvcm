@@ -439,7 +439,7 @@ void TQspiFlash::Run()
 void TQspiFlash::StartReadStatus()
 {
 	statusreg = 0xFFFFFFFF;
-	qspi.StartReadData(0x05, 0, &statusreg, 1);
+	qspi.StartReadData(0x05, 0, &statusreg, 4);  // some QSPI drivers support only 32 bit access
 }
 
 void TQspiFlash::StartWriteEnable()

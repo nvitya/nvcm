@@ -69,12 +69,12 @@ public:
 	bool Init(int achnum, int aperid);
 
 	void Prepare(bool aistx, void * aperiphaddr, unsigned aflags);
+	void Enable();
+
 #ifdef DMAC_CHID_OFFSET
   void Disable();
-	void Enable();
 #else
   inline void Disable() { chregs->CHCTRLA.bit.ENABLE = 0; }
-	inline void Enable()  { chregs->CHCTRLA.bit.ENABLE = 1; }
 #endif
 	inline bool Enabled() { return ((wbregs->BTCTRL & 1) != 0); }
 	//inline bool Enabled() { return (chregs->CHSTATUS.bit.BUSY != 0); }

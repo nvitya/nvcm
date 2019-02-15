@@ -1,6 +1,6 @@
 /* -----------------------------------------------------------------------------
  * This file is a part of the NVCM project: https://github.com/nvitya/nvcm
- * Copyright (c) 2018 Viktor Nagy, nvitya
+ * Copyright (c) 2019 Viktor Nagy, nvitya
  *
  * This software is provided 'as-is', without any express or implied warranty.
  * In no event will the authors be held liable for any damages arising from
@@ -19,37 +19,46 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (ATSAM_V2)
- *  brief:    ATSAM_V2 list of implemented NVCM core peripherals
+ *  file:     hwqspi_atsam_v2.h
+ *  brief:    ATSAM_V2 QSPI
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-02-15
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_atsam_v2.h"
+#ifndef HWQSPI_ATSAM_V2_H_
+#define HWQSPI_ATSAM_V2_H_
+
+#include "platform.h"
+
+#ifdef QSPI
+
+#define HWQSPI_PRE_ONLY
+#include "hwqspi.h"
+
+class THwQspi_atsam_v2 : public THwQspi_pre
+{
+public:
+	unsigned char  txdmachannel = 5;
+	unsigned char  rxdmachannel = 6;
+
+	Qspi *         regs = nullptr;
+
+	uint32_t *     qspidatamem;
+
+	bool Init();
+
+	virtual bool InitInterface(); // override
+
+	int  StartReadData(unsigned acmd, unsigned address, void * dstptr, unsigned len);
+	int  StartWriteData(unsigned acmd, unsigned address, void * srcptr, unsigned len);
+	void Run();
+
+	unsigned       runstate = 0;
+};
+
+#define HWQSPI_IMPL THwQspi_atsam_v2
+
 #endif
 
-#ifdef HWPINS_H_
-  #include "hwpins_atsam_v2.h"
-#endif
-
-#ifdef HWUART_H_
-  #include "hwuart_atsam_v2.h"
-#endif
-
-#ifdef HWSPI_H_
-  #include "hwspi_atsam_v2.h"
-#endif
-
-#ifdef HWDMA_H_
-  #include "hwdma_atsam_v2.h"
-#endif
-
-#ifdef HWCAN_H_
-  #include "hwcan_atsam_v2.h"
-#endif
-
-#ifdef HWQSPI_H_
-  #include "hwqspi_atsam_v2.h"
-#endif
+#endif // def HWQSPI_ATSAM_V2_H_
