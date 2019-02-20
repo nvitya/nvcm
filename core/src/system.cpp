@@ -61,7 +61,7 @@ extern "C" unsigned _sbrk(int incr)
  and the code will be significantly smaller too!
 */
 
-#if 0
+#if 1
 
 extern "C" int _getpid(void)
 {
