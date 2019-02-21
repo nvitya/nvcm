@@ -68,6 +68,7 @@ class THwPwmChannel_noimpl : public THwPwmChannel_pre
 public: // mandatory
 	bool Init(int adevnum, int chnum)     { return false; }  // might vary from hw to hw
 
+	void          SetFrequency(uint32_t afrequency) { }
 	void          SetOnClocks(uint16_t aclocks) { }
 	void          Enable()  { }
 	void          Disable() { }
