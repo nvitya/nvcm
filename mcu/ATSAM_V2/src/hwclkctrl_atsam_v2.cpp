@@ -181,6 +181,10 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 
 	uint32_t xoscid = 0;
 
+	// might be called repeatedly (bootloader + application) so we have to set a safe main clock first
+	// select the DFLL48 for the main clock with 4x division (12 MHz)
+	atsam2_gclk_setup(0, dfll48id, 4);
+
 	if (!aextosc)
 	{
 		// use the internal 48 MHz oscillator
