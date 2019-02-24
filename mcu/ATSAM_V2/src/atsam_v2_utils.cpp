@@ -28,6 +28,8 @@
 
 #include "atsam_v2_utils.h"
 
+const Sercom * sercom_inst_list[] = SERCOM_INSTS;
+
 void atsam2_enable_mclk(bool isahb, uint8_t regid, uint8_t bitid)
 {
 	volatile uint32_t * pu32;
@@ -113,5 +115,75 @@ void atsam2_gclk_setup(uint8_t genid, uint8_t reference, uint32_t division)
 
 #endif
 
+}
+
+bool atsam2_sercom_enable(int devnum, uint8_t clksrc)
+{
+	unsigned perid;
+
+	if (devnum < 0)
+	{
+		return false;
+	}
+	else if (devnum >= SERCOM_INST_NUM)
+	{
+		return false;
+	}
+#if defined(MCUSF_E5X)
+	else if (devnum < 2)
+	{
+		MCLK->APBAMASK.reg |= (1 << (12 + devnum));  // Enable/unmask CPU interface (register access)
+		perid = 7 + devnum;
+	}
+	else if (devnum < 4)
+	{
+		MCLK->APBBMASK.reg |= (1 << (9 + devnum - 2)); // Enable/unmask CPU interface (register access)
+		perid = 23 + (devnum - 2);
+	}
+	else if (devnum < 8)
+	{
+		MCLK->APBDMASK.reg |= (1 << (devnum - 4)); // Enable/unmask CPU interface (register access)
+		perid = 34 + (devnum - 4);
+	}
+	else
+	{
+		return false;
+	}
+
+	// setup peripheral clock
+	GCLK->PCHCTRL[perid].reg = ((clksrc << 0) | (1 << 6));   // select main clock frequency (120 MHz) + enable
+
+#elif defined(MCUSF_C2X)
+	else if (devnum <= 5)
+	{
+		MCLK->APBCMASK.reg |= (1 << (1 + devnum));  // enable register interface
+		perid = 19 + devnum;
+		if (devnum == 5)
+		{
+			GCLK->PCHCTRL[25].reg = (1 << 6) | (clksrc << 0);  // Enable the peripheral and select clock source
+			GCLK->PCHCTRL[24].reg = (1 << 6) | (3 << 0);  // Select the SERCOM5 slow clock
+		}
+		else
+		{
+			GCLK->PCHCTRL[19 + devnum].reg = (1 << 6) | (clksrc << 0);  // Enable the peripheral and select the clock source
+			GCLK->PCHCTRL[18].reg = (1 << 6) | (3 << 0);  // Select the SERCOM slow clock
+		}
+	}
+	else
+	{
+		return false;
+	}
+#elif defined(MCUSF_D10)
+	else
+	{
+		PM->APBCMASK.reg |= (1 << (2 + devnum));  // enable register interface
+		GCLK->CLKCTRL.reg = 0x430E + devnum;      // Select GCLK3 for SERCOM
+	}
+
+#else
+  #error "UART Unimplemented."
+#endif
+
+	return true;
 }
 

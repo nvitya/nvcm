@@ -165,8 +165,8 @@ void THwClkCtrl_atsam_v2::PrepareHiSpeed(unsigned acpuspeed)
 
 // GCLK allocation:
 //   GCLK0: CPU Clock and Main Peripheral clock (DFPLL / DPLL)
-//   GCLK1: reserved for low frequencies (only this GCLK has 16 bit divider)
-//   GCLK2: -
+//   GCLK1: reserved for low frequencies (only this GCLK has 16 bit divider), and this can be used as source for other GCLK
+//   GCLK2: 48 MHz from the internal DFLL48M (the I2C requires that)
 //   GCLK3: 32 kHz Slow Clock
 
 bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed)
@@ -264,6 +264,8 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 
 	//MCLK->APBBMASK.bit.RAMECC_ = 0;
 
+	atsam2_gclk_setup(2, 6, 1);  // GCLK2 = DFLL48M
+
 	// use GCLK3 as slow clock from the internal 32k source
 	atsam2_gclk_setup(3, 4, 1);
 
@@ -273,6 +275,8 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 #elif defined(MCUSF_C2X)
 
 	MCLK->CPUDIV.reg = 1;
+
+	atsam2_gclk_setup(2, 6, 1);  // GCLK2 = OSC48M
 
 	// use GCLK3 as slow clock from the internal 32k source
 	atsam2_gclk_setup(3, 4, 1);

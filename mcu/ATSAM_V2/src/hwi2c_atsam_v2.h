@@ -19,23 +19,39 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     atsam_v2_utils.h
- *  brief:    ATSAM V2 Utilities
+ *  file:     hwi2c_ATSAM_V2_v2.h
+ *  brief:    ATSAM V2 I2C
  *  version:  1.00
- *  date:     2019-01-18
+ *  date:     2019-02-16
  *  authors:  nvitya
 */
 
-#ifndef ATSAM_V2_UTILS_H_
-#define ATSAM_V2_UTILS_H_
+#ifndef HWI2C_ATSAM_V2_H_
+#define HWI2C_ATSAM_V2_H_
 
-#include "platform.h"
+#define HWI2C_PRE_ONLY
+#include "hwi2c.h"
 
-void atsam2_gclk_setup(uint8_t genid, uint8_t reference, uint32_t division);
-void atsam2_enable_mclk(bool isahb, uint8_t regid, uint8_t bitid);
-void atsam2_set_periph_gclk(uint32_t perid, uint8_t gclk);
-bool atsam2_sercom_enable(int devnum, uint8_t clksrc);
+class THwI2c_atsam_v2 : public THwI2c_pre
+{
+public:
+	SercomI2cm *   regs = nullptr;
 
-extern const Sercom *  sercom_inst_list[];
+	bool Init(int adevnum);
 
-#endif /* ATSAM_V2_UTILS_H_ */
+	int  StartReadData(uint8_t  adaddr, unsigned aextra, void * dstptr, unsigned len);
+	int  StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr, unsigned len);
+	void Run();
+
+	unsigned       runstate = 0;
+	uint8_t        devaddr = 0;
+	uint8_t        extradata[4];
+	unsigned       extracnt = 0;
+	unsigned       extraremaining = 0;
+	bool           waitreload = false;
+
+};
+
+#define HWI2C_IMPL THwI2c_atsam_v2
+
+#endif // def HWI2C_ATSAM_V2_H_

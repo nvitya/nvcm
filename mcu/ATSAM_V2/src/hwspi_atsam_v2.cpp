@@ -37,8 +37,7 @@
 
 #include "hwspi_atsam_v2.h"
 #include "hwspi.h"  // for eclipse indexer
-
-static const Sercom * sercom_inst_list[] = SERCOM_INSTS;
+#include "atsam_v2_utils.h"
 
 bool THwSpi_atsam_v2::Init(int adevnum)  // devnum: 0 - 7 = SERCOM ID
 {
@@ -49,69 +48,10 @@ bool THwSpi_atsam_v2::Init(int adevnum)  // devnum: 0 - 7 = SERCOM ID
 	initialized = false;
 	regs = nullptr;
 
-	if (devnum < 0)
+	if (!atsam2_sercom_enable(devnum, 0))
 	{
 		return false;
 	}
-	else if (devnum >= SERCOM_INST_NUM)
-	{
-		return false;
-	}
-#if defined(MCUSF_E5X)
-	else if (devnum < 2)
-	{
-		MCLK->APBAMASK.reg |= (1 << (12 + devnum));  // Enable/unmask CPU interface (register access)
-		perid = 7 + devnum;
-	}
-	else if (devnum < 4)
-	{
-		MCLK->APBBMASK.reg |= (1 << (9 + devnum - 2)); // Enable/unmask CPU interface (register access)
-		perid = 23 + (devnum - 2);
-	}
-	else if (devnum < 8)
-	{
-		MCLK->APBDMASK.reg |= (1 << (devnum - 4)); // Enable/unmask CPU interface (register access)
-		perid = 34 + (devnum - 4);
-	}
-	else
-	{
-		return false;
-	}
-
-	// setup peripheral clock
-	GCLK->PCHCTRL[perid].reg = ((0 << 0) | (1 << 6));   // select main clock frequency (120 MHz) + enable
-
-#elif defined(MCUSF_C2X)
-	else if (devnum <= 5)
-	{
-		MCLK->APBCMASK.reg |= (1 << (1 + devnum));  // enable register interface
-		perid = 19 + devnum;
-		if (devnum == 5)
-		{
-			GCLK->PCHCTRL[25].reg = (1 << 6) | (0 << 0);  // Enable the peripheral and select GEN0 (main clock)
-			GCLK->PCHCTRL[24].reg = (1 << 6) | (3 << 0);  // Select the SERCOM5 slow clock
-		}
-		else
-		{
-			GCLK->PCHCTRL[19 + devnum].reg = (1 << 6) | (0 << 0);  // Enable the peripheral and select GEN0 (main clock)
-			GCLK->PCHCTRL[18].reg = (1 << 6) | (3 << 0);  // Select the SERCOM slow clock
-		}
-	}
-	else
-	{
-		return false;
-	}
-#elif defined(MCUSF_D10)
-	else
-	{
-		PM->APBCMASK.reg |= (1 << (2 + devnum));  // enable register interface
-		GCLK->CLKCTRL.reg = 0x430E + devnum;      // Select GCLK3 for SERCOM
-	}
-
-#else
-  #error "UART Unimplemented."
-#endif
-
 
 	regs = (HW_SPI_REGS *)sercom_inst_list[devnum];
 
