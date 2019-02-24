@@ -19,74 +19,36 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_builtin.h (ATSAM_V2)
- *  brief:    Built-in ATSAM_V2 MCU definitions
+ *  file:     hwintflash.h
+ *  brief:    Internal Flash Handling for ATSAM V2
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-02-23
  *  authors:  nvitya
 */
 
-#ifndef __MCU_BUILTIN_H
-#define __MCU_BUILTIN_H
+#ifndef HWINTFLASH_ATSAM_V2_H_
+#define HWINTFLASH_ATSAM_V2_H_
 
-#if 0
+#define HWINTFLASH_PRE_ONLY
+#include "hwintflash.h"
 
-//----------------------------------------------------------------------
-// Atmel v2
-//----------------------------------------------------------------------
+class THwIntFlash_atsam_v2 : public THwIntFlash_pre
+{
+public:
+	bool           HwInit();
 
-#elif defined(MCU_ATSAMD51J20)
+public:
+	Nvmctrl *      regs = nullptr;
 
-  #define MCUF_ATSAM_V2
-  #define MCUSF_E5X
+	bool           StartFlashCmd(uint8_t acmd);
 
-  #define __SAMD51J20A__
-  #include "samd51.h"
+	void           CmdEraseBlock(); // at address
+	void           CmdWritePage();
+	void           CmdClearPageBuffer();
 
-#elif defined(MCU_ATSAME51J20)
+	inline bool    CmdFinished() { return (regs->STATUS.bit.READY); }
+};
 
-  #define MCUF_ATSAM_V2
-  #define MCUSF_E5X
+#define HWINTFLASH_IMPL THwIntFlash_atsam_v2
 
-  #define __SAME51J20A__
-  #include "same51.h"
-
-#elif defined(MCU_ATSAME51J18)
-
-  #define MCUF_ATSAM_V2
-  #define MCUSF_E5X
-
-  #define __SAME51J18A__
-  #include "same51.h"
-
-#elif defined(MCU_ATSAME51J19)
-
-  #define MCUF_ATSAM_V2
-  #define MCUSF_E5X
-
-  #define __SAME51J19A__
-  #include "same51.h"
-
-#elif defined(MCU_ATSAMC21J18)
-
-  #define MCUF_ATSAM_V2
-  #define MCUSF_C2X
-
-  #define __SAMC21J18A__
-  #include "samc21.h"
-
-#elif defined(MCU_ATSAMD10J18)
-
-  #define MCUF_ATSAM_V2
-  #define MCUSF_DXX
-
-  #define __SAMD10J18A__
-  #include "samd10.h"
-
-#else
-
-  #error "Unknown MCU"
-
-#endif
-
-#endif
+#endif // def HWINTFLASH_ATSAM_V2_H_

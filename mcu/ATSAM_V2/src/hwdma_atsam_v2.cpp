@@ -261,6 +261,15 @@ void THwDmaChannel_atsam_v2::PrepareTransfer(THwDmaTransfer * axfer)
 
 	regs->BTCNT = axfer->count;
 	regs->BTCTRL = ccreg;
+
+	if (axfer->flags & DMATR_IRQ)
+	{
+		chregs->CHINTENSET.reg = (1 << 1); // enable transfer complete irq
+	}
+	else
+	{
+		chregs->CHINTENSET.reg = (1 << 1); // disable transfer complete irq
+	}
 }
 
 #endif

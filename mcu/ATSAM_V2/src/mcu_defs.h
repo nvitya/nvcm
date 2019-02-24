@@ -38,6 +38,8 @@
 
   #define MAX_CLOCK_SPEED  120000000
 
+  #define MAX_IRQ_HANDLER_COUNT  137
+
 #endif
 
 

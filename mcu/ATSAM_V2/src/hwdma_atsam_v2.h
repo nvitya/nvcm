@@ -80,6 +80,8 @@ public:
 	//inline bool Enabled() { return (chregs->CHSTATUS.bit.BUSY != 0); }
 	inline bool Active()  { return Enabled(); }
 
+	inline void ClearIrqFlag()  { chregs->CHINTFLAG.reg = (1 << 1); } // clear transfer complete IRQ
+
 	void PrepareTransfer(THwDmaTransfer * axfer);
 	inline void StartPreparedTransfer()              { Enable(); }
 };

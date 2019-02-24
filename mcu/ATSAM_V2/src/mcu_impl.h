@@ -34,6 +34,10 @@
   #include "hwpins_atsam_v2.h"
 #endif
 
+#ifdef HWINTFLASH_H_
+  #include "hwintflash_atsam_v2.h"
+#endif
+
 #ifdef HWUART_H_
   #include "hwuart_atsam_v2.h"
 #endif

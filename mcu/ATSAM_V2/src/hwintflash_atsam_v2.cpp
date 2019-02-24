@@ -19,74 +19,67 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_builtin.h (ATSAM_V2)
- *  brief:    Built-in ATSAM_V2 MCU definitions
+ *  file:     hwintflash.h
+ *  brief:    Internal Flash Handling for ATSAM V2
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-02-23
  *  authors:  nvitya
 */
 
-#ifndef __MCU_BUILTIN_H
-#define __MCU_BUILTIN_H
+#include <stdio.h>
+#include <stdarg.h>
 
-#if 0
+#include "platform.h"
 
-//----------------------------------------------------------------------
-// Atmel v2
-//----------------------------------------------------------------------
+#include "hwintflash.h"
 
-#elif defined(MCU_ATSAMD51J20)
+#include "traces.h"
 
-  #define MCUF_ATSAM_V2
-  #define MCUSF_E5X
+bool THwIntFlash_atsam_v2::HwInit()
+{
+	regs = NVMCTRL;
 
-  #define __SAMD51J20A__
-  #include "samd51.h"
+#if defined(MCUSF_E5X)
 
-#elif defined(MCU_ATSAME51J20)
+	pagesize = (8 << ((NVMCTRL->PARAM.reg >> 16) & 7));
+	pagecount = (NVMCTRL->PARAM.reg & 0xFFFF);
+	bytesize = pagesize * pagecount;
+	blocksize = bytesize / 32;
 
-  #define MCUF_ATSAM_V2
-  #define MCUSF_E5X
-
-  #define __SAME51J20A__
-  #include "same51.h"
-
-#elif defined(MCU_ATSAME51J18)
-
-  #define MCUF_ATSAM_V2
-  #define MCUSF_E5X
-
-  #define __SAME51J18A__
-  #include "same51.h"
-
-#elif defined(MCU_ATSAME51J19)
-
-  #define MCUF_ATSAM_V2
-  #define MCUSF_E5X
-
-  #define __SAME51J19A__
-  #include "same51.h"
-
-#elif defined(MCU_ATSAMC21J18)
-
-  #define MCUF_ATSAM_V2
-  #define MCUSF_C2X
-
-  #define __SAMC21J18A__
-  #include "samc21.h"
-
-#elif defined(MCU_ATSAMD10J18)
-
-  #define MCUF_ATSAM_V2
-  #define MCUSF_DXX
-
-  #define __SAMD10J18A__
-  #include "samd10.h"
+	// fix parameters:
+	smallest_write = 4;
+	bank_count = 2;
 
 #else
-
-  #error "Unknown MCU"
-
+  #warning "HwIntflash: unhandled MCU"
 #endif
 
-#endif
+	start_address = 0;
+
+	return true;
+}
+
+void THwIntFlash_atsam_v2::CmdEraseBlock()
+{
+	regs->ADDR.reg = address;
+	regs->CTRLB.reg = 0
+		| (0xA5 << 8)   // CMDEX(8): command execution key, fix 0xA5
+		| (0x01 << 0)   // CMD(7):
+	;
+}
+
+void THwIntFlash_atsam_v2::CmdWritePage()
+{
+	regs->CTRLB.reg = 0
+		| (0xA5 << 8)   // CMDEX(8): command execution key, fix 0xA5
+		| (0x03 << 0)   // CMD(7):
+	;
+}
+
+void THwIntFlash_atsam_v2::CmdClearPageBuffer()
+{
+	regs->CTRLB.reg = 0
+		| (0xA5 << 8)   // CMDEX(8): command execution key, fix 0xA5
+		| (0x15 << 0)   // CMD(7):
+	;
+}
