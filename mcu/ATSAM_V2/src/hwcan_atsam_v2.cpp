@@ -34,6 +34,8 @@
 
 #ifdef HWCAN_IMPL
 
+#include "hwcan.h" // for the eclipse indexer
+
 bool THwCan_atsam_v2::HwInit(int adevnum)
 {
 	uint32_t tmp;
@@ -52,6 +54,11 @@ bool THwCan_atsam_v2::HwInit(int adevnum)
 			// set the upper address of the message buffers
 		  MATRIX->CCFG_CAN0 &= 0x0000FFFF;
 		  MATRIX->CCFG_CAN0 |= ((uint32_t)(&stdfilters) & 0xFFFF0000);
+    #else
+		  if ((uint32_t)(&stdfilters) & 0x000F0000)
+		  {
+		  	__BKPT(); // invalid address for the stdfilters, they must reside in the lower memory
+		  }
     #endif
 	}
 #endif
@@ -67,6 +74,11 @@ bool THwCan_atsam_v2::HwInit(int adevnum)
 			// set the upper address of the message buffers
 			MATRIX->CCFG_SYSIO &= 0x0000FFFF;
 			MATRIX->CCFG_SYSIO |= ((uint32_t)(&stdfilters) & 0xFFFF0000);
+		#else
+			if ((uint32_t)(&stdfilters) & 0x000F0000)
+			{
+				__BKPT(); // invalid address for the stdfilters, they must reside in the lower memory
+			}
 		#endif
 	}
 #endif
