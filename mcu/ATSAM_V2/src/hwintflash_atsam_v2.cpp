@@ -39,8 +39,6 @@ bool THwIntFlash_atsam_v2::HwInit()
 {
 	regs = NVMCTRL;
 
-#if defined(MCUSF_E5X)
-
 	pagesize = (8 << ((NVMCTRL->PARAM.reg >> 16) & 7));
 	pagecount = (NVMCTRL->PARAM.reg & 0xFFFF);
 	bytesize = pagesize * pagecount;
@@ -50,10 +48,6 @@ bool THwIntFlash_atsam_v2::HwInit()
 	smallest_write = 4;
 	bank_count = 2;
 
-#else
-  #warning "HwIntflash: unhandled MCU"
-#endif
-
 	start_address = 0;
 
 	return true;
@@ -61,6 +55,7 @@ bool THwIntFlash_atsam_v2::HwInit()
 
 void THwIntFlash_atsam_v2::CmdEraseBlock()
 {
+	regs->INTFLAG.reg = 1; // clear done
 	regs->ADDR.reg = address;
 	regs->CTRLB.reg = 0
 		| (0xA5 << 8)   // CMDEX(8): command execution key, fix 0xA5
@@ -70,6 +65,7 @@ void THwIntFlash_atsam_v2::CmdEraseBlock()
 
 void THwIntFlash_atsam_v2::CmdWritePage()
 {
+	regs->INTFLAG.reg = 1; // clear done
 	regs->CTRLB.reg = 0
 		| (0xA5 << 8)   // CMDEX(8): command execution key, fix 0xA5
 		| (0x03 << 0)   // CMD(7):
@@ -78,6 +74,7 @@ void THwIntFlash_atsam_v2::CmdWritePage()
 
 void THwIntFlash_atsam_v2::CmdClearPageBuffer()
 {
+	regs->INTFLAG.reg = 1; // clear done
 	regs->CTRLB.reg = 0
 		| (0xA5 << 8)   // CMDEX(8): command execution key, fix 0xA5
 		| (0x15 << 0)   // CMD(7):

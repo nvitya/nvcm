@@ -238,9 +238,9 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 
 		OSCCTRL->DPLLCTRLB.reg = 0
 			| ((refdiv - 1) << 16)  // DIV(11): reference divisor = (2 * (DIV + 1))
-			| (1            << 11)  // LBYPASS: Lock bypass
+			| (0            << 11)  // LBYPASS: Lock bypass
 			| (0            <<  8)  // LTIME(3): lock time
-			| (2            <<  5)  // REFCLK(3): 2 = XOSC0
+			| (1            <<  4)  // REFCLK(3): 1 = XOSC
 		;
 
 		OSCCTRL->DPLLCTRLA.reg = (1 << 6) | (1 << 1);  // run in standby, enable
@@ -283,7 +283,7 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 	atsam2_gclk_setup(2, 6, 1);  // GCLK2 = OSC48M
 
 	// use GCLK3 as slow clock from the internal 32k source
-	atsam2_gclk_setup(3, 4, 1);
+	atsam2_gclk_setup(3, 3, 1);
 
 #elif defined(MCUSF_DXX)
 

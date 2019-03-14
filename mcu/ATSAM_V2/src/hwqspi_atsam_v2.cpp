@@ -47,10 +47,13 @@ bool THwQspi_atsam_v2::InitInterface()
 
 	hwpinctrl.PinSetup(PORTNUM_A,  8, qspipincfg);  // DATA0
 	hwpinctrl.PinSetup(PORTNUM_A,  9, qspipincfg);  // DATA1
-	hwpinctrl.PinSetup(PORTNUM_A, 10, qspipincfg);  // DATA2
-	hwpinctrl.PinSetup(PORTNUM_A, 11, qspipincfg);  // DATA3
 	hwpinctrl.PinSetup(PORTNUM_B, 10, qspipincfg);  // SCK
 	hwpinctrl.PinSetup(PORTNUM_B, 11, qspipincfg | PINCFG_PULLUP);  // CS
+	if (multi_line_count > 2)
+	{
+		hwpinctrl.PinSetup(PORTNUM_A, 10, qspipincfg);  // DATA2
+		hwpinctrl.PinSetup(PORTNUM_A, 11, qspipincfg);  // DATA3
+	}
 
 	// MEM2MEM transfers, with SW trigger only
 	txdma.Init(txdmachannel, 0); //QSPI_DMAC_ID_TX);

@@ -46,7 +46,7 @@ public:
 	void           CmdWritePage();
 	void           CmdClearPageBuffer();
 
-	inline bool    CmdFinished() { return (regs->STATUS.bit.READY); }
+	inline bool    CmdFinished() { return (regs->INTFLAG.reg & 1); }
 };
 
 #define HWINTFLASH_IMPL THwIntFlash_atsam_v2

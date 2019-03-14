@@ -262,14 +262,26 @@ void THwDmaChannel_atsam_v2::PrepareTransfer(THwDmaTransfer * axfer)
 	regs->BTCNT = axfer->count;
 	regs->BTCTRL = ccreg;
 
+#ifdef DMAC_CHID_OFFSET
+  ctrlregs->CHID.reg = chnum;  // select the channel
+	if (axfer->flags & DMATR_IRQ)
+	{
+		ctrlregs->CHINTENSET.reg = (1 << 1); // enable transfer complete irq
+	}
+	else
+	{
+		ctrlregs->CHINTENCLR.reg = (1 << 1); // disable transfer complete irq
+	}
+#else
 	if (axfer->flags & DMATR_IRQ)
 	{
 		chregs->CHINTENSET.reg = (1 << 1); // enable transfer complete irq
 	}
 	else
 	{
-		chregs->CHINTENSET.reg = (1 << 1); // disable transfer complete irq
+		chregs->CHINTENCLR.reg = (1 << 1); // disable transfer complete irq
 	}
+#endif
 }
 
 #endif

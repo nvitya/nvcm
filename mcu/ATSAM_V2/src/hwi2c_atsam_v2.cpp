@@ -86,7 +86,9 @@ bool THwI2c_atsam_v2::Init(int adevnum)
 		| (0          << 24)  // HSBAUDLOW(8):
 	;
 
+#ifdef MCUSF_E5X
 	regs->CTRLC.reg = 0;  // disable 32 bit mode
+#endif
 
 	regs->CTRLB.reg = 0
 		| (0 << 18)  // ACKACT: 0 = send ACK after a byte received, 0 = send NACK

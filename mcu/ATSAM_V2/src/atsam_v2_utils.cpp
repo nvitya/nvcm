@@ -108,10 +108,19 @@ void atsam2_gclk_setup(uint8_t genid, uint8_t reference, uint32_t division)
 		| ((division - 1) << 16) // DIV(16)
 	;
 
-	while (GCLK->SYNCBUSY.reg & (1 << (GCLK_SYNCBUSY_GENCTRL0_Pos + genid)))
-	{
-		// wait until synced
-	}
+	#ifdef GCLK_SYNCBUSY_GENCTRL0_Pos
+		while (GCLK->SYNCBUSY.reg & (1 << (GCLK_SYNCBUSY_GENCTRL0_Pos + genid)))
+		{
+			// wait until synced
+		}
+
+	#else
+		while (GCLK->SYNCBUSY.bit.GENCTRL)
+		{
+			// wait until synced
+		}
+
+	#endif
 
 #endif
 

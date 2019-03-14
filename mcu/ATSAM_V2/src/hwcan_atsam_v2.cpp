@@ -34,6 +34,8 @@
 
 #ifdef HWCAN_IMPL
 
+#include "hwcan.h" // for the eclipse indexer
+
 bool THwCan_atsam_v2::HwInit(int adevnum)
 {
 	uint32_t tmp;
@@ -52,6 +54,11 @@ bool THwCan_atsam_v2::HwInit(int adevnum)
 			// set the upper address of the message buffers
 		  MATRIX->CCFG_CAN0 &= 0x0000FFFF;
 		  MATRIX->CCFG_CAN0 |= ((uint32_t)(&stdfilters) & 0xFFFF0000);
+    #else
+		  if ((uint32_t)(&stdfilters) & 0x000F0000)
+		  {
+		  	__BKPT(); // invalid address for the stdfilters, they must reside in the lower memory
+		  }
     #endif
 	}
 #endif
@@ -67,6 +74,11 @@ bool THwCan_atsam_v2::HwInit(int adevnum)
 			// set the upper address of the message buffers
 			MATRIX->CCFG_SYSIO &= 0x0000FFFF;
 			MATRIX->CCFG_SYSIO |= ((uint32_t)(&stdfilters) & 0xFFFF0000);
+		#else
+			if ((uint32_t)(&stdfilters) & 0x000F0000)
+			{
+				__BKPT(); // invalid address for the stdfilters, they must reside in the lower memory
+			}
 		#endif
 	}
 #endif
@@ -197,7 +209,11 @@ bool THwCan_atsam_v2::HwInit(int adevnum)
 	  | (0         << 23)  // TDC: transmitter delay compensation
 	;
 
-	regs->ILE.reg = 1;    // enable interrupt 1 only
+	regs->ILE.reg = (1 << devnum);  // assign interrupt line to the corresponding device
+	regs->ILS.reg = (devnum == 0 ? 0x00000000 : 0xFFFFFFFF);
+
+	regs->IR.reg = 1; // clear the interrupt
+	regs->IE.reg = 1; // enable only RX FIFO0 interrupt
 
 	return true;
 }
@@ -252,6 +268,7 @@ void THwCan_atsam_v2::HandleRx()
 
 		if ((rxfs & 0x3F) == 0)
 		{
+			regs->IR.reg = 1; // clear the interrupt
 			return; // there are no (more) messages
 		}
 
@@ -269,7 +286,7 @@ void THwCan_atsam_v2::HandleRx()
 		msg.len = ((dt >> 16) & 15);
 		msg.timestamp = CLOCKCNT; // TODO: use the CAN timestamp
 
-		AddRxMessage(&msg);
+		OnRxMessage(&msg); // call the virtual function
 
 		regs->RXF0A.reg = rgi; // acknowledge the read
 	}

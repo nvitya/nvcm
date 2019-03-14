@@ -103,7 +103,9 @@ bool THwSpi_atsam_v2::Init(int adevnum)  // devnum: 0 - 7 = SERCOM ID
 	if (datasample_late)  tmp |= (1 << 28);
 
 	regs->CTRLA.reg = tmp;
+#ifdef MCUSF_E5X
 	regs->CTRLC.reg = (0 << 24);
+#endif
 
 	regs->DBGCTRL.reg = 0;
 
