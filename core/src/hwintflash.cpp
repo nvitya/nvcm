@@ -323,7 +323,7 @@ void THwIntFlash::Run()
 			case 4: // wait the erase to finish
 				if (CmdFinished())
 				{
-					phase = 8; Run(); return; // jump to write
+					phase = 6; Run(); return; // jump to write
 				}
 				break;
 
