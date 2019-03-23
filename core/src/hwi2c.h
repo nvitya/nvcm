@@ -89,7 +89,7 @@ public: // run state
 class THwI2c_noimpl : public THwI2c_pre
 {
 public: // mandatory
-	bool Init()                   { return false; }
+	bool Init(int adevnum)      { return false; }
 
 	int  StartReadData(uint8_t  adaddr, unsigned aextra, void * dstptr, unsigned len)  { return ERROR_NOTIMPL; }
 	int  StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr, unsigned len)  { return ERROR_NOTIMPL; }

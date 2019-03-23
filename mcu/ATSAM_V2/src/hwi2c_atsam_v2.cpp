@@ -162,6 +162,9 @@ int THwI2c_atsam_v2::StartReadData(uint8_t adaddr, unsigned aextra, void * dstpt
 	//extraremaining = 0;
 
 	dmaused = rxdma.initialized;
+
+	dmaused = false;
+
 	if (dmaused)
 	{
 		rxdma.Prepare(false, (void *)&(regs->DATA.reg), 0);
@@ -200,18 +203,13 @@ void THwI2c_atsam_v2::Run()
 		return;
 	}
 
-#if 1
-	return;
-#else
-
-
 	uint8_t  firstbyte;
 	unsigned cr2;
 	unsigned isr = regs->STATUS.reg;
 	unsigned nbytes;
 	uint8_t  busstate = ((isr >> 4) & 3);
 	uint8_t  intflags = regs->INTFLAG.reg;
-	uint8_t  isread = 0;
+	uint8_t  isread = (istx ? 0 : 1);
 
 	// check error flags
 	if (!error)
@@ -251,8 +249,6 @@ void THwI2c_atsam_v2::Run()
 		{
 			return;
 		}
-
-		isread = (istx ? 0 : 1);
 
 		if (extraremaining > 0)
 		{
@@ -337,65 +333,24 @@ void THwI2c_atsam_v2::Run()
 	// case 10: ....
 
 	case 20: //	receiving bytes
-		if (isr & I2C_ISR_TCR) // reload required?
-		{
-			cr2 = regs->CR2 & 0x3FF; // keep the slave address
-			nbytes = remainingbytes;
-			if (nbytes > 255)
-			{
-				nbytes = 255;
-				cr2 |= I2C_CR2_RELOAD;
-			}
-			cr2 |= I2C_CR2_AUTOEND;
-			cr2 |= (nbytes << 16); // I2C_CR2_START;
-			regs->CR2 = cr2;
-			waitreload = false;
-		}
-
 		if (dmaused)
 		{
 			if (rxdma.Active())
 			{
 				return; // wait until DMA finishes
 			}
-
-			if (remainingbytes > 0)
-			{
-				if (waitreload)
-				{
-					return;
-				}
-
-				// (re-)start DMA
-
-				xfer.dstaddr = dataptr;
-				xfer.bytewidth = 1;
-				cr2 = regs->CR2;
-				xfer.count = ((cr2 >> 16) & 0xFF); // todo: check count zero
-				xfer.flags = 0;
-				dataptr += xfer.count;
-				remainingbytes -= xfer.count;
-
-				rxdma.StartTransfer(&xfer);
-
-				waitreload = (remainingbytes > 0);
-			}
-			else
-			{
-				runstate = 29; // finish
-			}
-			return;
 		}
 
-		// working without DMA
-
-		if ((isr & I2C_ISR_RXNE) == 0)  // RX Ready?
+		if (remainingbytes > 0)
 		{
-			return;
-		}
+			if ((intflags & 2) == 0)  // byte available?
+			{
+				return;
+			}
 
-		*dataptr++ = regs->RXDR;
-		--remainingbytes;
+			*dataptr++ = regs->DATA.reg;
+			--remainingbytes;
+		}
 
 		if (remainingbytes > 0)
 		{
@@ -405,31 +360,23 @@ void THwI2c_atsam_v2::Run()
 		break;
 
 	case 29: // wait last transfer to finish and send stop
-		if (isr & I2C_ISR_STOPF)
-		{
-			runstate = 30;
-			return;
-		}
 
-		if ((isr & I2C_ISR_TC) == 0)
-		{
-			return;
-		}
+		regs->CTRLB.reg = 0
+			| (1 << 18)  // ACKACT: 0 = send ACK after a byte received, 1 = send NACK
+			| (3 << 16)  // CMD(2): 3 = Send stop
+			| (0 <<  9)  // QCEN: 0 = quick command is disabled
+			| (1 <<  8)  // SMEN: 1 = send ACK/NACK automatically
+		;
 
-		if ((regs->CR2 & I2C_CR2_AUTOEND) == 0)
-		{
-			regs->CR2 |= I2C_CR2_STOP;  // send stop
-		}
-		runstate = 30; // closing
+		runstate = 30;
 		break;
 
-	case 30: // closing
-		if ((isr & I2C_ISR_STOPF) == 0)
+	case 30: // wait for the bus to be idle
+
+		if (((isr >> 4) & 3) == 2)  // still owner?
 		{
 			return;
 		}
-
-		regs->ICR = I2C_ICR_STOPCF;
 
 		busy = false; // finished.
 		runstate = 50;
@@ -439,13 +386,18 @@ void THwI2c_atsam_v2::Run()
 		break;
 
 	case 90: // handling errors
-		regs->CR2 |= I2C_CR2_STOP;  // send stop condition
+		regs->CTRLB.reg = 0
+			| (1 << 18)  // ACKACT: 0 = send ACK after a byte received, 1 = send NACK
+			| (3 << 16)  // CMD(2): 3 = Send stop
+			| (0 <<  9)  // QCEN: 0 = quick command is disabled
+			| (1 <<  8)  // SMEN: 1 = send ACK/NACK automatically
+		;
 		runstate = 91;
 		break;
 
 	case 91:
 		// todo: reset on timeout
-		if (isr & I2C_ISR_BUSY)   // wait until end of the transfer
+		if (((isr >> 4) & 3) == 2)  // still owner?
 		{
 			return;
 		}
@@ -454,6 +406,4 @@ void THwI2c_atsam_v2::Run()
 		break;
 
 	} // case
-
-#endif
 }
