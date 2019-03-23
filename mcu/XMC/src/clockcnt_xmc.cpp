@@ -35,13 +35,13 @@
 
 void clockcnt_init()
 {
-	xmc_enable_periph_clock(1 << 2); // enable CCU40
+	xmc_enable_periph_clock(0, 1 << 2); // enable CCU40
 
 	CCU40->GIDLC = (1 << 8); // enable prescaler
 	CCU40->GCTRL = 0; // global control
 
 	CCU40_CC43->TC = 0;   // control register, use the defaults (0)
-	CCU40_CC43->PSC = 0;  // prescaler configuration
+	CCU40_CC43->PSC = 1;  // prescaler configuration: divide by two to count CPU clocks (PCLK = 2 x MCLK)
 	CCU40_CC43->PRS = 0xFFFF;  // period shadow register
 
 	CCU40->GCSS = ((1 << 19) | (7 << 12)); // actualize shadow values

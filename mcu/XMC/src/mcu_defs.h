@@ -29,14 +29,29 @@
 #ifndef __MCU_DEFS_H
 #define __MCU_DEFS_H
 
-
 #if	defined(MCUSF_1000)
 
   #define MCU_INTRC_SPEED     4000000
 
   #if !defined(MAX_CLOCK_SPEED)
-    #define MAX_CLOCK_SPEED  32000000
+		#if UC_SERIES == XMC14
+    	#define MAX_CLOCK_SPEED  48000000
+		#else
+    	#define MAX_CLOCK_SPEED  32000000
+		#endif
   #endif
+
+  #define MAX_IRQ_HANDLER_COUNT 32
+
+#elif	defined(MCUSF_4000)
+
+	#if !defined(MAX_CLOCK_SPEED)
+		#if UC_SERIES == XMC41
+			#define MAX_CLOCK_SPEED   80000000
+		#else
+			#define MAX_CLOCK_SPEED  144000000
+		#endif
+	#endif
 
 #endif
 

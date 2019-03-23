@@ -44,6 +44,8 @@ public:
 	void PrepareHiSpeed(unsigned acpuspeed);  // increase Flash wait states etc. for reliable high speed operation
 
 	bool SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed);
+
+	void SyncToExtOsc(unsigned aextspeed);  // special function for XMC1400, extspeed must be lower
 };
 
 #define HWCLKCTRL_IMPL THwClkCtrl_xmc

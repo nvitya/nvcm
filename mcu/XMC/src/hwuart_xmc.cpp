@@ -1,3 +1,30 @@
+/* -----------------------------------------------------------------------------
+ * This file is a part of the NVCM project: https://github.com/nvitya/nvcm
+ * Copyright (c) 2018 Viktor Nagy, nvitya
+ *
+ * This software is provided 'as-is', without any express or implied warranty.
+ * In no event will the authors be held liable for any damages arising from
+ * the use of this software. Permission is granted to anyone to use this
+ * software for any purpose, including commercial applications, and to alter
+ * it and redistribute it freely, subject to the following restrictions:
+ *
+ * 1. The origin of this software must not be misrepresented; you must not
+ *    claim that you wrote the original software. If you use this software in
+ *    a product, an acknowledgment in the product documentation would be
+ *    appreciated but is not required.
+ *
+ * 2. Altered source versions must be plainly marked as such, and must not be
+ *    misrepresented as being the original software.
+ *
+ * 3. This notice may not be removed or altered from any source distribution.
+ * --------------------------------------------------------------------------- */
+/*
+ *  file:     hwuart_xmc.cpp
+ *  brief:    XMC UART
+ *  version:  1.00
+ *  date:     2018-02-10
+ *  authors:  nvitya
+*/
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -18,74 +45,11 @@ bool THwUart_xmc::Init(int ausicnum, int achnum, int ainputpin)
 
 	initialized = false;
 
-	regs = nullptr;
-	if (0 == usicnum)
-	{
-		if (chnum)
-		{
-			regs = USIC0_CH1;
-		}
-		else
-		{
-			regs = USIC0_CH0;
-		}
-
-		xmc_enable_periph_clock(SCU_CLK_CGATSTAT0_USIC0_Msk);
-	}
-#if defined(USIC1)
-	else if (1 == usicnum)
-	{
-		if (chnum)
-		{
-			regs = USIC1_CH1;
-		}
-		else
-		{
-			regs = USIC1_CH0
-		}
-		xmc_enable_periph_clock(SCU_CLK_CGATSTAT0_USIC1_Msk);
-	}
-#endif
-#if defined(USIC2)
-	else if (2 == usicnum)
-	{
-		if (chnum)
-		{
-			regs = USIC2_CH1;
-		}
-		else
-		{
-			regs = USIC2_CH0
-		}
-		xmc_enable_periph_clock(SCU_CLK_CGATSTAT0_USIC2_Msk);
-	}
-#endif
-#if defined(USIC3)
-	else if (2 == usicnum)
-	{
-		if (chnum)
-		{
-			regs = USIC3_CH1;
-		}
-		else
-		{
-			regs = USIC3_CH0
-		}
-		xmc_enable_periph_clock(SCU_CLK_CGATSTAT0_USIC3_Msk);
-	}
-#endif
-
+	regs = xmc_usic_ch_init(usicnum, chnum);
 	if (!regs)
 	{
 		return false;
 	}
-
-  regs->KSCFG = ((1 << 0) | (1 << 1)); // MODEN + BPMODEN
-  while ((regs->KSCFG & 1) == 0U)
-  {
-    // Wait till the channel is enabled
-  }
-
 
   // Configure baud rate
 
@@ -108,7 +72,7 @@ bool THwUart_xmc::Init(int ausicnum, int achnum, int ainputpin)
 	pdiv_int_min = 1;
 	pdiv_frac_min = 0x3ff;
 
-	for(clock_divider = 1023; clock_divider > 0; --clock_divider)
+	for (clock_divider = 1023; clock_divider > 0; --clock_divider)
 	{
 		pdiv = ((peripheral_clock * clock_divider) / (rate * oversampling));
 		pdiv_int = pdiv >> 10;
@@ -239,6 +203,18 @@ bool THwUart_xmc::TrySendChar(char ach)
 	}
 
 	regs->IN[0] = ach; // put the character into the transmit fifo
+
+	return true;
+}
+
+bool THwUart_xmc::TryRecvChar(char * ach)
+{
+	if (regs->TRBSR & (1 << 3))  // is the Receive Buffer Empty?
+	{
+		return false;
+	}
+
+	*ach = (uint16_t)regs->OUTR;
 
 	return true;
 }

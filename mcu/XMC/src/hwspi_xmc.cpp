@@ -45,73 +45,11 @@ bool THwSpi_xmc::Init(int ausicnum, int achnum, int ainputpin)
 
 	initialized = false;
 
-	regs = nullptr;
-	if (0 == usicnum)
-	{
-		if (chnum)
-		{
-			regs = USIC0_CH1;
-		}
-		else
-		{
-			regs = USIC0_CH0;
-		}
-
-		xmc_enable_periph_clock(SCU_CLK_CGATSTAT0_USIC0_Msk);
-	}
-#if defined(USIC1)
-	else if (1 == usicnum)
-	{
-		if (chnum)
-		{
-			regs = USIC1_CH1;
-		}
-		else
-		{
-			regs = USIC1_CH0
-		}
-		xmc_enable_periph_clock(SCU_CLK_CGATSTAT0_USIC1_Msk);
-	}
-#endif
-#if defined(USIC2)
-	else if (2 == usicnum)
-	{
-		if (chnum)
-		{
-			regs = USIC2_CH1;
-		}
-		else
-		{
-			regs = USIC2_CH0
-		}
-		xmc_enable_periph_clock(SCU_CLK_CGATSTAT0_USIC2_Msk);
-	}
-#endif
-#if defined(USIC3)
-	else if (2 == usicnum)
-	{
-		if (chnum)
-		{
-			regs = USIC3_CH1;
-		}
-		else
-		{
-			regs = USIC3_CH0
-		}
-		xmc_enable_periph_clock(SCU_CLK_CGATSTAT0_USIC3_Msk);
-	}
-#endif
-
+	regs = xmc_usic_ch_init(usicnum, chnum);
 	if (!regs)
 	{
 		return false;
 	}
-  regs->KSCFG = ((1 << 0) | (1 << 1)); // MODEN + BPMODEN
-  while ((regs->KSCFG & 1) == 0U)
-  {
-    // Wait till the channel is enabled
-  }
-
 
   // Configure baud rate
 

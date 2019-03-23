@@ -29,9 +29,14 @@
 #ifndef XMC_UTILS_H_
 #define XMC_UTILS_H_
 
+#include "stdint.h"
+
 void XMC_SCU_LockProtectedBits(void);
 void XMC_SCU_UnlockProtectedBits(void);
 
-void xmc_enable_periph_clock(unsigned permask);
+void xmc_enable_periph_clock(uint8_t cgnum, unsigned permask);
+
+USIC_CH_TypeDef * xmc_usic_ch_init(uint8_t usicnum, uint8_t chnum);
+void xmc_usic_set_baudrate(USIC_CH_TypeDef * regs, uint32_t speed, uint32_t oversampling);
 
 #endif /* XMC_UTILS_H_ */

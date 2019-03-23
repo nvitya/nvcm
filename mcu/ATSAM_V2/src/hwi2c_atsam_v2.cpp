@@ -134,7 +134,6 @@ int THwI2c_atsam_v2::StartReadData(uint8_t adaddr, unsigned aextra, void * dstpt
 	dataptr = (uint8_t *)dstptr;
 	datalen = len;
 	remainingbytes = datalen;
-	waitreload = false;
 
 	extracnt = ((aextra >> 24) & 3);
 	if (extracnt)
@@ -205,7 +204,6 @@ int THwI2c_atsam_v2::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcp
 	dataptr = (uint8_t *)srcptr;
 	datalen = len;
 	remainingbytes = datalen;
-	waitreload = false;
 
 	extracnt = ((aextra >> 24) & 3);
 	if (extracnt)
@@ -326,7 +324,6 @@ void THwI2c_atsam_v2::Run()
 		if (extraremaining > 0)
 		{
 			// start with sending the extra data, no autoend, no reload
-			waitreload = true;
 			runstate = 5;
 			isread = 0;
 		}
@@ -411,6 +408,17 @@ void THwI2c_atsam_v2::Run()
 		}
 
 		if ((intflags & 1) == 0)  // ready to send? (MB)
+		{
+			return;
+		}
+
+		if (remainingbytes > 0)
+		{
+			regs->DATA.reg = *dataptr++;
+			--remainingbytes;
+		}
+
+		if (remainingbytes > 0)
 		{
 			return;
 		}

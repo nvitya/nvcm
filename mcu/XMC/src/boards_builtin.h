@@ -40,6 +40,12 @@
   #define BOARD_NAME "XMC1200 Boot Kit"
   #define MCU_XMC1200T38X0200
 
+#elif defined(BOARD_RELAX_XMC4300)
+
+  #define BOARD_NAME "XMC4300 Relax Kit"
+  #define MCU_XMC4300F100X256
+  #define MCU_INPUT_FREQ   12000000
+
 #else
 
   #error "Unknown board."

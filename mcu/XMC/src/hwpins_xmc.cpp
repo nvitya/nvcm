@@ -70,39 +70,46 @@ bool THwPinCtrl_xmc::PinSetup(int aportnum, int apinnum, unsigned flags)
 		return false;
 	}
 
-  unsigned n;
+  unsigned cfg; // 8 bit configuration
+
+#if UC_SERIES == XMC14 // 6 bit IO config
+  unsigned cfgshift = 2;
+#else // 5 bit IO config
+  unsigned cfgshift = 3;
+#endif
 
   // set mode register
 	if (flags & PINCFG_AF_MASK)
 	{
-		n = 0x10 | (((flags & PINCFG_AF_MASK) >> PINCFG_AF_SHIFT) & 0x07);
+		cfg = 0x80 | ((((flags & PINCFG_AF_MASK) >> PINCFG_AF_SHIFT) & 0x0F) << cfgshift);
+
 		if (flags & PINCFG_OPENDRAIN)
 		{
-			n |= 0x8; // open drain
+			cfg |= 0x40;
 		}
 
-		flags |= PINCFG_GPIO_INIT_1;
+		flags |= PINCFG_GPIO_INIT_1;  // some peripherals require this !
 	}
 	else if (flags & PINCFG_OUTPUT)
 	{
-		n = 0x10;  // GP output
+		cfg = 0x80;  // GP output
 		if (flags & PINCFG_OPENDRAIN)
 		{
-			n |= 0x8; // open drain
+			cfg |= 0x40;
 		}
 	}
   else
 	{
 		// input
-	  n = 0;
+	  cfg = 0;
 	  if (flags & PINCFG_PULLUP)
 	  {
-	  	n |= 2;
+	  	cfg |= (2 << cfgshift);
 	  }
 
 	  if (flags & PINCFG_PULLDOWN)
 	  {
-	  	n |= 1;
+	  	cfg |= (1 << cfgshift);
 	  }
 
 	  // inverted input not supported...
@@ -111,20 +118,20 @@ bool THwPinCtrl_xmc::PinSetup(int aportnum, int apinnum, unsigned flags)
 	unsigned ridx = (apinnum >> 2);
 	unsigned rsh = ((apinnum & 3) * 8);
 	gpiox->IOCR[ridx] &= ~(0xFF << rsh);
-	gpiox->IOCR[ridx] |= ((n << 3) << rsh);
+	gpiox->IOCR[ridx] |= (cfg << rsh);
 
 	if (flags & PINCFG_ANALOGUE)
 	{
-		n = 1; // disable the digital input path
+		cfg = 1; // disable the digital input path
 	}
 	else
 	{
-		n = 0; // enable the digital input path too
+		cfg = 0; // enable the digital input path too
 	}
 
-	if (((gpiox->PDISC >> apinnum) & 1) != n)
+	if (((gpiox->PDISC >> apinnum) & 1) != cfg)
 	{
-		if (n)
+		if (cfg)
 		{
 			gpiox->PDISC |= (1 << apinnum);
 		}
@@ -138,15 +145,15 @@ bool THwPinCtrl_xmc::PinSetup(int aportnum, int apinnum, unsigned flags)
 
 	if (flags & PINCFG_HWC_MASK)
 	{
-		n = ((1 + (flags >> PINCFG_HWC_SHIFT)) & 0x3);
+		cfg = ((1 + (flags >> PINCFG_HWC_SHIFT)) & 0x3);
 	}
 	else
 	{
-		n = 0;
+		cfg = 0;
 	}
 	rsh = (apinnum * 2);
 	gpiox->HWSEL &= ~(3 << rsh);
-	gpiox->HWSEL |= (n << rsh);
+	gpiox->HWSEL |= (cfg << rsh);
 
   // initial state
   if (flags & PINCFG_GPIO_INIT_1)

@@ -92,9 +92,10 @@ class THwIntFlash_noimpl : public THwIntFlash_pre
 public: // mandatory
 	bool           HwInit()  { return false; }
 
-	void           CmdEraseBlock(); // at address
-	void           CmdWritePage();
-	void           CmdClearPageBuffer();
+	void           CmdEraseBlock()       { }
+	void           CmdWritePage()        { }
+	void           CmdClearPageBuffer()  { }
+	bool           CmdFinished()         { return true; }
 };
 
 #define HWINTFLASH_IMPL   THwIntFlash_noimpl
