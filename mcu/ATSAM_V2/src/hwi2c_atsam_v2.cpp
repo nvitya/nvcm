@@ -183,6 +183,18 @@ int THwI2c_atsam_v2::StartReadData(uint8_t adaddr, unsigned aextra, void * dstpt
 		| (1 << 0)  // MB
 	;
 
+	// clear error flags
+	regs->STATUS.reg = 0
+		| (1 << 10)  // LENERR
+		| (1 <<  9)  // SEXTTOUT
+		| (1 <<  8)  // MEXTTOUT
+		| (1 <<  6)  // LOWTOUT
+		| (1 <<  4)  // BUSSTATE(2): 1 = try to force to idle
+		| (1 <<  2)  // RXNACK
+		| (1 <<  1)  // ARBLOST
+		| (1 <<  0)  // BUSERR
+	;
+
 	runstate = 0;
 	busy = true;  // start the state machine
 
@@ -253,6 +265,18 @@ int THwI2c_atsam_v2::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcp
 		| (1 << 0)  // MB
 	;
 
+	// clear error flags
+	regs->STATUS.reg = 0
+		| (1 << 10)  // LENERR
+		| (1 <<  9)  // SEXTTOUT
+		| (1 <<  8)  // MEXTTOUT
+		| (1 <<  6)  // LOWTOUT
+		| (1 <<  4)  // BUSSTATE(2): 1 = try to force to idle
+		| (1 <<  2)  // RXNACK
+		| (1 <<  1)  // ARBLOST
+		| (1 <<  0)  // BUSERR
+	;
+
 	runstate = 0;
 	busy = true;  // start the state machine
 
@@ -277,7 +301,10 @@ void THwI2c_atsam_v2::Run()
 	// check error flags
 	if (!error)
 	{
-		if (isr & SERCOM_I2CM_STATUS_RXNACK)
+		if ( (isr & SERCOM_I2CM_STATUS_RXNACK)  // this flag corresponds to the last receive, and can not be cleared
+				 &&
+				 (intflags & 0x01)                  // MB must be checked too
+			 )
 		{
 			error = ERR_I2C_ACK;
 		}
@@ -476,6 +503,16 @@ void THwI2c_atsam_v2::Run()
 
 		if (busstate == 2)  // still owner?
 		{
+			if (intflags & 3)  // byte available? (SB)
+			{
+				regs->CTRLB.reg = 0
+					| (1 << 18)  // ACKACT: 0 = send ACK after a byte received, 1 = send NACK
+					| (3 << 16)  // CMD(2): 3 = Send stop
+					| (0 <<  9)  // QCEN: 0 = quick command is disabled
+					| (1 <<  8)  // SMEN: 1 = send ACK/NACK automatically
+				;
+			}
+
 			return;
 		}
 
@@ -487,6 +524,9 @@ void THwI2c_atsam_v2::Run()
 		break;
 
 	case 90: // handling errors
+
+		regs->INTFLAG.reg = (1 << 7); // clear error flag
+
 		regs->CTRLB.reg = 0
 			| (1 << 18)  // ACKACT: 0 = send ACK after a byte received, 1 = send NACK
 			| (3 << 16)  // CMD(2): 3 = Send stop
