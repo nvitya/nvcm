@@ -202,6 +202,10 @@ int THwI2c_xmc::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, un
 
 	dmaused = false;
 
+  /* Clear protocol status */
+  regs->PSCR = 0xFFFFFFFF;
+	regs->TRBSCR = 0xFFFF; // clear transmit and receive FIFO + errors
+
 	runstate = 0;
 	busy = true;  // start the state machine
 
@@ -251,6 +255,10 @@ int THwI2c_xmc::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr, u
 
 	dmaused = false;
 
+  /* Clear protocol status */
+  regs->PSCR = 0xFFFFFFFF;
+	regs->TRBSCR = 0xFFFF; // clear transmit and receive FIFO + errors
+
 	runstate = 0;
 	busy = true;  // start the state machine
 
@@ -299,8 +307,6 @@ void THwI2c_xmc::Run()
 
 		// start the transaction
 
-		regs->TRBSCR = (3 << 14); // clear transmit and receive FIFO
-
 		if (extraremaining > 0)
 		{
 			regs->IN[0] = 0
@@ -308,38 +314,6 @@ void THwI2c_xmc::Run()
 				| (devaddr << 1)  // ADDR(7)
 				| (0       << 0)  // RD_WRN
 			;
-
-			// start with sending the extra data, no autoend, no reload
-			while (extraremaining > 0)
-			{
-				regs->IN[0] = 0
-					| (extradata[extracnt - extraremaining] << 0)
-					| (XMC_I2C_TDF_MASTER_SEND << 8)
-				;
-
-				--extraremaining;
-			}
-
-			if (!istx)
-			{
-				// send restart
-				regs->IN[0] = 0
-					| (devaddr << 1)  // ADDR(7)
-					| (isread  << 0)  // RD_WRN
-					| (XMC_I2C_TDF_MASTER_RESTART << 8)
-				;
-
-				regs->IN[0] = 0
-					| (XMC_I2C_TDF_MASTER_RECEIVE_ACK << 8)
-					| (0 << 0) // ignored
-				;
-
-				runstate = 20;
-			}
-			else
-			{
-				runstate = 10;
-			}
 		}
 		else
 		{
@@ -348,7 +322,24 @@ void THwI2c_xmc::Run()
 				| (devaddr << 1)  // ADDR(7)
 				| (isread  << 0)  // RD_WRN
 			;
+		}
 
+		runstate = 1;
+		break;
+
+	case 1: // wait for ack
+
+		if ((psr & (1 << 9)) == 0) // ACK received?
+		{
+			return;
+		}
+
+		if (extraremaining > 0)
+		{
+			runstate = 5;
+		}
+		else
+		{
 			if (istx)
 			{
 				runstate = 10;
@@ -362,6 +353,40 @@ void THwI2c_xmc::Run()
 
 				runstate = 20;
 			}
+		}
+		break;
+
+	case 5: // sending extra bytes
+
+		while (extraremaining > 0)
+		{
+			regs->IN[0] = 0
+				| (extradata[extracnt - extraremaining] << 0)
+				| (XMC_I2C_TDF_MASTER_SEND << 8)
+			;
+
+			--extraremaining;
+		}
+
+		if (!istx)
+		{
+			// send restart
+			regs->IN[0] = 0
+				| (devaddr << 1)  // ADDR(7)
+				| (isread  << 0)  // RD_WRN
+				| (XMC_I2C_TDF_MASTER_RESTART << 8)
+			;
+
+			regs->IN[0] = 0
+				| (XMC_I2C_TDF_MASTER_RECEIVE_ACK << 8)
+				| (0 << 0) // ignored
+			;
+
+			runstate = 20;
+		}
+		else
+		{
+			runstate = 10;
 		}
 
 		break;
@@ -379,17 +404,7 @@ void THwI2c_xmc::Run()
 			--remainingbytes;
 		}
 
-		if (regs->TRBSR & (1 << 12))  // is the Transmit FIFO full?
-		{
-			return;
-		}
-
-		regs->IN[0] = 0
-			| (XMC_I2C_TDF_MASTER_STOP << 8)
-			| (0 << 0) // ignored
-		;
-
-	  runstate = 30; // terminate
+		runstate = 30; // STOP
 		break;
 
 	case 20: //	receiving bytes
@@ -418,6 +433,24 @@ void THwI2c_xmc::Run()
 			}
 		}
 
+		// sending NACK is required for the XMC logic, otherwise TDF violation will occur
+
+		if (regs->TRBSR & (1 << 12))  // is the Transmit FIFO full?
+		{
+			return;
+		}
+
+		regs->IN[0] = 0
+			| (XMC_I2C_TDF_MASTER_RECEIVE_NACK << 8)
+			| (0 << 0) // ignored
+		;
+
+	  runstate = 30; // STOP
+
+		break;
+
+	case 30: // STOP
+
 		if (regs->TRBSR & (1 << 12))  // is the Transmit FIFO full?
 		{
 			return;
@@ -428,27 +461,32 @@ void THwI2c_xmc::Run()
 			| (0 << 0) // ignored
 		;
 
-	  runstate = 30; // terminate
-
+		runstate = 31;
 		break;
 
-	case 30: // STOP is already initiated, wait for the bus to be idle
+	case 31: // wait for STOP
 
-		// todo: check bus status
+		if (psr & (1 << 4)) // stop condition received ?
+		{
+			busy = false; // finished.
+			runstate = 50;
+		}
 
-		busy = false; // finished.
-		runstate = 50;
 	  break;
+
 
 	case 50: // finished
 		break;
 
 	case 90: // handling errors
+	  //regs->CCR = 0;  // disable I2C
+		regs->TRBSCR = 0xFFFF; // clear transmit and receive FIFO + fifo errors
+	  regs->PSCR = 0xFFFFFFFF;
+	  //regs->CCR = 4;  // enable I2C again
 		runstate = 91;
 		break;
 
 	case 91:
-		// todo: check bus status
 		busy = false; // finished.
 		runstate = 50;
 		break;
