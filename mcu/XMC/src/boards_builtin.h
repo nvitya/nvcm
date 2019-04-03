@@ -46,6 +46,12 @@
   #define MCU_XMC4300F100X256
   #define MCU_INPUT_FREQ   12000000
 
+#elif defined(BOARD_MIBO48_XMC4100)
+
+  #define BOARD_NAME "XMC4100 QFN48 Minimal Board"
+  #define MCU_XMC4108Q48X0064
+  #define MCU_INPUT_FREQ   12000000
+
 #else
 
   #error "Unknown board."

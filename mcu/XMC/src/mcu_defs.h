@@ -46,7 +46,7 @@
 #elif	defined(MCUSF_4000)
 
 	#if !defined(MAX_CLOCK_SPEED)
-		#if UC_SERIES == XMC41
+		#if (UC_SERIES == XMC41) || (UC_SERIES == XMC42)
 			#define MAX_CLOCK_SPEED   80000000
 		#else
 			#define MAX_CLOCK_SPEED  144000000
