@@ -33,6 +33,8 @@
 #include "hwcan_stm32.h"
 #include "clockcnt.h"
 
+#ifdef HWCAN_IMPL
+
 bool THwCan_stm32::HwInit(int adevnum)
 {
 	uint32_t tmp;
@@ -265,3 +267,5 @@ bool THwCan_stm32::IsWarning()
 {
 	return ((regs->ESR & CAN_ESR_EWGF) != 0);
 }
+
+#endif

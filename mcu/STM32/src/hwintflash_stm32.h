@@ -19,65 +19,51 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwintflash_stm32.h
+ *  brief:    Internal Flash Handling for STM32
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-03-31
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
-#endif
+#ifndef HWINTFLASH_STM32_H_
+#define HWINTFLASH_STM32_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
+#define HWINTFLASH_PRE_ONLY
+#include "hwintflash.h"
 
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
+class THwIntFlash_stm32 : public THwIntFlash_pre
+{
+public:
+	bool             HwInit();
 
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
+public:
+	FLASH_TypeDef *  regs = nullptr;
 
-#ifdef HWI2C_H_
-  #include "hwi2c_stm32.h"
-#endif
+	//bool           StartFlashCmd(uint8_t acmd);
 
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
+	void             CmdEraseBlock(); // at address
+	void             CmdWritePage();
 
-#ifdef HWINTFLASH_H_
-  #include "hwintflash_stm32.h"
-#endif
+	bool             CmdFinished();
 
-#ifdef HWADC_H_
-  #include "hwadc_stm32.h"
-#endif
+	void             Run();
 
-#ifdef HWUSBCTRL_H_
-  #include "hwusbctrl_stm32.h"
-#endif
+public:
 
-#ifdef HWETH_H_
-  #include "hweth_stm32.h"
-#endif
+	void             Unlock();
 
-#if defined(HWCAN_H_)
-  #include "hwcan_stm32.h"
-#endif
+protected:
 
-#if defined(QUADSPI) && defined(HWQSPI_H_)
-  #include "hwqspi_stm32.h"
-#endif
+	uint16_t *       src16;
+	uint16_t *       dst16;
 
-#if defined(FMC_SDCR1_CAS) && defined(HWSDRAM_H_)
-  #include "hwsdram_stm32.h"
-#endif
+	void             Write32(uint32_t * adst, uint32_t avalue);
 
-#if defined(LTDC_SRCR_IMR) && defined(HWLCDCTRL_H_)
-  #include "hwlcdctrl_stm32.h"
-#endif
+};
+
+#define HWINTFLASH_IMPL     THwIntFlash_stm32
+
+#define HWINTFLASH_OWN_RUN
+
+#endif // def HWINTFLASH_STM32_H_

@@ -1,6 +1,6 @@
 /* -----------------------------------------------------------------------------
  * This file is a part of the NVCM project: https://github.com/nvitya/nvcm
- * Copyright (c) 2019 Viktor Nagy, nvitya
+ * Copyright (c) 2018 Viktor Nagy, nvitya
  *
  * This software is provided 'as-is', without any express or implied warranty.
  * In no event will the authors be held liable for any damages arising from
@@ -19,151 +19,77 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     hwintflash.cpp
- *  brief:    Interface for Internal Flash Memory Handling
+ *  file:     hwintflash_stm32.cpp
+ *  brief:    Internal Flash Handling for STM32
  *  version:  1.00
- *  date:     2019-02-23
+ *  date:     2019-03-31
  *  authors:  nvitya
 */
 
+#include <stdio.h>
+#include <stdarg.h>
+
 #include "platform.h"
+
+#include "hwintflash_stm32.h"
 #include "hwintflash.h"
+
+#include "hwclkctrl.h"
 
 #include "traces.h"
 
-THwIntFlash hwintflash;
-
-bool THwIntFlash::Init()
+bool THwIntFlash_stm32::HwInit()
 {
-	initialized = false;
+	hwclkctrl.StartIntHSOsc();  // required for Flash Writes
 
-	if (!HwInit())
+	regs = FLASH;
+
+	bytesize = *(uint16_t *)(FLASHSIZE_BASE) * 1024;
+
+	if (bytesize <= 64 * 1024)
 	{
-		return false;
+		erasesize = 1024;
+	}
+	else
+	{
+		erasesize = 2048;
 	}
 
-	pagemask = pagesize - 1;
-	blockmask = erasesize - 1;
-	completed = true;
-	initialized = true;
-	return true;
-}
+	pagesize = 256; // used here as burst length
 
-void THwIntFlash::TraceFlashInfo()
-{
-	TRACE("Internal Flash = %u k, erase = %u k, page = %u\r\n", bytesize >> 10, erasesize >> 10, pagesize);
-}
+	smallest_write = 4;  // to be more compatible
+	bank_count = 1;
 
-void THwIntFlash::WaitForComplete()
-{
-	while (!completed)
-	{
-		Run();
-	}
-}
-
-bool THwIntFlash::StartEraseMem(uint32_t aaddr, uint32_t alen)
-{
-	if (!initialized)
-	{
-		errorcode = INTFLASH_ERROR_NOTINIT;
-		completed = true;
-		return false;
-	}
-
-	// aaddr must be at block start
-	if (aaddr & blockmask)
-	{
-		errorcode = INTFLASH_ERROR_ADDRESS;
-		return false;
-	}
-
-	if (!completed)
-	{
-		errorcode = INTFLASH_ERROR_BUSY;  // this might be overwriten later
-		return false;
-	}
-
-	address = aaddr; // already checked
-	length = ((alen + blockmask) & ~blockmask);
-
-	state = INTFLASH_STATE_ERASE;
-	phase = 0;
-	completed = false;
-
-	Run();
+	start_address = 0;
 
 	return true;
 }
 
-bool THwIntFlash::StartWriteMem(uint32_t aaddr, void * asrcptr, uint32_t alen)
+bool THwIntFlash_stm32::CmdFinished()
 {
-	if (!initialized)
+	if (regs->SR & FLASH_SR_BSY)
 	{
-		errorcode = INTFLASH_ERROR_NOTINIT;
-		completed = true;
 		return false;
 	}
 
-	if (!completed)
+	if (regs->SR & FLASH_SR_EOP)
 	{
-		errorcode = INTFLASH_ERROR_BUSY;  // this might be overwriten later
-		return false;
+		regs->SR = FLASH_SR_EOP; // clear EOP flag
 	}
 
-	address = (aaddr & 0xFFFFFFFC); // ensure 4 byte boundary !
-	length = ((alen + 3) & 0xFFFFFFFC); // ensure that it is rounded to the minimum
-	srcaddr = (uint32_t *)asrcptr;
-	dstaddr = (uint32_t *)address;
-
-	state = INTFLASH_STATE_WRITEMEM;
-	phase = 0;
-	completed = false;
-
-	Run();
+	regs->CR = 0; // clear all CMD flags
 
 	return true;
 }
 
-bool THwIntFlash::StartCopyMem(uint32_t aaddr, void * asrcptr, uint32_t alen)
+void THwIntFlash_stm32::CmdEraseBlock()
 {
-	if (!initialized)
-	{
-		errorcode = INTFLASH_ERROR_NOTINIT;
-		completed = true;
-		return false;
-	}
-
-	// aaddr must be at block start
-	if (aaddr & blockmask)
-	{
-		errorcode = INTFLASH_ERROR_ADDRESS;
-		return false;
-	}
-
-	if (!completed)
-	{
-		errorcode = INTFLASH_ERROR_BUSY;  // this might be overwriten later
-		return false;
-	}
-
-	address = aaddr; // checked before
-	length = ((alen + 3) & 0xFFFFFFFC); // ensure that it is rounded to the minimum
-	srcaddr = (uint32_t *)asrcptr;
-	dstaddr = (uint32_t *)address;
-
-	state = INTFLASH_STATE_COPY;
-	phase = 0;
-	completed = false;
-
-	Run();
-
-	return true;
+	regs->CR = FLASH_CR_PER; // prepare page erase
+	regs->AR = address;
+	regs->CR = (FLASH_CR_STRT | FLASH_CR_PER); // start page erase
 }
 
-#ifndef HWINTFLASH_OWN_RUN
-
-void THwIntFlash::Run()
+void THwIntFlash_stm32::Run()
 {
 	uint32_t n;
 
@@ -179,6 +105,9 @@ void THwIntFlash::Run()
 			case 0: // start
 				errorcode = 0;
 				remaining = length;
+
+				Unlock();
+
 				++phase;
 				// no break!
 
@@ -213,40 +142,32 @@ void THwIntFlash::Run()
 		switch (phase)
 		{
 			case 0: // start
+
+				Unlock();
+
 				errorcode = 0;
 				remaining = length;
 				++phase;
 				// no break!
 
 			case 1: // prepare / continue
+			{
 				chunksize = pagesize;
-				chunksize -= (address & pagemask);
 				if (remaining < chunksize)  chunksize = remaining;
 
-				CmdClearPageBuffer(); // Clear Page Buffer
+				uint32_t * endaddr = srcaddr + (chunksize >> 2);
+				while (srcaddr < endaddr)
+				{
+					Write32(dstaddr, *srcaddr);
+					++dstaddr;
+					++srcaddr;
+				}
+
 				++phase;
 				break;
+			}
 
 			case 2:
-				if (CmdFinished())
-				{
-					// Clear Page Buffer is ready
-
-					// TODO: provide DMA version too
-
-					// fill the page buffer
-					uint32_t * endaddr = srcaddr + (chunksize >> 2);
-					while (srcaddr < endaddr)
-					{
-						*dstaddr++ = *srcaddr++;
-					}
-
-					CmdWritePage(); // start write the page (using the last access address)
-					++phase;
-				}
-				break;
-
-			case 3:
 				if (CmdFinished()) // wait the write to be ready
 				{
 					address += chunksize;
@@ -269,6 +190,9 @@ void THwIntFlash::Run()
 		switch (phase)
 		{
 			case 0: // start
+
+				Unlock();
+
 				errorcode = 0;
 				remaining = length;
 				++phase;
@@ -293,7 +217,7 @@ void THwIntFlash::Run()
 					uint32_t dv = *dptr++;
 
 					if (sv != dv)  match = false;
-					if ((sv & dv) != sv)  // if the flash content has elsewhere zeroes as the source
+					if (sv != 0)  // zeroes can be programmed any time
 					{
 						erase_required = true;
 						break;
@@ -330,32 +254,23 @@ void THwIntFlash::Run()
 				break;
 
 			case 6: // start / continue write
+			{
 				chunksize = pagesize;
-				chunksize -= (address & pagemask); // should not happen here
 				if (ebremaining < chunksize)  chunksize = ebremaining;
 
-				CmdClearPageBuffer(); // Clear Page Buffer
+				uint32_t * endaddr = srcaddr + (chunksize >> 2);
+				while (srcaddr < endaddr)
+				{
+					Write32(dstaddr, *srcaddr);
+					++dstaddr;
+					++srcaddr;
+				}
+
 				++phase;
 				break;
+			}
 
 			case 7:
-				if (CmdFinished())
-				{
-					// Clear Page Buffer is ready
-
-					// fill the page buffer
-					uint32_t * endaddr = srcaddr + (chunksize >> 2);
-					while (srcaddr < endaddr)
-					{
-						*dstaddr++ = *srcaddr++;
-					}
-
-					CmdWritePage(); // start write the page (using the last access address)
-					++phase;
-				}
-				break;
-
-			case 8:
 				if (CmdFinished()) // wait the write to be ready
 				{
 					address += chunksize;
@@ -393,4 +308,40 @@ void THwIntFlash::Run()
 	}
 }
 
-#endif
+void THwIntFlash_stm32::Unlock()
+{
+	if (regs->CR & FLASH_CR_LOCK_Msk)
+	{
+		regs->KEYR = 0x45670123;
+		regs->KEYR = 0xCDEF89AB;
+
+		if (regs->CR & FLASH_CR_LOCK_Msk)
+		{
+			TRACE("Flash Unlock Failed !\r\n");
+		}
+	}
+}
+
+void THwIntFlash_stm32::Write32(uint32_t * adst, uint32_t avalue)
+{
+	while (!CmdFinished())
+	{
+		// wait
+	}
+
+	regs->CR = FLASH_CR_PG;
+
+	uint16_t * dst16 = (uint16_t *)adst;
+
+	*dst16 = (avalue & 0xFFFF);
+	++dst16;
+
+	while (!CmdFinished())
+	{
+		// wait
+	}
+
+	regs->CR = FLASH_CR_PG;
+
+	*dst16 = (avalue >> 16);
+}
