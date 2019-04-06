@@ -32,6 +32,12 @@
 #define HWINTFLASH_PRE_ONLY
 #include "hwintflash.h"
 
+#if defined(MCUSF_F4) || defined(MCUSF_F7)
+  #define HWINTFLASH_BIGBLOCKS  1
+#else
+  #define HWINTFLASH_BIGBLOCKS  0
+#endif
+
 class THwIntFlash_stm32 : public THwIntFlash_pre
 {
 public:
@@ -59,6 +65,13 @@ protected:
 	uint16_t *       dst16;
 
 	void             Write32(uint32_t * adst, uint32_t avalue);
+
+#if HWINTFLASH_BIGBLOCKS
+
+	uint32_t         cr_reg_base;
+
+	int              BlockIdFromAddress(uint32_t aaddress);
+#endif
 
 };
 
