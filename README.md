@@ -95,7 +95,7 @@ __KINETIS__  | OK                    | partial           | OK       | -       | 
 __LPC__      | OK                    | OK                | OK       | OK      | Master  | -       | -         | OK      | OK       | -
 __LPC_V2__   | OK                    | restricted        | OK       | -       | -       | -       | -         | -       | -        | -
 __LPC_V3__   | OK                    | OK                | OK       | OK      | Master  | -       | -         | -       | -        | -
-__STM32__    | OK                    | OK                | OK       | OK      | Master  | Master  | -         | OK      | OK       | OK
+__STM32__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK        | OK      | OK       | OK
 __XMC__      | OK                    | OK                | OK       | -       | Master  | Master  | -         | -       | -        | -
 
 ### Planned Drivers
