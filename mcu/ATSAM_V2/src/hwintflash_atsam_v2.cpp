@@ -42,7 +42,7 @@ bool THwIntFlash_atsam_v2::HwInit()
 	pagesize = (8 << ((NVMCTRL->PARAM.reg >> 16) & 7));
 	pagecount = (NVMCTRL->PARAM.reg & 0xFFFF);
 	bytesize = pagesize * pagecount;
-	blocksize = bytesize / 32;
+	blocksize = pagesize * 16;  // usually 8192
 
 	// fix parameters:
 	smallest_write = 4;
