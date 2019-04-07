@@ -88,13 +88,13 @@ __XMC__      | [XMC1xxx, XMC4xxx](https://github.com/nvitya/nvcm/blob/master/mcu
 
   Driver              |__ATSAM__|__STM32__|__LPC__|__XMC__|__ATSAM_V2__|__LPC_V2__|__LPC_V3__|__IMXRT__|__KINETIS__|
 ----------------------|---------|---------|-------|-------|------------|----------|----------|---------|-----------|
-__CPU<br/>SPEED__     | OK      | OK      | OK    | OK    | OK         | Partial  | OK       | OK      | Partial   |
-__PINCFG<br/>+ GPIO__ | OK      | OK      | OK    | OK    | OK         | OK       | OK       | OK      | OK        |
+__CPU Speed__         | OK      | OK      | OK    | OK    | OK         | Partial  | OK       | OK      | Partial   |
+__Pin Cfg. + GPIO__   | OK      | OK      | OK    | OK    | OK         | OK       | OK       | OK      | OK        |
 __UART__              | OK      | OK      | OK    | OK    | OK         | OK       | OK       | OK      | OK        |
 __DMA__               | OK      | OK      | OK    | -     | OK         | -        | OK       | -       | -         |
 __SPI Master__        | OK      | OK      | OK    | OK    | OK         | -        | OK       | -       | -         |
 __I2C Master__        | OK      | OK      | -     | OK    | OK         | -        | OK       | -       | -         |
-__Flash__             | OK      | OK      | -     | -     | OK         | -        | -        | -       | -         |
+__Internal Flash__    | OK      | OK      | -     | -     | OK         | -        | -        | -       | -         |
 __ADC__               | OK      | OK      | OK    | -     | -          | -        | -        | -       | -         |
 __QSPI__              | OK      | OK      | OK    | -     | OK         | -        | OK       | -       | -         |
 __Ethernet__          | OK      | OK      | -     | -     | -          | -        | -        | -       | -         |
