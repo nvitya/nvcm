@@ -82,34 +82,34 @@ __LPC__      | [LPC43xx](https://github.com/nvitya/nvcm/blob/master/mcu/LPC/src/
 __LPC_V2__   | [LPC8xx](https://github.com/nvitya/nvcm/blob/master/mcu/LPC_V2/src/mcu_builtin.h)
 __LPC_V3__   | [LPC546xx](https://github.com/nvitya/nvcm/blob/master/mcu/LPC_V3/src/mcu_builtin.h)
 __STM32__    | [F0, L0, F1, F3, F4, F7](https://github.com/nvitya/nvcm/blob/master/mcu/STM32/src/mcu_builtin.h)
-__XMC__      | [XMC1xxx](https://github.com/nvitya/nvcm/blob/master/mcu/XMC/src/mcu_builtin.h)
+__XMC__      | [XMC1xxx, XMC4xxx](https://github.com/nvitya/nvcm/blob/master/mcu/XMC/src/mcu_builtin.h)
 
 ### Current Driver Status
 
-  Family     | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __UART__ | __DMA__ | __SPI__ | __I2C__ | __Flash__ | __ADC__ | __QSPI__ | __CAN__
--------------|-----------------------|-------------------|----------|---------|---------|---------|-----------|---------|----------|---------
-__ATSAM__    | OK                    | OK                | OK       | OK      | Master  | Master  | -         | OK      | OK       | OK
-__ATSAM_V2__ | OK                    | OK                | OK       | OK      | Master  | Master  | OK        | -       | OK       | OK
-__IMXRT__    | OK                    | OK                | OK       | -       | -       | -       | -         | -       | -        | -
-__KINETIS__  | OK                    | partial           | OK       | -       | -       | -       | -         | -       | -        | -
-__LPC__      | OK                    | OK                | OK       | OK      | Master  | -       | -         | OK      | OK       | -
-__LPC_V2__   | OK                    | restricted        | OK       | -       | -       | -       | -         | -       | -        | -
-__LPC_V3__   | OK                    | OK                | OK       | OK      | Master  | -       | -         | -       | -        | -
-__STM32__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK        | OK      | OK       | OK
-__XMC__      | OK                    | OK                | OK       | -       | Master  | Master  | -         | -       | -        | -
+  Family     | __PINCFG<br/>+ GPIO__ | __CPU<br/>SPEED__ | __UART__ | __DMA__ | __SPI__ | __I2C__ | __Flash__ | __ADC__ | __QSPI__ | __ETH__ | __CAN__ |
+-------------|-----------------------|-------------------|----------|---------|---------|---------|-----------|---------|----------|---------|---------|
+__ATSAM__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK        | OK      | OK       | OK      | OK      |
+__ATSAM_V2__ | OK                    | OK                | OK       | OK      | Master  | Master  | OK        | -       | OK       | -       | OK      |
+__IMXRT__    | OK                    | OK                | OK       | -       | -       | -       | -         | -       | -        | -       | -       |
+__KINETIS__  | OK                    | partial           | OK       | -       | -       | -       | -         | -       | -        | -       | -       |
+__LPC__      | OK                    | OK                | OK       | OK      | Master  | -       | -         | OK      | OK       | -       | -       |
+__LPC_V2__   | OK                    | restricted        | OK       | -       | -       | -       | -         | -       | -        | -       | -       |
+__LPC_V3__   | OK                    | OK                | OK       | OK      | Master  | -       | -         | -       | -        | -       | -       |
+__STM32__    | OK                    | OK                | OK       | OK      | Master  | Master  | OK        | OK      | OK       | OK      | OK      |
+__XMC__      | OK                    | OK                | OK       | -       | Master  | Master  | -         | -       | -        | -       | -       |
 
-### Planned Drivers
+### Additially Planned Drivers
  * Simple PWM
  * USB Device
  * SDCARD
- * Ethernet
 
 ## Included HW Module Drivers
 This NVCM core project contains some useful external module drivers as well. Currently these modules are included into the core:
  * TFT LCD displays: SPI, Parallel
  * I2C OLED displays (SSD1306)
- * SPI, QSPI flash memories
- * Led and Key module, some other serial 7 segment displays
+ * SPI, QSPI flash memories, I2C EEPROM
+ * Led and Key module and some other serial 7 segment displays
+ * Simple stepper motor
 
 ### Built-In Boards
 

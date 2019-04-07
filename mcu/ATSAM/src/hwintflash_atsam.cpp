@@ -31,9 +31,16 @@
 
 #include "platform.h"
 
+#include "hwintflash_atsam.h"
 #include "hwintflash.h"
 
 #include "traces.h"
+
+#ifdef MCUSF_E70
+  #define HWINTFLASH_EBMUL  16
+#else
+  #define HWINTFLASH_EBMUL   8
+#endif
 
 bool THwIntFlash_atsam::HwInit()
 {
@@ -67,7 +74,8 @@ bool THwIntFlash_atsam::HwInit()
 
 	bytesize  = fdesc[1];
 	pagesize  = fdesc[2];
-	erasesize = pagesize * 8;  // this is the smallest erase unit, that can be used everywhere
+
+	erasesize = pagesize * HWINTFLASH_EBMUL;  // this is the smallest erase unit, that can be used everywhere
 
 	// fix parameters:
 	smallest_write = 4;
@@ -80,6 +88,8 @@ void THwIntFlash_atsam::CmdEraseBlock()
 {
 	uint32_t ebnum = (address - start_address) / erasesize;
 
+#if HWINTFLASH_EBMUL == 8
+
 	regs->EEFC_FCR = 0
 		| (7     <<  0)  // FCMD(8): 7 = Erase Pages
 		| (1     <<  8)  // FARG(0..1): 1 = 8x PAGES
@@ -87,6 +97,19 @@ void THwIntFlash_atsam::CmdEraseBlock()
 		| (ebnum << 11)  // FARG(3..15): page number
 		| (0x5A  << 24)  // FKEY(8): must be 5A
 	;
+
+#else
+
+	regs->EEFC_FCR = 0
+		| (7     <<  0)  // FCMD(8): 7 = Erase Pages
+		| (2     <<  8)  // FARG(0..1): 2 = 16x PAGES (8k)
+		| (0     << 10)  // FARG(2..3): not used
+		| (ebnum << 12)  // FARG(4..15): page number
+		| (0x5A  << 24)  // FKEY(8): must be 5A
+	;
+
+#endif
+
 }
 
 void THwIntFlash_atsam::CmdWritePage()
