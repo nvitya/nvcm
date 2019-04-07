@@ -19,67 +19,36 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (ATSAM)
- *  brief:    ATSAM list of implemented NVCM core peripherals
+ *  file:     hwintflash_atsam.h
+ *  brief:    Internal Flash Handling for ATSAM
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-04-07
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_atsam.h"
-#endif
+#ifndef HWINTFLASH_ATSAM_H_
+#define HWINTFLASH_ATSAM_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_atsam.h"
-#endif
+#define HWINTFLASH_PRE_ONLY
+#include "hwintflash.h"
 
-#ifdef HWINTFLASH_H_
-  #include "hwintflash_atsam.h"
-#endif
+class THwIntFlash_atsam : public THwIntFlash_pre
+{
+public:
+	bool           HwInit();
 
-#ifdef HWDMA_H_
-  #include "hwdma_atsam.h"
-#endif
+public:
+	Efc *          regs = nullptr;
 
-#ifdef HWUART_H_
-  #include "hwuart_atsam.h"
-#endif
+	bool           StartFlashCmd(uint8_t acmd);
 
-#ifdef HWSPI_H_
-  #include "hwspi_atsam.h"
-#endif
+	void           CmdEraseBlock(); // at address
+	void           CmdWritePage();
+	void           CmdClearPageBuffer();
 
-#ifdef HWI2C_H_
-  #include "hwi2c_atsam.h"
-#endif
+	inline bool    CmdFinished() { return (regs->EEFC_FSR & 1); }
+};
 
-#ifdef HWADC_H_
-  #include "hwadc_atsam.h"
-#endif
+#define HWINTFLASH_IMPL THwIntFlash_atsam
 
-#ifdef QSPI
-	#ifdef HWQSPI_H_
-		#include "hwqspi_atsam.h"
-	#endif
-#endif
-
-#if defined(HWCAN_H_)
-  #include "hwcan_atsam.h"
-#endif
-
-#if defined(HWUSBCTRL_H_) && defined(UDP)
-  #include "hwusbctrl_atsam.h"
-#endif
-
-#if defined(HWETH_H_) && defined(GMAC)
-  #include "hweth_atsam.h"
-#endif
-
-#if defined(HSMCI) && defined(HWSDCARD_H_)
-  #include "hwsdcard_atsam.h"
-#endif
-
-#if defined(SDRAMC) && defined(HWSDRAM_H_)
-  #include "hwsdram_atsam.h"
-#endif
+#endif // def HWINTFLASH_ATSAM_H_

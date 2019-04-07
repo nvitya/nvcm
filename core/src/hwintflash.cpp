@@ -223,7 +223,10 @@ void THwIntFlash::Run()
 				chunksize -= (address & pagemask);
 				if (remaining < chunksize)  chunksize = remaining;
 
-				CmdClearPageBuffer(); // Clear Page Buffer
+				if (chunksize != pagesize)
+				{
+					CmdClearPageBuffer(); // Clear Page Buffer
+				}
 				++phase;
 				break;
 
@@ -334,7 +337,10 @@ void THwIntFlash::Run()
 				chunksize -= (address & pagemask); // should not happen here
 				if (ebremaining < chunksize)  chunksize = ebremaining;
 
-				CmdClearPageBuffer(); // Clear Page Buffer
+				if (chunksize != pagesize)
+				{
+					CmdClearPageBuffer(); // Clear Page Buffer
+				}
 				++phase;
 				break;
 
