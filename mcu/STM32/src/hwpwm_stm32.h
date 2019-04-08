@@ -19,69 +19,40 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwpwm_stm32.h
+ *  brief:    STM32 PWM Driver
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-04-08
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
-#endif
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
+#ifndef SRC_HWPWM_STM32_H_
+#define SRC_HWPWM_STM32_H_
 
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
+#define HWPWM_PRE_ONLY
+#include "hwpwm.h"
 
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
+class THwPwmChannel_stm32 : public THwPwmChannel_pre
+{
+public:
+	bool          Init(int atimernum, int achnum, int aoutnum);
 
-#ifdef HWI2C_H_
-  #include "hwi2c_stm32.h"
-#endif
+	void          SetOnClocks(uint16_t aclocks);
+	void          Enable();
+	void          Disable();
+	inline bool   Enabled() { return ((regs->CCER & outenbit) != 0); }
 
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
+	void          SetFrequency(uint32_t afrequency);
 
-#ifdef HWINTFLASH_H_
-  #include "hwintflash_stm32.h"
-#endif
+public:
+	TIM_TypeDef *           regs = nullptr;
 
-#ifdef HWADC_H_
-  #include "hwadc_stm32.h"
-#endif
+	uint16_t                chpos = 0;     // = chnum - 1
+	uint16_t						    outenbit = 0;
+	volatile uint16_t *     valreg = nullptr;
+};
 
-#ifdef HWPWM_H_
-  #include "hwpwm_stm32.h"
-#endif
+#define HWPWM_IMPL THwPwmChannel_stm32
 
-#ifdef HWUSBCTRL_H_
-  #include "hwusbctrl_stm32.h"
-#endif
-
-#ifdef HWETH_H_
-  #include "hweth_stm32.h"
-#endif
-
-#if defined(HWCAN_H_)
-  #include "hwcan_stm32.h"
-#endif
-
-#if defined(QUADSPI) && defined(HWQSPI_H_)
-  #include "hwqspi_stm32.h"
-#endif
-
-#if defined(FMC_SDCR1_CAS) && defined(HWSDRAM_H_)
-  #include "hwsdram_stm32.h"
-#endif
-
-#if defined(LTDC_SRCR_IMR) && defined(HWLCDCTRL_H_)
-  #include "hwlcdctrl_stm32.h"
-#endif
+#endif /* SRC_HWPWM_STM32_H_ */

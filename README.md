@@ -37,7 +37,7 @@ __SPI Master__        | OK      | OK      | OK    | OK    | OK         | -      
 __I2C Master__        | OK      | OK      | -     | OK    | OK         | -        | OK       | -       | -         |
 __Internal Flash__    | OK      | OK      | -     | -     | OK         | -        | -        | -       | -         |
 __ADC__               | OK      | OK      | OK    | -     | -          | -        | -        | -       | -         |
-__Simple PWM__        | -       | -       | -     | -     | -          | -        | -        | -       | -         |
+__Simple PWM__        | -       | OK      | -     | -     | -          | -        | -        | -       | -         |
 __QSPI__              | OK      | OK      | OK    | -     | OK         | -        | OK       | -       | -         |
 __Ethernet__          | OK      | OK      | -     | -     | -          | -        | -        | -       | -         |
 __CAN__               | OK      | OK      | -     | -     | OK         | -        | -        | -       | -         |
