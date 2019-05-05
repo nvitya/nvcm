@@ -107,6 +107,7 @@ public: // mandatory
 	void HandleTx()                                   { }
 	void HandleRx()                                   { }
 
+	void SetSpeed(uint32_t aspeed)                    { }
 	void AcceptListClear()                            { }
 	void AcceptAdd(uint16_t cobid, uint16_t amask)    { }
 

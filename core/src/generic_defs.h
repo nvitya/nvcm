@@ -33,6 +33,8 @@
 
 #define WEAK  __attribute__ ((weak))
 
+#define ALWAYS_INLINE  inline __attribute__((always_inline))
+
 #if defined(DEBUG)
   #define __DEBUG_BKPT()  asm volatile ("bkpt 0")
 #else

@@ -36,6 +36,10 @@ void atsam2_enable_mclk(bool isahb, uint8_t regid, uint8_t bitid);
 void atsam2_set_periph_gclk(uint32_t perid, uint8_t gclk);
 bool atsam2_sercom_enable(int devnum, uint8_t clksrc);
 
+void atsam2_extint_init();
+void atsam2_extint_setup(uint8_t extintnum, uint8_t aconfig);
+bool atsam2_extint_enable(bool aenable);
+
 extern const Sercom *  sercom_inst_list[];
 
 #endif /* ATSAM_V2_UTILS_H_ */

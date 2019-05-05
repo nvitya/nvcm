@@ -92,8 +92,6 @@ bool THwCan_atsam_v2::HwInit(int adevnum)
 	// setup peripheral clock
 	GCLK->PCHCTRL[gclkid].reg = ((1 << 6) | (0 << 0));   // select main clock frequency + enable
 
-	unsigned periphclock = SystemCoreClock;
-
 	// set to init mode
 	regs->CCCR.bit.INIT = 1;
 	while (regs->CCCR.bit.INIT == 0) { } // wait for ack
@@ -168,6 +166,28 @@ bool THwCan_atsam_v2::HwInit(int adevnum)
 
 	regs->TOCC.reg = 0; // disable timeout counter
 
+	SetSpeed(speed);
+
+	regs->ILE.reg = (1 << devnum);  // assign interrupt line to the corresponding device
+	regs->ILS.reg = (devnum == 0 ? 0x00000000 : 0xFFFFFFFF);
+
+	regs->IR.reg = 1; // clear the interrupt
+	regs->IE.reg = 1; // enable only RX FIFO0 interrupt
+
+	return true;
+}
+
+void THwCan_atsam_v2::SetSpeed(uint32_t aspeed)
+{
+	bool wasenabled = Enabled();
+	if (wasenabled)
+	{
+		Disable();
+	}
+
+	speed = aspeed;
+
+	unsigned periphclock = SystemCoreClock;
 
 	uint32_t brp = 1;
 	uint32_t ts1, ts2;
@@ -209,13 +229,10 @@ bool THwCan_atsam_v2::HwInit(int adevnum)
 	  | (0         << 23)  // TDC: transmitter delay compensation
 	;
 
-	regs->ILE.reg = (1 << devnum);  // assign interrupt line to the corresponding device
-	regs->ILS.reg = (devnum == 0 ? 0x00000000 : 0xFFFFFFFF);
-
-	regs->IR.reg = 1; // clear the interrupt
-	regs->IE.reg = 1; // enable only RX FIFO0 interrupt
-
-	return true;
+	if (wasenabled)
+	{
+		Enable();
+	}
 }
 
 void THwCan_atsam_v2::Enable()
