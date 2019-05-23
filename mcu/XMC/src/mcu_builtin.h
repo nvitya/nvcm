@@ -35,6 +35,14 @@
 // Infineon
 //----------------------------------------------------------------------
 
+#elif defined(MCU_XMC1100Q40X0032)
+
+	#define MCUF_XMC
+  #define MCUSF_1000
+
+  #define XMC1100_Q040x0032
+  #include "xmc_device.h"
+
 #elif defined(MCU_XMC1200T38X0200)
 
 	#define MCUF_XMC
@@ -42,6 +50,35 @@
 
   #define XMC1200_T038x0200
   #include "xmc_device.h"
+
+#elif defined(MCU_XMC1404F64X0064)
+
+	#define MCUF_XMC
+  #define MCUSF_1000
+
+  #define XMC1404_F064x0064
+
+  #include "xmc_device.h"
+
+#elif defined(MCU_XMC1404Q48X0064)
+
+	#define MCUF_XMC
+  #define MCUSF_1000
+
+  #define XMC1404_Q048x0064
+
+  #include "xmc_device.h"
+
+// XMC4000
+
+#elif defined(MCU_XMC4300F100X256)
+
+  #define MCUF_XMC
+  #define MCUSF_4000
+
+  #define XMC4300_F100x256
+  #include "xmc_device.h"
+
 
 #else
 
