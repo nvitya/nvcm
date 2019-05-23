@@ -19,64 +19,64 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_builtin.h (XMC)
- *  brief:    Built-in XMC MCU definitions
+ *  file:     hwintflash_stm32.h
+ *  brief:    Internal Flash Handling for STM32
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-03-31
  *  authors:  nvitya
 */
 
-#ifndef __MCU_BUILTIN_H
-#define __MCU_BUILTIN_H
+#ifndef HWINTFLASH_STM32_H_
+#define HWINTFLASH_STM32_H_
 
-#if 0
+#define HWINTFLASH_PRE_ONLY
+#include "hwintflash.h"
 
-//----------------------------------------------------------------------
-// Infineon
-//----------------------------------------------------------------------
-
-#elif defined(MCU_XMC1100Q40X0032)
-  #define MCUF_XMC
-  #define MCUSF_1000
-  #define XMC1100_Q040x0032
-  #include "xmc_device.h"
-
-#elif defined(MCU_XMC1404F64X0064)
-  #define MCUF_XMC
-  #define MCUSF_1000
-  #define XMC1404_F064x0064
-  #include "xmc_device.h"
-
-#elif defined(MCU_XMC1404Q48X0064)
-  #define MCUF_XMC
-  #define MCUSF_1000
-  #define XMC1404_Q048x0064
-  #include "xmc_device.h"
-
-#elif defined(MCU_XMC1200T38X0200)
-  #define MCUF_XMC
-  #define MCUSF_1000
-  #define XMC1200_T038x0200
-  #include "xmc_device.h"
-
-// XMC4000
-
-#elif defined(MCU_XMC4108Q48X0064)
-  #define MCUF_XMC
-  #define MCUSF_4000
-  #define XMC4108_Q48x64
-  #include "xmc_device.h"
-
-#elif defined(MCU_XMC4300F100X256)
-  #define MCUF_XMC
-  #define MCUSF_4000
-  #define XMC4300_F100x256
-  #include "xmc_device.h"
-
+#if defined(MCUSF_F4) || defined(MCUSF_F7)
+  #define HWINTFLASH_BIGBLOCKS  1
 #else
-
-  #error "Unknown MCU"
-
+  #define HWINTFLASH_BIGBLOCKS  0
 #endif
 
+class THwIntFlash_stm32 : public THwIntFlash_pre
+{
+public:
+	bool             HwInit();
+
+public:
+	FLASH_TypeDef *  regs = nullptr;
+
+	//bool           StartFlashCmd(uint8_t acmd);
+
+	void             CmdEraseBlock(); // at address
+	void             CmdWritePage();
+
+	bool             CmdFinished();
+
+	void             Run();
+
+public:
+
+	void             Unlock();
+
+protected:
+
+	uint16_t *       src16;
+	uint16_t *       dst16;
+
+	void             Write32(uint32_t * adst, uint32_t avalue);
+
+#if HWINTFLASH_BIGBLOCKS
+
+	uint32_t         cr_reg_base;
+
+	int              BlockIdFromAddress(uint32_t aaddress);
 #endif
+
+};
+
+#define HWINTFLASH_IMPL     THwIntFlash_stm32
+
+#define HWINTFLASH_OWN_RUN
+
+#endif // def HWINTFLASH_STM32_H_

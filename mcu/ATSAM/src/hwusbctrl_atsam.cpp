@@ -298,7 +298,7 @@ void THwUsbCtrl_atsam::HandleIrq()
 	{
 		TRACE("Endpoint interrupt: ISR=%08X\r\n", isr);
 
-		TRACE_FLUSH();
+		//TRACE_FLUSH();
 
 		__BKPT();
 

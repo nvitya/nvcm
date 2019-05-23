@@ -196,3 +196,52 @@ bool atsam2_sercom_enable(int devnum, uint8_t clksrc)
 	return true;
 }
 
+void atsam2_extint_init()
+{
+	atsam2_set_periph_gclk(EIC_GCLK_ID, 0);  // setup EIC clock
+	MCLK->APBAMASK.bit.EIC_ = 1;   // enable EIC clocks
+
+	EIC->CTRLA.reg = 0; // disable
+	EIC->CTRLA.bit.SWRST = 1;
+	while (EIC->SYNCBUSY.bit.SWRST)  { } // wait for sync
+
+	EIC->NMICTRL.reg = 0; // disable NMI
+	EIC->EVCTRL.reg = 0;
+	EIC->INTENCLR.reg = 0xFFFF; // disable all interrupts
+	EIC->INTFLAG.reg = 0xFFFF;  // clear all pending IRQs
+}
+
+void atsam2_extint_setup(uint8_t extintnum, uint8_t aconfig)
+{
+	bool wasenabled = atsam2_extint_enable(false);
+
+	uint32_t intcfg = (aconfig & 0x0F);
+	uint8_t regshift = ((extintnum & 7) << 2);
+	uint8_t regidx = ((extintnum >> 3) & 1);
+	uint32_t tmp;
+	tmp = EIC->CONFIG[regidx].reg;
+	tmp &= ~(15     << regshift);
+	tmp |=  (intcfg << regshift);
+	EIC->CONFIG[regidx].reg = tmp;
+	EIC->INTENSET.reg = (1 << extintnum);
+
+	if (wasenabled)
+	{
+		atsam2_extint_enable(true);
+	}
+}
+
+bool atsam2_extint_enable(bool aenable)
+{
+	bool wasenable = (EIC->CTRLA.bit.ENABLE == 1);
+	if (aenable)
+	{
+		EIC->CTRLA.bit.ENABLE = 1;
+	}
+	else
+	{
+		EIC->CTRLA.bit.ENABLE = 0;
+	}
+	while (EIC->SYNCBUSY.bit.ENABLE)  { } // wait for sync
+	return wasenable;
+}

@@ -45,10 +45,9 @@ class THwIntFlash_pre
 public:	// info
 	bool 					 initialized = false;
 
-	uint32_t       bytesize = 0; // total size
-	uint32_t       blocksize = 0; // in bytes
-	uint32_t       pagesize = 0; // in bytes
-	uint32_t       pagecount = 0;
+	uint32_t       bytesize = 0;       // total size
+	uint32_t       erasesize = 0;      // erase unit, in bytes
+	uint32_t       pagesize = 0;       // max write unit in bytes
 	uint32_t       smallest_write = 0;
 
 	uint32_t       start_address = 0;
@@ -57,6 +56,8 @@ public:	// info
 public: // status
 	bool           completed = true;
 	int            errorcode = 0;
+
+protected: // internal
 
 	int            state = 0;
 	int            phase = 0;
@@ -72,6 +73,9 @@ public: // status
 	uint32_t       blockmask = 0;
 
 	uint32_t       chunksize = 0;
+
+	uint32_t       ebchunk;
+	uint32_t       ebremaining;
 };
 
 #endif // ndef _HWINTFLASH_H_PRE_
@@ -120,12 +124,9 @@ public:
 	// Intended for self-flashing RAM applications
 	bool           StartCopyMem(uint32_t aaddr, void * asrcptr, uint32_t alen);  // aaddr must be block aligned!
 
+#ifndef HWINTFLASH_OWN_RUN
 	void           Run();
-
-protected:
-	uint32_t       blockchunk;
-	uint32_t       blockremaining;
-
+#endif
 };
 
 extern THwIntFlash  hwintflash;

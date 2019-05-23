@@ -50,8 +50,16 @@
   #include "hwdma_stm32.h"
 #endif
 
+#ifdef HWINTFLASH_H_
+  #include "hwintflash_stm32.h"
+#endif
+
 #ifdef HWADC_H_
   #include "hwadc_stm32.h"
+#endif
+
+#ifdef HWPWM_H_
+  #include "hwpwm_stm32.h"
 #endif
 
 #ifdef HWUSBCTRL_H_

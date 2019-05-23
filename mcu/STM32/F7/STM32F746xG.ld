@@ -9,7 +9,7 @@ MEMORY
 }
 
 REGION_ALIAS("TEXT", FLASH);
-REGION_ALIAS("RAM", DTCRAM);
+REGION_ALIAS("RAM", RAM2);
 
 INCLUDE nvcm_default_flash.ld
 

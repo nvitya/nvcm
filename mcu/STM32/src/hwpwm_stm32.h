@@ -19,64 +19,40 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_builtin.h (XMC)
- *  brief:    Built-in XMC MCU definitions
+ *  file:     hwpwm_stm32.h
+ *  brief:    STM32 PWM Driver
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-04-08
  *  authors:  nvitya
 */
 
-#ifndef __MCU_BUILTIN_H
-#define __MCU_BUILTIN_H
 
-#if 0
+#ifndef SRC_HWPWM_STM32_H_
+#define SRC_HWPWM_STM32_H_
 
-//----------------------------------------------------------------------
-// Infineon
-//----------------------------------------------------------------------
+#define HWPWM_PRE_ONLY
+#include "hwpwm.h"
 
-#elif defined(MCU_XMC1100Q40X0032)
-  #define MCUF_XMC
-  #define MCUSF_1000
-  #define XMC1100_Q040x0032
-  #include "xmc_device.h"
+class THwPwmChannel_stm32 : public THwPwmChannel_pre
+{
+public:
+	bool          Init(int atimernum, int achnum, int aoutnum);
 
-#elif defined(MCU_XMC1404F64X0064)
-  #define MCUF_XMC
-  #define MCUSF_1000
-  #define XMC1404_F064x0064
-  #include "xmc_device.h"
+	void          SetOnClocks(uint16_t aclocks);
+	void          Enable();
+	void          Disable();
+	inline bool   Enabled() { return ((regs->CCER & outenbit) != 0); }
 
-#elif defined(MCU_XMC1404Q48X0064)
-  #define MCUF_XMC
-  #define MCUSF_1000
-  #define XMC1404_Q048x0064
-  #include "xmc_device.h"
+	void          SetFrequency(uint32_t afrequency);
 
-#elif defined(MCU_XMC1200T38X0200)
-  #define MCUF_XMC
-  #define MCUSF_1000
-  #define XMC1200_T038x0200
-  #include "xmc_device.h"
+public:
+	TIM_TypeDef *           regs = nullptr;
 
-// XMC4000
+	uint16_t                chpos = 0;     // = chnum - 1
+	uint16_t						    outenbit = 0;
+	volatile uint16_t *     valreg = nullptr;
+};
 
-#elif defined(MCU_XMC4108Q48X0064)
-  #define MCUF_XMC
-  #define MCUSF_4000
-  #define XMC4108_Q48x64
-  #include "xmc_device.h"
+#define HWPWM_IMPL THwPwmChannel_stm32
 
-#elif defined(MCU_XMC4300F100X256)
-  #define MCUF_XMC
-  #define MCUSF_4000
-  #define XMC4300_F100x256
-  #include "xmc_device.h"
-
-#else
-
-  #error "Unknown MCU"
-
-#endif
-
-#endif
+#endif /* SRC_HWPWM_STM32_H_ */

@@ -30,6 +30,12 @@
 #include "string.h"
 #include "hwcan.h"
 
+#define HWCAN_TRACE_RX_TX  0
+
+#if HWCAN_TRACE_RX_TX
+  #include "traces.h"
+#endif
+
 void THwCan_pre::InitMsgBuffers(TCanMsg * arxbuf, uint16_t arxcnt, TCanMsg * atxbuf, uint16_t atxcnt)
 {
 	rxmsgbuf = arxbuf;
@@ -48,6 +54,17 @@ bool THwCan_pre::TryGetRxMessage(TCanMsg * amsg)
 	if (rxmb_idx_rd != rxmb_idx_wr)
 	{
 		*amsg = rxmsgbuf[rxmb_idx_rd];
+
+#if HWCAN_TRACE_RX_TX
+	int i;
+	TRACE("CAN Recv: COBID=%03X, LEN=%i, DATA=", amsg->cobid, amsg->len);
+	for (int i = 0; i < amsg->len; ++i)
+	{
+		TRACE(" %02X", amsg->data[i]);
+	}
+	TRACE("\r\n");
+#endif
+
 		++rxmb_idx_rd;
 		if (rxmb_idx_rd >= rxmb_count)  rxmb_idx_rd = 0;
 		return true;
@@ -75,21 +92,43 @@ void THwCan_pre::AddRxMessage(TCanMsg * amsg)
 
 bool THwCan_pre::TryGetTxMessage(TCanMsg * amsg)
 {
+	// disabling interrupts are necessary because it might be called from idle and interrupt context
+
+	unsigned pm = __get_PRIMASK();  // save interrupt disable status
+	__disable_irq();
+
 	if (txmb_idx_rd != txmb_idx_wr)
 	{
 		*amsg = txmsgbuf[txmb_idx_rd];
 		++txmb_idx_rd;
 		if (txmb_idx_rd >= txmb_count)  txmb_idx_rd = 0;
+	 	__set_PRIMASK(pm); // restore interrupt disable status
 		return true;
 	}
 	else
 	{
+	 	__set_PRIMASK(pm); // restore interrupt disable status
 		return false;
 	}
 }
 
 void THwCan_pre::AddTxMessage(TCanMsg * amsg)
 {
+#if HWCAN_TRACE_RX_TX
+	int i;
+	TRACE("CAN Send: COBID=%03X, LEN=%i, DATA=", amsg->cobid, amsg->len);
+	for (int i = 0; i < amsg->len; ++i)
+	{
+		TRACE(" %02X", amsg->data[i]);
+	}
+	TRACE("\r\n");
+#endif
+
+	// disabling interrupts are necessary because it might be called from idle and interrupt context
+
+	unsigned pm = __get_PRIMASK();  // save interrupt disable status
+	__disable_irq();
+
 	txmsgbuf[txmb_idx_wr] = *amsg;
 	++txmb_idx_wr;
 	if (txmb_idx_wr >= txmb_count)  txmb_idx_wr = 0;
@@ -101,6 +140,8 @@ void THwCan_pre::AddTxMessage(TCanMsg * amsg)
 		++txmb_idx_rd;
 		if (txmb_idx_rd >= txmb_count)  txmb_idx_rd = 0;
 	}
+
+ 	__set_PRIMASK(pm); // restore interrupt disable status
 }
 
 void THwCan_pre::OnRxMessage(TCanMsg * amsg) // should be called from HandleRx()

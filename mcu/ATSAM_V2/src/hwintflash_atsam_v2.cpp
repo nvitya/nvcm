@@ -40,14 +40,19 @@ bool THwIntFlash_atsam_v2::HwInit()
 	regs = NVMCTRL;
 
 	pagesize = (8 << ((NVMCTRL->PARAM.reg >> 16) & 7));
-	pagecount = (NVMCTRL->PARAM.reg & 0xFFFF);
+	uint32_t pagecount = (NVMCTRL->PARAM.reg & 0xFFFF);
 	bytesize = pagesize * pagecount;
-	blocksize = bytesize / 32;
+
+#ifdef MCUSF_E5X
+	erasesize = pagesize * 16;  // usually 8192
+	bank_count = 2;
+#else
+	erasesize = pagesize * 4;
+	bank_count = 1;
+#endif
 
 	// fix parameters:
 	smallest_write = 4;
-	bank_count = 2;
-
 	start_address = 0;
 
 	return true;

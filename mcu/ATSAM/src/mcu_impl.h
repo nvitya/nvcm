@@ -34,6 +34,10 @@
   #include "hwpins_atsam.h"
 #endif
 
+#ifdef HWINTFLASH_H_
+  #include "hwintflash_atsam.h"
+#endif
+
 #ifdef HWDMA_H_
   #include "hwdma_atsam.h"
 #endif

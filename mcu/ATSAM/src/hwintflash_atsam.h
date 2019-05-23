@@ -19,64 +19,36 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_builtin.h (XMC)
- *  brief:    Built-in XMC MCU definitions
+ *  file:     hwintflash_atsam.h
+ *  brief:    Internal Flash Handling for ATSAM
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-04-07
  *  authors:  nvitya
 */
 
-#ifndef __MCU_BUILTIN_H
-#define __MCU_BUILTIN_H
+#ifndef HWINTFLASH_ATSAM_H_
+#define HWINTFLASH_ATSAM_H_
 
-#if 0
+#define HWINTFLASH_PRE_ONLY
+#include "hwintflash.h"
 
-//----------------------------------------------------------------------
-// Infineon
-//----------------------------------------------------------------------
+class THwIntFlash_atsam : public THwIntFlash_pre
+{
+public:
+	bool           HwInit();
 
-#elif defined(MCU_XMC1100Q40X0032)
-  #define MCUF_XMC
-  #define MCUSF_1000
-  #define XMC1100_Q040x0032
-  #include "xmc_device.h"
+public:
+	Efc *          regs = nullptr;
 
-#elif defined(MCU_XMC1404F64X0064)
-  #define MCUF_XMC
-  #define MCUSF_1000
-  #define XMC1404_F064x0064
-  #include "xmc_device.h"
+	bool           StartFlashCmd(uint8_t acmd);
 
-#elif defined(MCU_XMC1404Q48X0064)
-  #define MCUF_XMC
-  #define MCUSF_1000
-  #define XMC1404_Q048x0064
-  #include "xmc_device.h"
+	void           CmdEraseBlock(); // at address
+	void           CmdWritePage();
+	void           CmdClearPageBuffer();
 
-#elif defined(MCU_XMC1200T38X0200)
-  #define MCUF_XMC
-  #define MCUSF_1000
-  #define XMC1200_T038x0200
-  #include "xmc_device.h"
+	inline bool    CmdFinished() { return (regs->EEFC_FSR & 1); }
+};
 
-// XMC4000
+#define HWINTFLASH_IMPL THwIntFlash_atsam
 
-#elif defined(MCU_XMC4108Q48X0064)
-  #define MCUF_XMC
-  #define MCUSF_4000
-  #define XMC4108_Q48x64
-  #include "xmc_device.h"
-
-#elif defined(MCU_XMC4300F100X256)
-  #define MCUF_XMC
-  #define MCUSF_4000
-  #define XMC4300_F100x256
-  #include "xmc_device.h"
-
-#else
-
-  #error "Unknown MCU"
-
-#endif
-
-#endif
+#endif // def HWINTFLASH_ATSAM_H_

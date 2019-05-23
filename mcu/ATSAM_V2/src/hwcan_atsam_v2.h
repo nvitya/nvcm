@@ -75,6 +75,7 @@ public: // mandatory
 	void AcceptListClear();
 	void AcceptAdd(uint16_t cobid, uint16_t amask);
 
+	void SetSpeed(uint32_t aspeed);
 	bool IsBusOff();
 	bool IsWarning();
 
