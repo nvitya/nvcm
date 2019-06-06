@@ -38,11 +38,9 @@
 
 #if defined(ETH_BASE)
 
-bool THwEth_stm32::Init(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, uint32_t txcnt)
+bool THwEth_stm32::InitMac(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, uint32_t txcnt)
 {
 	uint32_t n;
-
-	initialized = false;
 
   // Select RMII Mode, must be done before enabling the hw
 	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
@@ -94,8 +92,12 @@ bool THwEth_stm32::Init(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, 
 
 	/* Initial MAC configuration for checksum offload, full duplex,
 	   100Mbps, disable receive own in half duplex, inter-frame gap of 64-bits */
-	regs->MAC_CONFIG = HWETH_MAC_CFG_BL(0) | HWETH_MAC_CFG_IPC | HWETH_MAC_CFG_DM |
+	//regs->MAC_CONFIG = HWETH_MAC_CFG_BL(0) | HWETH_MAC_CFG_IPC | HWETH_MAC_CFG_DM |
+	//		               HWETH_MAC_CFG_DO | HWETH_MAC_CFG_FES | HWETH_MAC_CFG_PS | HWETH_MAC_CFG_IFG(3);
+
+	regs->MAC_CONFIG = HWETH_MAC_CFG_BL(0) | HWETH_MAC_CFG_DM |
 			               HWETH_MAC_CFG_DO | HWETH_MAC_CFG_FES | HWETH_MAC_CFG_PS | HWETH_MAC_CFG_IFG(3);
+
 
 	/* Setup filter */
 	regs->MAC_FRAME_FILTER = HWETH_MAC_FF_PR | HWETH_MAC_FF_RA;  // Promiscous mode, receive all
@@ -116,18 +118,8 @@ bool THwEth_stm32::Init(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, 
 	SetMacAddress(&mac_address[0]);
 
 	// initialize with 100M + Full Duplex, but later this will be overridden from the Speed Info of the PHY
-	AdjustSpeed(HWETH_PHY_SPEEDINFO_100M | HWETH_PHY_SPEEDINFO_FULLDX);
-
-	// Initialize the RMII PHY
-	if (!PhyInit())
-	{
-		TRACE("Error initializing the Ethernet PHY!\r\n");
-		return false;
-	}
-
-	TRACE("EtherNET PHY initialized, link status = %i.\r\n", (link_up ? 1 : 0));
-
-	// the PHY link might not be up yet !
+	SetSpeed(true);
+	SetDuplex(true);
 
 	// initialize descriptor lists
 
@@ -145,8 +137,6 @@ bool THwEth_stm32::Init(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, 
 	regs->DMA_REC_DES_ADDR = (uint32_t)&rx_desc_list[0];
 
 	actual_rx_desc = &rx_desc_list[0];
-
-	initialized = true;
 
 	return true;
 }
@@ -210,6 +200,11 @@ void THwEth_stm32::AssignRxBuf(uint32_t idx, void * pdata, uint32_t datalen)
 
 bool THwEth_stm32::TryRecv(uint32_t * pidx, void * * ppdata, uint32_t * pdatalen)
 {
+	if (!(regs->MAC_CONFIG & HWETH_MAC_CFG_RE))
+	{
+		return false;
+	}
+
 	HW_ETH_DMA_DESC * pdesc = (HW_ETH_DMA_DESC *)regs->DMA_CURHOST_REC_DES;
 
   while (1)
@@ -372,18 +367,15 @@ void THwEth_stm32::SetDuplex(bool full)
 	}
 }
 
-void THwEth_stm32::AdjustSpeed(uint16_t aphy_speedinfo)
-{
-	SetSpeed(aphy_speedinfo & HWETH_PHY_SPEEDINFO_100M);
-	SetDuplex(aphy_speedinfo & HWETH_PHY_SPEEDINFO_FULLDX);
-
-	phy_speedinfo_prev = (aphy_speedinfo & HWETH_PHY_SPEEDINFO_MASK);
-}
-
 void THwEth_stm32::SetupMii(uint32_t div, uint8_t addr)
 {
 	/* Save clock divider and PHY address in MII address register */
 	phy_config = HWETH_MAC_MIIA_PA(addr) | HWETH_MAC_MIIA_CR(div);
+}
+
+bool THwEth_stm32::IsMiiBusy()
+{
+	return (regs->MAC_MII_ADDR & HWETH_MAC_MIIA_GB) ? true : false;
 }
 
 void THwEth_stm32::StartMiiWrite(uint8_t reg, uint16_t data)
@@ -401,202 +393,25 @@ void THwEth_stm32::StartMiiRead(uint8_t reg)
 	regs->MAC_MII_ADDR |= HWETH_MAC_MIIA_GB;
 }
 
-inline bool THwEth_stm32::IsMiiBusy()
+void THwEth_stm32::NsTimeStart()
 {
-	return (regs->MAC_MII_ADDR & HWETH_MAC_MIIA_GB) ? true : false;
 }
 
-bool THwEth_stm32::MiiWaitBusy(int amaxms)
+uint64_t THwEth_stm32::NsTimeRead()
 {
-	int32_t mst = amaxms;
-	while (mst > 0)
-	{
-		if (IsMiiBusy())
-		{
-			mst--;
-			delay_us(1000);
-		}
-		else
-		{
-			return true;
-		}
-	}
+	unsigned pm = __get_PRIMASK();  // save interrupt disable status
+	__disable_irq();
 
-	return false;
+  uint64_t result = 0;
+
+ 	__set_PRIMASK(pm); // restore interrupt disable status
+	return result;
 }
 
-bool THwEth_stm32::MiiWrite(uint8_t reg, uint16_t data) // blocking mii write (for setup only)
+uint64_t THwEth_stm32::GetTimeStamp(uint32_t idx) // must be called within 2 s to get the right upper 32 bit
 {
-	if (!MiiWaitBusy(250))  return false;
-
-	StartMiiWrite(reg, data);  // Start Write value for register
-
-	return MiiWaitBusy(250);
+	return 0;
 }
 
-bool THwEth_stm32::MiiRead(uint8_t reg, uint16_t *data) // blocking mii read (for setup only)
-{
-	if (!MiiWaitBusy(250))  return false;
-
-	StartMiiRead(reg);  // Start register read
-
-	if (!MiiWaitBusy(250))  return false;
-
-	*data = regs->MAC_MII_DATA;
-	return true;
-}
-
-bool THwEth_stm32::PhyWaitReset()
-{
-	uint16_t bcr;
-	int i = 0;
-	while (1)
-	{
-		delay_us(1000);
-		if (!MiiRead(HWETH_PHY_BCR_REG, &bcr)) 	return false;
-
-		if ((bcr & (HWETH_PHY_BCR_RESET | HWETH_PHY_BCR_POWER_DOWN)) == 0)
-		{
-			break;
-		}
-		else
-		{
-			++i;
-			if (i > 400)
-			{
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
-bool THwEth_stm32::PhyInit()
-{
-	uint16_t bsr;
-
-	// we don't reset the PHY always in order to keep the link active and achive a fast device start
-
-	// wait until the reset finishes.
-	if (!PhyWaitReset())  return false;
-
-	// status ok, check the PHY ID for checking the communication
-
-	uint16_t id1, id2;
-	if ( !MiiRead(HWETH_PHY_PHYID1_REG, &id1) )  return false;
-	if ( !MiiRead(HWETH_PHY_PHYID2_REG, &id2) )  return false;
-	id2 = (id2 & 0xFFF0);
-
-	if ((id1 == 0x0007) && (id2 == 0xC0F0))
-	{
-		// LAN8720A (on LPCXpresso)
-	}
-	else if ((id1 == 0x0007) && (id2 == 0xC130))
-	{
-		// SMSC8742A (on ST-Nucleo)
-	}
-	else
-	{
-		TRACE("Unknown ETH PHY!, id1=%04x, id2=%04x!\r\n", id1, id2);
-		return false;
-	}
-
-	// read the basic status reg
-	if (!MiiRead(HWETH_PHY_BSR_REG, &bsr))  return false;
-
-	TRACE("ETH PHY BSR = %04X\r\n", bsr);
-
-	bool status_error = ((bsr & (HWETH_PHY_BSR_RMT_FAULT | HWETH_PHY_BSR_JABBER_DETECT)) != 0);
-	if (status_error)
-	{
-		TRACE("PHY status error detected!\r\n");
-	}
-
-	if ((bsr & HWETH_PHY_BSR_LINK_STATUS) && !status_error)
-	{
-		link_up = true;
-
-		TRACE("PHY Link was up, no reset.\r\n");
-
-		// get the connection settings
-		uint16_t  phy_speedinfo;
-		if (!MiiRead(HWETH_PHY_SPEEDINFO_REG, &phy_speedinfo))  return false;
-
-		AdjustSpeed(phy_speedinfo);
-	}
-	else
-	{
-		// the link is down or reset required.
-		link_up = false;
-
-		TRACE("Resetting ETH PHY...\r\n");
-
-		// issue reset
-		if (!MiiWrite(HWETH_PHY_BCR_REG, HWETH_PHY_BCR_RESET))  return false;
-
-		delay_us(20000);
-
-		if (!PhyWaitReset())  return false;
-
-		// start auto-negotiation
-		if (!MiiWrite(HWETH_PHY_BCR_REG, HWETH_PHY_BCR_AUTONEG | HWETH_PHY_BCR_RESTART_AUTONEG))  return false;
-	}
-
-	return true;
-}
-
-void THwEth_stm32::PhyStatusPoll(void)
-{
-	switch (phy_poll_state)
-	{
-	default:
-	case 0:
-		/* Read BMSR to clear faults */
-		StartMiiRead(HWETH_PHY_BSR_REG);
-		phy_poll_state = 1;
-		break;
-
-	case 1:
-		if (!IsMiiBusy())
-		{
-			phy_bsr_value = regs->MAC_MII_DATA;
-			StartMiiRead(HWETH_PHY_SPEEDINFO_REG);
-			phy_poll_state = 2;
-		}
-		break;
-
-	case 2:
-		if (!IsMiiBusy())
-		{
-			phy_speedinfo = regs->MAC_MII_DATA;
-
-			uint16_t msi = (phy_speedinfo & HWETH_PHY_SPEEDINFO_MASK);
-			if (msi != phy_speedinfo_prev)
-			{
-				AdjustSpeed(phy_speedinfo);
-			}
-
-			// the statuses were read, process them
-			bool link_up_cur = ((phy_bsr_value & HWETH_PHY_BSR_LINK_STATUS) != 0);
-			if (link_up != link_up_cur)
-			{
-				if (link_up_cur)
-				{
-					Start();
-				}
-				else
-				{
-					Stop();
-				}
-
-				link_up = link_up_cur;
-			}
-
-			phy_poll_state = 0;  // repeat the process
-		}
-		break;
-	}
-}
 
 #endif

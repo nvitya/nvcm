@@ -257,36 +257,31 @@ typedef struct                      /*!< ETHERNET Structure */
 class THwEth_stm32 : public THwEth_pre
 {
 public:
-	void       Start();
-	void       Stop();
+	bool               InitMac(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, uint32_t txcnt);
+	void               Start();
+	void               Stop();
+	bool               TryRecv(uint32_t * pidx, void * * ppdata, uint32_t * pdatalen);
+	void               ReleaseRxBuf(uint32_t idx);
+	bool               TrySend(uint32_t * pidx, void * pdata, uint32_t datalen);
+
+	void               StartMiiWrite(uint8_t reg, uint16_t data);
+	void               StartMiiRead(uint8_t reg);
+	inline uint16_t    MiiData() { return (regs->MAC_MII_DATA); }
+	bool               IsMiiBusy();
+
+	uint64_t           GetTimeStamp(uint32_t idx); // must be called within 2 s to get the right upper 32 bit
+	void               NsTimeStart();
+	uint64_t           NsTimeRead();
 
 public:
-	uint32_t   CalcMdcClock(void);
-	void       SetMacAddress(uint8_t * amacaddr);
-	void       SetSpeed(bool speed100);
-	void       SetDuplex(bool full);
+	uint32_t           CalcMdcClock(void);
+	void               SetMacAddress(uint8_t * amacaddr);
+	void               SetSpeed(bool speed100);
+	void               SetDuplex(bool full);
 
-	void       AdjustSpeed(uint16_t aphy_speedinfo);
+	void               InitDescList(bool istx, int bufnum, HW_ETH_DMA_DESC * pdesc_list, uint8_t * pbuffer);
 
-	void       InitDescList(bool istx, int bufnum, HW_ETH_DMA_DESC * pdesc_list, uint8_t * pbuffer);
-
-public:
-	uint8_t    phy_poll_state = 0;
-
-	void       PhyStatusPoll(void); // this must be called regularly !
-
-	void       SetupMii(uint32_t div, uint8_t addr);
-	void       StartMiiWrite(uint8_t reg, uint16_t data);
-	void       StartMiiRead(uint8_t reg);
-	bool       IsMiiBusy();
-
-	bool       PhyInit();
-
-	bool       MiiWaitBusy(int amaxms);
-
-	bool       MiiWrite(uint8_t reg, uint16_t data); // blocking mii write (for setup only)
-	bool       MiiRead(uint8_t reg, uint16_t * data); // blocking mii read (for setup only)
-	bool 			 PhyWaitReset();
+	void               SetupMii(uint32_t div, uint8_t addr);
 
 public:
 	HW_ETH_REGS *      regs = nullptr;
@@ -294,20 +289,10 @@ public:
 	HW_ETH_DMA_DESC *  rx_desc_list = nullptr;
 	HW_ETH_DMA_DESC *  tx_desc_list = nullptr;
 
-	bool               Init(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, uint32_t txcnt);
 	void               AssignRxBuf(uint32_t idx, void * pdata, uint32_t datalen);
-
-	bool               TryRecv(uint32_t * pidx, void * * ppdata, uint32_t * pdatalen);
-	void               ReleaseRxBuf(uint32_t idx);
-	bool               TrySend(uint32_t * pidx, void * pdata, uint32_t datalen);
-
 
 	HW_ETH_DMA_DESC *  actual_rx_desc;
 
-	uint32_t           phy_config;
-	uint16_t           phy_speedinfo;
-	uint16_t           phy_speedinfo_prev;
-	uint16_t           phy_bsr_value;
 };
 
 #define HWETH_IMPL THwEth_stm32

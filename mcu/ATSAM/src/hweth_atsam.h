@@ -46,36 +46,33 @@ typedef struct
 class THwEth_atsam : public THwEth_pre
 {
 public:
-	void       Start();
-	void       Stop();
+	bool               InitMac(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, uint32_t txcnt);
 
-public:
-	void       SetMdcClock(void);
-	void       SetMacAddress(uint8_t * amacaddr);
-	void       SetSpeed(bool speed100);
-	void       SetDuplex(bool full);
+	void               AssignRxBuf(uint32_t idx, void * pdata, uint32_t datalen);
 
-	void       AdjustSpeed(uint16_t aphy_speedinfo);
+	bool               TryRecv(uint32_t * pidx, void * * ppdata, uint32_t * pdatalen);
+	void               ReleaseRxBuf(uint32_t idx);
+	bool               TrySend(uint32_t * pidx, void * pdata, uint32_t datalen);
 
-	void       InitDescList(bool istx, int bufnum, HW_ETH_DMA_DESC * pdesc_list);
+	void               Start();
+	void               Stop();
 
-public:
-	uint8_t    phy_poll_state = 0;
+	void               SetMdcClock(void);
+	void               SetMacAddress(uint8_t * amacaddr);
+	void               SetSpeed(bool speed100);
+	void               SetDuplex(bool full);
 
-	void       PhyStatusPoll(void); // this must be called regularly !
+	void               InitDescList(bool istx, int bufnum, HW_ETH_DMA_DESC * pdesc_list);
 
-	void       SetupMii(uint32_t div, uint8_t addr);
-	void       StartMiiWrite(uint8_t reg, uint16_t data);
-	void       StartMiiRead(uint8_t reg);
-	bool       IsMiiBusy();
+	void               SetupMii(uint32_t div, uint8_t addr);
+	void               StartMiiWrite(uint8_t reg, uint16_t data);
+	void               StartMiiRead(uint8_t reg);
+	inline uint16_t    MiiData() { return (regs->GMAC_MAN & 0xFFFF); }
+	bool               IsMiiBusy();
 
-	bool       PhyInit();
-
-	bool       MiiWaitBusy(int amaxms);
-
-	bool       MiiWrite(uint8_t reg, uint16_t data); // blocking mii write (for setup only)
-	bool       MiiRead(uint8_t reg, uint16_t * data); // blocking mii read (for setup only)
-	bool 			 PhyWaitReset();
+	uint64_t           GetTimeStamp(uint32_t idx); // must be called within 2 s to get the right upper 32 bit
+	void               NsTimeStart();
+	uint64_t           NsTimeRead();
 
 public:
 	HW_ETH_REGS *      regs = nullptr;
@@ -83,20 +80,8 @@ public:
 	HW_ETH_DMA_DESC *  rx_desc_list = nullptr;
 	HW_ETH_DMA_DESC *  tx_desc_list = nullptr;
 
-	bool               Init(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, uint32_t txcnt);
-	void               AssignRxBuf(uint32_t idx, void * pdata, uint32_t datalen);
-
-	bool               TryRecv(uint32_t * pidx, void * * ppdata, uint32_t * pdatalen);
-	void               ReleaseRxBuf(uint32_t idx);
-	bool               TrySend(uint32_t * pidx, void * pdata, uint32_t datalen);
-
 	HW_ETH_DMA_DESC *  actual_rx_desc;
 	uint32_t           actual_tx_idx;
-
-	uint32_t           phy_config;
-	uint16_t           phy_speedinfo;
-	uint16_t           phy_speedinfo_prev;
-	uint16_t           phy_bsr_value;
 };
 
 #define HWETH_IMPL THwEth_atsam

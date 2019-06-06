@@ -38,11 +38,9 @@
 #include "traces.h"
 #include "clockcnt.h"
 
-bool THwEth_atsam::Init(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, uint32_t txcnt)
+bool THwEth_atsam::InitMac(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, uint32_t txcnt)
 {
 	uint32_t n;
-
-	initialized = false;
 
 	unsigned perid = ID_GMAC;
 
@@ -99,17 +97,6 @@ bool THwEth_atsam::Init(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, 
 
   SetMacAddress(&mac_address[0]);
 
-	// Initialize the RMII PHY
-	if (!PhyInit())
-	{
-		TRACE("Error initializing the Ethernet PHY!\r\n");
-		return false;
-	}
-
-	TRACE("EtherNET PHY initialized, link status = %i.\r\n", (link_up ? 1 : 0));
-
-	// the PHY link might not be up yet !
-
 	// initialize descriptor lists
 
 	rx_desc_list = (HW_ETH_DMA_DESC *)prxdesclist;
@@ -127,8 +114,6 @@ bool THwEth_atsam::Init(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, 
 
 	actual_tx_idx = 0;
 	actual_rx_desc = &rx_desc_list[0];
-
-	initialized = true;
 
 	return true;
 }
@@ -282,14 +267,6 @@ void THwEth_atsam::SetDuplex(bool full)
 	}
 }
 
-void THwEth_atsam::AdjustSpeed(uint16_t aphy_speedinfo)
-{
-//	SetSpeed(aphy_speedinfo & HWETH_PHY_SPEEDINFO_100M);
-//	SetDuplex(aphy_speedinfo & HWETH_PHY_SPEEDINFO_FULLDX);
-
-//	phy_speedinfo_prev = (aphy_speedinfo & HWETH_PHY_SPEEDINFO_MASK);
-}
-
 void THwEth_atsam::StartMiiWrite(uint8_t reg, uint16_t data)
 {
 	// it works only with clause 22 mode...
@@ -317,205 +294,30 @@ void THwEth_atsam::StartMiiRead(uint8_t reg)
 	regs->GMAC_MAN = tmp;
 }
 
-inline bool THwEth_atsam::IsMiiBusy()
+bool THwEth_atsam::IsMiiBusy()
 {
 	return ((regs->GMAC_NSR & GMAC_NSR_IDLE) ? false : true);
 }
 
-bool THwEth_atsam::MiiWaitBusy(int amaxms)
+void THwEth_atsam::NsTimeStart()
 {
-	int32_t mst = amaxms;
-	while (mst > 0)
-	{
-		if (IsMiiBusy())
-		{
-			mst--;
-			delay_us(1000);
-		}
-		else
-		{
-			return true;
-		}
-	}
-	return false;
 }
 
-bool THwEth_atsam::MiiWrite(uint8_t reg, uint16_t data) // blocking mii write (for setup only)
+uint64_t THwEth_atsam::NsTimeRead()
 {
-	if (!MiiWaitBusy(250))  return false;
+	unsigned pm = __get_PRIMASK();  // save interrupt disable status
+	__disable_irq();
 
-	StartMiiWrite(reg, data);  // Start Write value for register
+  uint64_t result = 0;
 
-	return MiiWaitBusy(250);
+ 	__set_PRIMASK(pm); // restore interrupt disable status
+	return result;
 }
 
-bool THwEth_atsam::MiiRead(uint8_t reg, uint16_t * data) // blocking mii read (for setup only)
+uint64_t THwEth_atsam::GetTimeStamp(uint32_t idx) // must be called within 2 s to get the right upper 32 bit
 {
-	if (!MiiWaitBusy(250))  return false;
-
-	StartMiiRead(reg);  // Start register read
-
-	if (!MiiWaitBusy(250))  return false;
-
-	*data = (regs->GMAC_MAN & 0xFFFF);
-	return true;
+	return 0;
 }
 
-bool THwEth_atsam::PhyWaitReset()
-{
-	uint16_t bcr;
-	int i = 0;
-	while (1)
-	{
-		delay_us(1000);
-		if (!MiiRead(HWETH_PHY_BCR_REG, &bcr)) 	return false;
-
-		if ((bcr & (HWETH_PHY_BCR_RESET | HWETH_PHY_BCR_POWER_DOWN)) == 0)
-		{
-			break;
-		}
-		else
-		{
-			++i;
-			if (i > 400)
-			{
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
-bool THwEth_atsam::PhyInit()
-{
-	uint16_t bsr;
-
-	// we don't reset the PHY always in order to keep the link active and achive a fast device start
-
-	// wait until the reset finishes.
-	if (!PhyWaitReset())  return false;
-
-	// status ok, check the PHY ID for checking the communication
-
-	uint16_t id1, id2;
-	if ( !MiiRead(HWETH_PHY_PHYID1_REG, &id1) )  return false;
-	if ( !MiiRead(HWETH_PHY_PHYID2_REG, &id2) )  return false;
-	id2 = (id2 & 0xFFF0);
-
-	if ((id1 == 0x0007) && (id2 == 0xC0F0))
-	{
-		// LAN8720A (on LPCXpresso)
-	}
-	else if ((id1 == 0x0007) && (id2 == 0xC130))
-	{
-		// SMSC8742A (on ST-Nucleo)
-	}
-	else if ((id1 == 0x0022) && (id2 == 0x1560))
-	{
-		// KSZ8081 (on SAME70 X-Plained)
-	}
-	else
-	{
-		TRACE("Unknown ETH PHY!, id1=%04x, id2=%04x!\r\n", id1, id2);
-		return false;
-	}
-
-	// read the basic status reg
-	if (!MiiRead(HWETH_PHY_BSR_REG, &bsr))  return false;
-
-	TRACE("ETH PHY BSR = %04X\r\n", bsr);
-
-	bool status_error = ((bsr & (HWETH_PHY_BSR_RMT_FAULT | HWETH_PHY_BSR_JABBER_DETECT)) != 0);
-	if (status_error)
-	{
-		TRACE("PHY status error detected!\r\n");
-	}
-
-	if ((bsr & HWETH_PHY_BSR_LINK_STATUS) && !status_error)
-	{
-		link_up = true;
-
-		TRACE("PHY Link was up, no reset.\r\n");
-
-		// get the connection settings
-		uint16_t  phy_speedinfo;
-		if (!MiiRead(HWETH_PHY_SPEEDINFO_REG, &phy_speedinfo))  return false;
-
-		AdjustSpeed(phy_speedinfo);
-	}
-	else
-	{
-		// the link is down or reset required.
-		link_up = false;
-
-		TRACE("Resetting ETH PHY...\r\n");
-
-		// issue reset
-		if (!MiiWrite(HWETH_PHY_BCR_REG, HWETH_PHY_BCR_RESET))  return false;
-
-		delay_us(20000);
-
-		if (!PhyWaitReset())  return false;
-
-		// start auto-negotiation
-		if (!MiiWrite(HWETH_PHY_BCR_REG, HWETH_PHY_BCR_AUTONEG | HWETH_PHY_BCR_RESTART_AUTONEG))  return false;
-	}
-
-	return true;
-}
-
-void THwEth_atsam::PhyStatusPoll(void)
-{
-	switch (phy_poll_state)
-	{
-	default:
-	case 0:
-		/* Read BMSR to clear faults */
-		StartMiiRead(HWETH_PHY_BSR_REG);
-		phy_poll_state = 1;
-		break;
-
-	case 1:
-		if (!IsMiiBusy())
-		{
-			phy_bsr_value = (regs->GMAC_MAN & 0xFFFF);
-			StartMiiRead(HWETH_PHY_SPEEDINFO_REG);
-			phy_poll_state = 2;
-		}
-		break;
-
-	case 2:
-		if (!IsMiiBusy())
-		{
-			phy_speedinfo = (regs->GMAC_MAN & 0xFFFF);
-
-			uint16_t msi = (phy_speedinfo & HWETH_PHY_SPEEDINFO_MASK);
-			if (msi != phy_speedinfo_prev)
-			{
-				AdjustSpeed(phy_speedinfo);
-			}
-
-			// the statuses were read, process them
-			bool link_up_cur = ((phy_bsr_value & HWETH_PHY_BSR_LINK_STATUS) != 0);
-			if (link_up != link_up_cur)
-			{
-				if (link_up_cur)
-				{
-					Start();
-				}
-				else
-				{
-					Stop();
-				}
-
-				link_up = link_up_cur;
-			}
-
-			phy_poll_state = 0;  // repeat the process
-		}
-		break;
-	}
-}
 
 #endif
