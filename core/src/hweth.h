@@ -69,7 +69,7 @@ public: // settings
 
 	uint8_t       phy_address = 0;
 
-	uint8_t       mac_address[6] = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00};
+	uint8_t       mac_address[6] = {0x03, 0x01, 0x01, 0x01, 0x01, 0x01};
 
 	bool          irq_on_rx = false;
 	bool          irq_on_tx = false;

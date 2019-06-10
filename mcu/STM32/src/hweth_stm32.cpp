@@ -26,6 +26,7 @@
  *  authors:  nvitya
  *  notes:
  *     actually this driver applicable for some other manufacturers like NXP, Infineon
+ *     register names are from NXP, so it is advised to read NXP manual (e.g. LPC43xx)
 */
 
 #include <stdio.h>
@@ -41,6 +42,7 @@
 bool THwEth_stm32::InitMac(void * prxdesclist, uint32_t rxcnt, void * ptxdesclist, uint32_t txcnt)
 {
 	uint32_t n;
+	uint32_t tmp;
 
   // Select RMII Mode, must be done before enabling the hw
 	RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
@@ -88,19 +90,55 @@ bool THwEth_stm32::InitMac(void * prxdesclist, uint32_t rxcnt, void * ptxdesclis
 	SetupMii(CalcMdcClock(), phy_address);
 
 	/* Enhanced descriptors, burst length = 1 */
-	regs->DMA_BUS_MODE = HWETH_DMA_BM_ATDS | HWETH_DMA_BM_PBL(1) | HWETH_DMA_BM_RPBL(1);
+	regs->DMA_BUS_MODE = 0
+		| (1 <<  7) // use enhanced descriptors
+		| HWETH_DMA_BM_PBL(1)
+		| HWETH_DMA_BM_RPBL(1)
+	;
 
-	/* Initial MAC configuration for checksum offload, full duplex,
-	   100Mbps, disable receive own in half duplex, inter-frame gap of 64-bits */
-	//regs->MAC_CONFIG = HWETH_MAC_CFG_BL(0) | HWETH_MAC_CFG_IPC | HWETH_MAC_CFG_DM |
-	//		               HWETH_MAC_CFG_DO | HWETH_MAC_CFG_FES | HWETH_MAC_CFG_PS | HWETH_MAC_CFG_IFG(3);
+	// MAC_CONFIG / MACCR
 
-	regs->MAC_CONFIG = HWETH_MAC_CFG_BL(0) | HWETH_MAC_CFG_DM |
-			               HWETH_MAC_CFG_DO | HWETH_MAC_CFG_FES | HWETH_MAC_CFG_PS | HWETH_MAC_CFG_IFG(3);
+	tmp = 0
+		| (0 <<  2)  // RE: receive enable
+		| (0 <<  3)  // TE: transmit enable
+		| (0 <<  4)  // DC: Deferral check
+		| (0 <<  5)  // BL(2): back-off limit
+		| (1 <<  7)  // ACS: Automatic PAD/CRC stripping
+		| (0 <<  9)  // RD: Retry disable
+		| (1 << 10)  // IPCO: generate frame checksum by hardware
+		| (1 << 11)  // DM: Duplex Mode
+		| (0 << 12)  // LM: Loopback Mode
+		| (1 << 13)  // DO: Receive Own Disable
+		| (1 << 14)  // FES: Fast Ethernet, 1 = 100 MBit/s
+		| (1 << 15)  // PS:
+		| (0 << 16)  // CSD: Carrier Sense Disable
+		| (3 << 17)  // IFG(3): Inter-Frame Gap, 3 = 72 Bit times
+		| (0 << 22)  // JD: Jabber Disable
+		| (0 << 23)  // WD: Watchdog Disable
+		| (1 << 25)  // CSTF: CRC Stripping
+	;
+	if (loopback)        tmp |= (1 << 12);
+	if (hw_ip_checksum)  tmp |= (1 << 10);
+	regs->MAC_CONFIG = tmp;
 
 
 	/* Setup filter */
-	regs->MAC_FRAME_FILTER = HWETH_MAC_FF_PR | HWETH_MAC_FF_RA;  // Promiscous mode, receive all
+
+	// MAC_FRAME_FILTER / MACFFR
+
+	tmp = 0
+	  | (0 <<  0)  // PR: Promiscous Mode
+	  | (0 <<  1)  // HUC: Hash Unicast
+	  | (0 <<  2)  // HMC: Hash Multicast
+	  | (0 <<  3)  // DAIF: DA Inverse Filtering
+	  | (0 <<  4)  // PM: Pass All Multicast
+	  | (0 <<  5)  // DBF: Disable Broadcast Frames
+	  | (0 <<  6)  // PCF: Pass Control Frames
+	  | (0 << 10)  // HPF: Hash or Perfect Filter
+	  | (0 << 31)  // RA: Receive All
+	;
+	if (promiscuous_mode)  tmp |= ((1 << 0) | (1u << 31));
+	regs->MAC_FRAME_FILTER = tmp;
 
 	/* Flush transmit FIFO */
 	regs->DMA_OP_MODE = HWETH_DMA_OM_FTF;
@@ -153,13 +191,13 @@ void THwEth_stm32::InitDescList(bool istx, int bufnum, HW_ETH_DMA_DESC * pdesc_l
 		if (istx)
 		{
 			// different register usage!
-	    pdesc->STATUS = HWETH_DMADES_TCH; // no hardware checksum insertion for EtherCAT!
-			pdesc->CTRL = 0;
+	    pdesc->DES0 = HWETH_DMADES_TCH; // no hardware checksum insertion for EtherCAT!
+			pdesc->DES1 = 0;
 		}
 		else
 		{
-			pdesc->STATUS = 0; // HWETH_DMADES_OWN;  // do not enable it yet because there is no buffer assignment
-			pdesc->CTRL = HWETH_DMADES_RCH | 0;   // interrupt enabled, to disable add ETH_DMARXDESC_DIC
+			pdesc->DES0 = 0; // HWETH_DMADES_OWN;  // do not enable it yet because there is no buffer assignment
+			pdesc->DES1 = HWETH_DMADES_RCH | 0;   // interrupt enabled, to disable add ETH_DMARXDESC_DIC
 		}
 
 		pdesc->B1ADD = 0; // do not assign data yet
@@ -173,11 +211,11 @@ void THwEth_stm32::InitDescList(bool istx, int bufnum, HW_ETH_DMA_DESC * pdesc_l
 			// signal descriptor ring, it seems, that this is not really necessary, but does not hurt
 			if (istx)
 			{
-				pdesc->CTRL |= HWETH_DMADES_TER;
+				pdesc->DES0 |= HWETH_DMADES_TER;
 			}
 			else
 			{
-				pdesc->CTRL |= HWETH_DMADES_RER;
+				pdesc->DES1 |= HWETH_DMADES_RER;
 			}
 		}
 
@@ -194,8 +232,8 @@ void THwEth_stm32::AssignRxBuf(uint32_t idx, void * pdata, uint32_t datalen)
 	HW_ETH_DMA_DESC *  pdesc = &rx_desc_list[idx];
 
 	pdesc->B1ADD = (uint32_t)pdata;
-	pdesc->CTRL = HWETH_DMADES_RCH | datalen;   // interrupt enabled, to disable add ETH_DMARXDESC_DIC
-	pdesc->STATUS = HWETH_DMADES_OWN;  // enable receive on this decriptor
+	pdesc->DES1 = HWETH_DMADES_RCH | datalen;   // interrupt enabled, to disable add ETH_DMARXDESC_DIC
+	pdesc->DES0 = HWETH_DMADES_OWN;  // enable receive on this decriptor
 }
 
 bool THwEth_stm32::TryRecv(uint32_t * pidx, void * * ppdata, uint32_t * pdatalen)
@@ -205,11 +243,13 @@ bool THwEth_stm32::TryRecv(uint32_t * pidx, void * * ppdata, uint32_t * pdatalen
 		return false;
 	}
 
+	__DSB();
+
 	HW_ETH_DMA_DESC * pdesc = (HW_ETH_DMA_DESC *)regs->DMA_CURHOST_REC_DES;
 
   while (1)
 	{
-		uint32_t stat = actual_rx_desc->STATUS;
+		uint32_t stat = actual_rx_desc->DES0;
 		if (stat & HWETH_DMADES_OWN)
 		{
 			// nothing was received.
@@ -236,15 +276,17 @@ bool THwEth_stm32::TryRecv(uint32_t * pidx, void * * ppdata, uint32_t * pdatalen
 			// resulting
 			*pidx = (result - rx_desc_list); // / sizeof(HW_ETH_DMA_DESC);
 			*ppdata = (void *)(result->B1ADD);
-			*pdatalen = ((result->STATUS >> 16) & 0x1FFF);
+			*pdatalen = ((result->DES0 >> 16) & 0x1FFF);
 			return true;
 		}
 
 		// free this, and go to the next.
-		actual_rx_desc->STATUS = HWETH_DMADES_OWN;
+		actual_rx_desc->DES0 = HWETH_DMADES_OWN;
 		actual_rx_desc = (HW_ETH_DMA_DESC *)actual_rx_desc->B2ADD;
 
 		// restart the dma controller if it was out of secriptors.
+
+		__DSB();
 		regs->DMA_REC_POLL_DEMAND = 1;
 	}
 
@@ -253,7 +295,8 @@ bool THwEth_stm32::TryRecv(uint32_t * pidx, void * * ppdata, uint32_t * pdatalen
 void THwEth_stm32::ReleaseRxBuf(uint32_t idx)
 {
 	HW_ETH_DMA_DESC *  pdesc = &rx_desc_list[idx];
-	pdesc->STATUS = HWETH_DMADES_OWN;
+	pdesc->DES0 = HWETH_DMADES_OWN;
+	__DSB();
 	regs->DMA_REC_POLL_DEMAND = 1;  // for the case when we were out of descriptors
 }
 
@@ -267,16 +310,17 @@ bool THwEth_stm32::TrySend(uint32_t * pidx, void * pdata, uint32_t datalen)
 	int i = 0;
 	while (i < tx_desc_count)
 	{
-		if ((pdesc->STATUS & HWETH_DMADES_OWN) == 0)
+		if ((pdesc->DES0 & HWETH_DMADES_OWN) == 0)
 		{
-			//TRACE("TX using desc %i\n", i);
+			//TRACE("TX using desc %i\r\n", i);
 
 			// use this descriptor
 			pdesc->B1ADD  = (uint32_t) pdata;
-			pdesc->CTRL   = datalen & 0x0FFF;
-			pdesc->STATUS |= (HWETH_DMADES_OWN | (3 << 28));  // set First + Last descriptor as well
+			pdesc->DES1   = datalen & 0x0FFF;
+			pdesc->DES0 |= (HWETH_DMADES_OWN | (3 << 28));  // set First + Last descriptor as well
 
 			// Tell DMA to poll descriptors to start transfer
+			__DSB(); // required on Cortex-M7
 			regs->DMA_TRANS_POLL_DEMAND = 1;
 
 			*pidx = i;
@@ -307,6 +351,7 @@ void THwEth_stm32::Start(void)
 	regs->DMA_OP_MODE |= HWETH_DMA_OM_ST | HWETH_DMA_OM_SR | HWETH_DMA_OM_FTF | HWETH_DMA_OM_RTC(1) | HWETH_DMA_OM_TTC(0);
 
 	// Start receive polling
+	__DSB();
 	regs->DMA_REC_POLL_DEMAND = 1;
 }
 

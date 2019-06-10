@@ -34,8 +34,8 @@
 
 typedef struct
 {
-	volatile uint32_t STATUS;		// RDES status word
-	volatile uint32_t CTRL;			// Buffer 1/2 byte counts
+	volatile uint32_t DES0;			// RDES status word
+	volatile uint32_t DES1;			// Buffer 1/2 byte counts
 	volatile uint32_t B1ADD;		// Buffer 1 address
 	volatile uint32_t B2ADD;		// Buffer 2 or next descriptor address
 	volatile uint32_t EXTSTAT;	// Extended Status

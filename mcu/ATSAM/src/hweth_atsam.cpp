@@ -161,6 +161,8 @@ void THwEth_atsam::AssignRxBuf(uint32_t idx, void * pdata, uint32_t datalen)
 
 bool THwEth_atsam::TryRecv(uint32_t * pidx, void * * ppdata, uint32_t * pdatalen)
 {
+	__DSB();
+
 	HW_ETH_DMA_DESC * pdesc = rx_desc_list;
 
 	int i = 0;
@@ -200,6 +202,8 @@ bool THwEth_atsam::TrySend(uint32_t * pidx, void * pdata, uint32_t datalen)
 		tmp &= 0x40000000; // keep the WRAP bit only
 		tmp |= (datalen & 0x1FFF) | (1 << 15); // set length and last, OWN=0
 		pdesc->STATUS = tmp;
+
+		__DSB();
 
 		regs->GMAC_NCR |= GMAC_NCR_TSTART; // start the transmission
 
