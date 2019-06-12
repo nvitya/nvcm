@@ -151,6 +151,11 @@ void THwPinCtrl_atsam_v2::GpioSet(int aportnum, int apinnum, int value)
   }
 }
 
+void THwPinCtrl_atsam_v2::GpioIrqSetup(int aportnum, int apinnum, int amode)
+{
+
+}
+
 // GPIO Port
 
 void TGpioPort_atsam_v2::Assign(int aportnum)

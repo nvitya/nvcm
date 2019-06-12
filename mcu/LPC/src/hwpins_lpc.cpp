@@ -183,6 +183,11 @@ void THwPinCtrl_lpc::GpioSet(int aportnum, int apinnum, int value)
   }
 }
 
+void THwPinCtrl_lpc::GpioIrqSetup(int aportnum, int apinnum, int amode)
+{
+
+}
+
 // GPIO Port
 
 void TGpioPort_lpc::Assign(int aportnum)

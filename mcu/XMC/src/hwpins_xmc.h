@@ -58,6 +58,8 @@ public:
 	void GpioSet(int aportnum, int apinnum, int value);
 
 	inline bool GpioSetup(int aportnum, int apinnum, unsigned flags)  { return PinSetup(aportnum, apinnum, flags); }
+
+	void GpioIrqSetup(int aportnum, int apinnum, int amode); // not implemented yet
 };
 
 class TGpioPort_xmc : public TGpioPort_pre

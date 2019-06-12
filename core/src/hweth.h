@@ -127,18 +127,18 @@ public: // mandatory
 	void               SetSpeed(bool speed100)   { }
 	void               SetDuplex(bool full)      { }
 
-	bool               TryRecv(uint32_t * pidx, void * * ppdata, uint32_t * pdatalen);
-	void               ReleaseRxBuf(uint32_t idx);
-	bool               TrySend(uint32_t * pidx, void * pdata, uint32_t datalen);
-	uint64_t           GetTimeStamp(uint32_t idx); // must be called within 2 s to get the right upper 32 bit
+	bool               TryRecv(uint32_t * pidx, void * * ppdata, uint32_t * pdatalen) { return false; }
+	void               ReleaseRxBuf(uint32_t idx) { }
+	bool               TrySend(uint32_t * pidx, void * pdata, uint32_t datalen) { return false; }
+	uint64_t           GetTimeStamp(uint32_t idx) { return 0; }
 
-	void               StartMiiWrite(uint8_t reg, uint16_t data);
-	void               StartMiiRead(uint8_t reg);
-	inline uint16_t    MiiData() { return (regs->MMFR & 0xFFFF); }
+	void               StartMiiWrite(uint8_t reg, uint16_t data) { }
+	void               StartMiiRead(uint8_t reg) { }
+	bool               IsMiiBusy() { return false; }
+	inline uint16_t    MiiData() { return 0; }
 
 	void               NsTimeStart();
 	uint64_t           NsTimeRead();
-
 };
 
 #define HWETH_IMPL   THwEth_noimpl
