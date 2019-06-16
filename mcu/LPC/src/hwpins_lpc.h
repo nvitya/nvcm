@@ -45,6 +45,8 @@ public:
 	void GpioSet(int aportnum, int apinnum, int value);
 
 	bool GpioSetup(int aportnum, int apinnum, unsigned flags);
+
+	void GpioIrqSetup(int aportnum, int apinnum, int amode); // not implemented yet
 };
 
 class TGpioPort_lpc : public TGpioPort_pre

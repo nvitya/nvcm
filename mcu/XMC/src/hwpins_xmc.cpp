@@ -196,6 +196,11 @@ void THwPinCtrl_xmc::GpioSet(int aportnum, int apinnum, int value)
   }
 }
 
+void THwPinCtrl_xmc::GpioIrqSetup(int aportnum, int apinnum, int amode)
+{
+
+}
+
 // GPIO Port
 
 void TGpioPort_xmc::Assign(int aportnum)
