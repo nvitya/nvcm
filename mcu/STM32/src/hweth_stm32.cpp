@@ -89,13 +89,6 @@ bool THwEth_stm32::InitMac(void * prxdesclist, uint32_t rxcnt, void * ptxdesclis
 
 	SetupMii(CalcMdcClock(), phy_address);
 
-	/* Enhanced descriptors, burst length = 1 */
-	regs->DMA_BUS_MODE = 0
-		| (1 <<  7) // use enhanced descriptors
-		| HWETH_DMA_BM_PBL(1)
-		| HWETH_DMA_BM_RPBL(1)
-	;
-
 	// MAC_CONFIG / MACCR
 
 	tmp = 0
@@ -103,19 +96,19 @@ bool THwEth_stm32::InitMac(void * prxdesclist, uint32_t rxcnt, void * ptxdesclis
 		| (0 <<  3)  // TE: transmit enable
 		| (0 <<  4)  // DC: Deferral check
 		| (0 <<  5)  // BL(2): back-off limit
-		| (1 <<  7)  // ACS: Automatic PAD/CRC stripping
-		| (0 <<  9)  // RD: Retry disable
+		| (0 <<  7)  // ACS: Automatic PAD/CRC stripping
+		| (1 <<  9)  // RD: Retry disable
 		| (1 << 10)  // IPCO: generate frame checksum by hardware
 		| (1 << 11)  // DM: Duplex Mode
 		| (0 << 12)  // LM: Loopback Mode
-		| (1 << 13)  // DO: Receive Own Disable
+		| (0 << 13)  // DO: Receive Own Disable
 		| (1 << 14)  // FES: Fast Ethernet, 1 = 100 MBit/s
 		| (1 << 15)  // PS:
 		| (0 << 16)  // CSD: Carrier Sense Disable
-		| (3 << 17)  // IFG(3): Inter-Frame Gap, 3 = 72 Bit times
+		| (0 << 17)  // IFG(3): Inter-Frame Gap, 3 = 72 Bit times
 		| (0 << 22)  // JD: Jabber Disable
 		| (0 << 23)  // WD: Watchdog Disable
-		| (1 << 25)  // CSTF: CRC Stripping
+		| (0 << 25)  // CSTF: CRC Stripping
 	;
 	if (loopback)        tmp |= (1 << 12);
 	if (hw_ip_checksum)  tmp |= (1 << 10);
@@ -133,7 +126,7 @@ bool THwEth_stm32::InitMac(void * prxdesclist, uint32_t rxcnt, void * ptxdesclis
 	  | (0 <<  3)  // DAIF: DA Inverse Filtering
 	  | (0 <<  4)  // PM: Pass All Multicast
 	  | (0 <<  5)  // DBF: Disable Broadcast Frames
-	  | (0 <<  6)  // PCF: Pass Control Frames
+	  | (1 <<  6)  // PCF: Pass Control Frames
 	  | (0 << 10)  // HPF: Hash or Perfect Filter
 	  | (0 << 31)  // RA: Receive All
 	;
@@ -141,10 +134,43 @@ bool THwEth_stm32::InitMac(void * prxdesclist, uint32_t rxcnt, void * ptxdesclis
 	regs->MAC_FRAME_FILTER = tmp;
 
 	/* Flush transmit FIFO */
-	regs->DMA_OP_MODE = HWETH_DMA_OM_FTF;
+	regs->DMA_OP_MODE |= HWETH_DMA_OM_FTF;
+	while (regs->DMA_OP_MODE & HWETH_DMA_OM_FTF)
+	{
+		// wait
+	}
 
-	/* Setup DMA to flush receive FIFOs at 32 bytes, service TX FIFOs at 64 bytes */
-	regs->DMA_OP_MODE |= HWETH_DMA_OM_RTC(1) | HWETH_DMA_OM_TTC(0);
+	tmp = 0
+	  | (0 <<  1)  // SR: Start/stop receive
+	  | (1 <<  2)  // OSF: Operate on second frame
+	  | (0 <<  3)  // RTC(2): Receive threshold contro
+	  | (1 <<  6)  // FUGF: Forward undersized good frames
+	  | (1 <<  7)  // FEF: Forward error frames
+	  | (0 << 13)  // ST: Start/stop transmission
+	  | (0 << 14)  // TTC(3): Transmit threshold control
+	  | (0 << 20)  // FTF: Flush transmit FIFO
+	  | (1 << 21)  // TSF: Transmit store and forward
+	  | (0 << 24)  // DFRF: Disable flushing of received frames
+	  | (1 << 25)  // RSF: Receive store and forward
+	  | (0 << 26)  // DTCEFD: Dropping of TCP/IP checksum error frames disable
+	;
+	regs->DMA_OP_MODE = tmp;
+
+	/* Enhanced descriptors, burst length = 1 */
+	regs->DMA_BUS_MODE = 0
+		| (0  << 26)  // MB: Mixed burst
+		| (1  << 25)  // AAB: Address-aligned beats
+		| (0  << 24)  // FPM: 4xPBL mode
+		| (1  << 23)  // USP: Use separate PBL
+		| (32 << 17)  // RDP(6): Rx DMA PBL
+		| (1  << 16)  // FB: Fixed burst
+		| (0  << 14)  // PM2): Rx Tx priority ratio
+		| (32 <<  8)  // PBL(6): Programmable burst length
+		| (1  <<  7)  // EDFE: Enhanced descriptor format enable, 1 = use enhanced descriptors
+		| (0  <<  2)  // DSL(5): Descriptor skip length
+		| (0  <<  1)  // DA: DMA Arbitration
+		| (0  <<  0)  // SR: Software reset
+	;
 
 	/* Clear all MAC interrupts */
 	regs->DMA_STAT = HWETH_DMA_ST_ALL;
@@ -197,7 +223,7 @@ void THwEth_stm32::InitDescList(bool istx, int bufnum, HW_ETH_DMA_DESC * pdesc_l
 		else
 		{
 			pdesc->DES0 = 0; // HWETH_DMADES_OWN;  // do not enable it yet because there is no buffer assignment
-			pdesc->DES1 = HWETH_DMADES_RCH | 0;   // interrupt enabled, to disable add ETH_DMARXDESC_DIC
+			pdesc->DES1 = HWETH_DMADES_RCH | 0;   // interrupt enabled
 		}
 
 		pdesc->B1ADD = 0; // do not assign data yet
@@ -232,7 +258,7 @@ void THwEth_stm32::AssignRxBuf(uint32_t idx, void * pdata, uint32_t datalen)
 	HW_ETH_DMA_DESC *  pdesc = &rx_desc_list[idx];
 
 	pdesc->B1ADD = (uint32_t)pdata;
-	pdesc->DES1 = HWETH_DMADES_RCH | datalen;   // interrupt enabled, to disable add ETH_DMARXDESC_DIC
+	pdesc->DES1 |= datalen;
 	pdesc->DES0 = HWETH_DMADES_OWN;  // enable receive on this decriptor
 }
 
@@ -317,7 +343,7 @@ bool THwEth_stm32::TrySend(uint32_t * pidx, void * pdata, uint32_t datalen)
 			// use this descriptor
 			pdesc->B1ADD  = (uint32_t) pdata;
 			pdesc->DES1   = datalen & 0x0FFF;
-			pdesc->DES0 |= (HWETH_DMADES_OWN | (3 << 28));  // set First + Last descriptor as well
+			pdesc->DES0 |= (HWETH_DMADES_OWN | (3 << 28) | (3 << 22));  // set First + Last descriptor as well
 
 			// Tell DMA to poll descriptors to start transfer
 			__DSB(); // required on Cortex-M7
@@ -348,7 +374,7 @@ void THwEth_stm32::Start(void)
 	regs->MAC_CONFIG |= HWETH_MAC_CFG_RE | HWETH_MAC_CFG_TE;
 
 	// Setup DMA to flush receive FIFOs at 32 bytes, service TX FIFOs at 64 bytes
-	regs->DMA_OP_MODE |= HWETH_DMA_OM_ST | HWETH_DMA_OM_SR | HWETH_DMA_OM_FTF | HWETH_DMA_OM_RTC(1) | HWETH_DMA_OM_TTC(0);
+	regs->DMA_OP_MODE |= HWETH_DMA_OM_ST | HWETH_DMA_OM_SR;
 
 	// Start receive polling
 	__DSB();
