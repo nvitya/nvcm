@@ -208,13 +208,13 @@ bool THwPinCtrl_stm32::PinSetup(int aportnum, int apinnum, unsigned flags)
   {
   	regs->OSPEEDR |= ~(1 << pinx2);
   }
-  else if ((flags & PINCFG_SPEED_MASK) == PINCFG_SPEED_MED2)
+  else if (((flags & PINCFG_SPEED_MASK) == PINCFG_SPEED_MED2) || ((flags & PINCFG_SPEED_MASK) == PINCFG_SPEED_FAST))
   {
   	regs->OSPEEDR |= ~(2 << pinx2);
   }
-  else if ((flags & PINCFG_SPEED_MASK) == PINCFG_SPEED_FAST)
+  else if ((flags & PINCFG_SPEED_MASK) == PINCFG_SPEED_VERYFAST)
   {
-  	regs->OSPEEDR |= ~(3 << pinx2);
+  	regs->OSPEEDR |= ~(3 << pinx2);  // this is very special, and does not even work for SDRAM pins
   }
 
 	if (flags & PINCFG_AF_MASK)

@@ -217,12 +217,16 @@ void THwEth_stm32::InitDescList(bool istx, int bufnum, HW_ETH_DMA_DESC * pdesc_l
 		if (istx)
 		{
 			// different register usage!
-	    pdesc->DES0 = HWETH_DMADES_TCH; // no hardware checksum insertion for EtherCAT!
+	    pdesc->DES0 = HWETH_DMADES_TCH;
+	    if (hw_ip_checksum)
+	    {
+	    	pdesc->DES0 |= (3 << 22);  // setup HW IP Checksum calculation
+	    }
 			pdesc->DES1 = 0;
 		}
 		else
 		{
-			pdesc->DES0 = 0; // HWETH_DMADES_OWN;  // do not enable it yet because there is no buffer assignment
+			pdesc->DES0 = 0;    // do not enable it yet because there is no buffer assignment
 			pdesc->DES1 = HWETH_DMADES_RCH | 0;   // interrupt enabled
 		}
 
@@ -343,7 +347,7 @@ bool THwEth_stm32::TrySend(uint32_t * pidx, void * pdata, uint32_t datalen)
 			// use this descriptor
 			pdesc->B1ADD  = (uint32_t) pdata;
 			pdesc->DES1   = datalen & 0x0FFF;
-			pdesc->DES0 |= (HWETH_DMADES_OWN | (3 << 28) | (3 << 22));  // set First + Last descriptor as well
+			pdesc->DES0 |= (HWETH_DMADES_OWN | (3 << 28));  // set First + Last descriptor as well
 
 			// Tell DMA to poll descriptors to start transfer
 			__DSB(); // required on Cortex-M7

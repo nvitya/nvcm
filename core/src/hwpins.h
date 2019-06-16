@@ -55,12 +55,13 @@
 #define PINCFG_DRIVE_WEAK    0x0000
 #define PINCFG_DRIVE_STRONG  0x0020
 
-#define PINCFG_SPEED_MASK    0x0F00
-#define PINCFG_SPEED_MEDIUM  0x0000
-#define PINCFG_SPEED_SLOW    0x0100
-#define PINCFG_SPEED_MED2    0x0200
-#define PINCFG_SPEED_MEDIUM2 0x0200  // alias
-#define PINCFG_SPEED_FAST    0x0300
+#define PINCFG_SPEED_MASK     0x0F00
+#define PINCFG_SPEED_MEDIUM   0x0000  // default
+#define PINCFG_SPEED_SLOW     0x0100
+#define PINCFG_SPEED_MED2     0x0200
+#define PINCFG_SPEED_MEDIUM2  0x0200  // alias
+#define PINCFG_SPEED_FAST     0x0300
+#define PINCFG_SPEED_VERYFAST 0x0400  // special ST value, wich usually does not work even for SDRAM pins
 
 #define PINCFG_GPIO_INIT_1   0x8000
 #define PINCFG_GPIO_INIT_0   0x0000
