@@ -345,7 +345,7 @@ void THwIntFlash::Run()
 				break;
 
 			case 7:
-				if (CmdFinished())
+				if ((chunksize == pagesize) || CmdFinished())
 				{
 					// Clear Page Buffer is ready
 
