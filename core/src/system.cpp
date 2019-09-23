@@ -31,7 +31,10 @@
 extern int errno;
 register char * stack_ptr asm("sp");
 
-extern "C" unsigned _sbrk(int incr)
+extern "C"
+{
+
+__attribute__((weak))  unsigned _sbrk(int incr)
 {
 	extern char end asm("end");
 	static char *heap_end;
@@ -51,32 +54,106 @@ extern "C" unsigned _sbrk(int incr)
 	return (unsigned)prev_heap_end;
 }
 
-/* nvitya's note:
-  some GNU libraries require these (_getpid, _kill, _exit) functions.
-  but they are not required if you set the following options at the C++ optimization (In Eclipse CDT + GNU ARM Eclipse)
-   - do not use exceptions (-fno-exceptions)
-   - do not use RTTI
-   - do not use _cxa_atexit()
-   - do not use thread-safe statistics
- and the code will be significantly smaller too!
-*/
+// At some compiler settings these system functions might needed
+// just providing empty functions
 
-#if 1
-
-extern "C" int _getpid(void)
+__attribute__((weak))  int _getpid(void)
 {
 	return 1;
 }
 
-extern "C" int _kill(int pid, int sig)
+__attribute__((weak))  int _kill(int pid, int sig)
 {
 	errno = EINVAL;
 	return -1;
 }
 
-extern "C" void _exit (int status)
+__attribute__((weak))  void _exit (int status)
 {
 	_kill(status, -1);
 	while (1) {}		/* Make sure we hang here */
 }
-#endif
+
+__attribute__((weak)) int _open(const char *name, int flags, int mode)
+{
+  return -1;
+}
+
+__attribute__((weak)) int _lseek(int file, int offset, int whence)
+{
+  return -1;
+}
+
+__attribute__((weak)) int _lseek_r(int file, int offset, int whence)
+{
+  return -1;
+}
+
+__attribute__((weak)) int _read(int file, char *ptr, int len)
+{
+  return 0;
+}
+__attribute__((weak)) int _read_r(int file, char *ptr, int len)
+{
+  return 0;
+}
+
+__attribute__((weak)) int _write(int file, char *buf, int nbytes)
+{
+  return -1;
+}
+
+__attribute__((weak)) int _write_r(int file, char *buf, int nbytes)
+{
+  return -1;
+}
+
+__attribute__((weak)) int _close(void)
+{
+  return -1;
+}
+
+__attribute__((weak)) int _close_r(void)
+{
+  return -1;
+}
+
+__attribute__((weak)) int _fstat(int file, struct stat *st)
+{
+  return -1;
+}
+__attribute__((weak)) int _fstat_r(int file, struct stat *st)
+{
+  return -1;
+}
+
+__attribute__((weak)) int _link(char *oldname, char *newname)
+{
+  return -1;
+}
+
+__attribute__((weak)) int _unlink(char *name)
+{
+ return -1;
+}
+
+__attribute__((weak)) int _times(struct tms *buf)
+{
+  return -1;
+}
+
+__attribute__((weak)) int _wait(int *status)
+{
+  return -1;
+}
+
+__attribute__((weak)) int _isatty(int file)
+{
+  return -1;
+}
+__attribute__((weak)) int _isatty_r(int file)
+{
+  return -1;
+}
+
+} // extern "C"
