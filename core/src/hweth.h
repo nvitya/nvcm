@@ -137,8 +137,9 @@ public: // mandatory
 	bool               IsMiiBusy() { return false; }
 	inline uint16_t    MiiData() { return 0; }
 
-	void               NsTimeStart();
-	uint64_t           NsTimeRead();
+	void               NsTimeStart() { }
+	uint64_t           NsTimeRead()  { return 0; }
+	void               NsTimeSetCorrection(float acorr) { }
 };
 
 #define HWETH_IMPL   THwEth_noimpl

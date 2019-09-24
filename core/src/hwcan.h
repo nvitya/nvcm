@@ -33,6 +33,8 @@
 #include "hwpins.h"
 #include "errors.h"
 
+#define HWCAN_MAX_INSTANCE  4  // for instance pointer storage (irq handling helper)
+
 typedef struct TCanMsg
 {
 	uint16_t   cobid;
@@ -135,6 +137,8 @@ public:
 	void  StartSendMessage(TCanMsg * msg);
 	void  StartSendMessage(uint16_t cobid, void * srcptr, unsigned len);
 };
+
+extern THwCan *  hwcan_instance[HWCAN_MAX_INSTANCE];
 
 #endif // HWCAN_H_
 

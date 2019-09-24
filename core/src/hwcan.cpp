@@ -30,6 +30,8 @@
 #include "string.h"
 #include "hwcan.h"
 
+THwCan * hwcan_instance[HWCAN_MAX_INSTANCE] = {0};
+
 #define HWCAN_TRACE_RX_TX  0
 
 #if HWCAN_TRACE_RX_TX
@@ -57,7 +59,7 @@ bool THwCan_pre::TryGetRxMessage(TCanMsg * amsg)
 
 #if HWCAN_TRACE_RX_TX
 	int i;
-	TRACE("CAN Recv: COBID=%03X, LEN=%i, DATA=", amsg->cobid, amsg->len);
+	TRACE("CAN%i Recv: COBID=%03X, LEN=%i, DATA=", devnum, amsg->cobid, amsg->len);
 	for (int i = 0; i < amsg->len; ++i)
 	{
 		TRACE(" %02X", amsg->data[i]);
@@ -116,7 +118,7 @@ void THwCan_pre::AddTxMessage(TCanMsg * amsg)
 {
 #if HWCAN_TRACE_RX_TX
 	int i;
-	TRACE("CAN Send: COBID=%03X, LEN=%i, DATA=", amsg->cobid, amsg->len);
+	TRACE("CAN%i Send: COBID=%03X, LEN=%i, DATA=", devnum, amsg->cobid, amsg->len);
 	for (int i = 0; i < amsg->len; ++i)
 	{
 		TRACE(" %02X", amsg->data[i]);
@@ -169,11 +171,14 @@ bool THwCan::Init(int adevnum, TCanMsg * arxbuf, uint16_t arxcnt, TCanMsg * atxb
 		return false;
 	}
 
+	hwcan_instance[adevnum] = this;
+
 	AcceptListClear();
 
   canbitcpuclocks = SystemCoreClock / speed;
 
   initialized = true;
+
 
   // but do not enable, because the filter list is empty.
   // It can be enabled only after the Acceptance list configuration

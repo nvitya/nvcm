@@ -101,7 +101,7 @@ public: // mandatory
 	void SetSpeed(uint32_t speed) { }
 	void SetBusWidth(uint8_t abuswidth) { }
 
-	void SendSpecialCmd(uint32_t aspecialcmd);
+	void SendSpecialCmd(uint32_t aspecialcmd) { }
 	void SendCmd(uint8_t acmd, uint32_t cmdarg, uint32_t cmdflags) { }
 	bool CmdFinished() { return true; }
 

@@ -99,12 +99,12 @@ public: // mandatory functions
 	int  SendRemaining()  { return 0; }
 	void SendAck()  { }
   int  ReadRecvData(void * buf, uint32_t buflen) { return 0; }
-  void FinishRecv(bool reenable);
-  void EnableRecv();
-  void DisableRecv();
-  void StopSend();
-  void FinishSend();
-  void Stall();
+  void FinishRecv(bool reenable) { }
+  void EnableRecv()  { }
+  void DisableRecv() { }
+  void StopSend()    { }
+  void FinishSend()  { }
+  void Stall()       { }
 };
 
 class THwUsbCtrl_noimpl : public THwUsbCtrl_pre
