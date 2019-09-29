@@ -70,6 +70,8 @@ bool THwCan_stm32::HwInit(int adevnum)
 		devnum = -1;
 		return false;
 	}
+	
+	instance_id = devnum - 1;	
 
 	// by default CAN is in sleep mode, so exit from sleep, and go inactive
 
@@ -166,7 +168,7 @@ void THwCan_stm32::Enable()
 
 void THwCan_stm32::HandleTx()
 {
-	if (HasTxMessage())
+	while (HasTxMessage())
 	{
 		uint32_t tsr = regs->TSR;
 		uint32_t tmi = (tsr >> 24) & 3;  // get the next free Tx mailbox or the lowest priority
@@ -188,6 +190,8 @@ void THwCan_stm32::HandleTx()
 				| (msg.cobid << 21)
 				| (1 << 0) // request to start
 			;
+
+		  ++tx_msg_counter;
 		}
 	}
 }
@@ -212,7 +216,9 @@ void THwCan_stm32::HandleRx()
 		msg.len = (rdt & 15);
 		msg.timestamp = CLOCKCNT; // TODO: use the CAN timestamp
 
-		AddRxMessage(&msg);
+		++rx_msg_counter;
+
+		OnRxMessage(&msg); // call the virtual function
 
 		regs->RF0R = (1 << 5); // release the message in the fifo
 	}

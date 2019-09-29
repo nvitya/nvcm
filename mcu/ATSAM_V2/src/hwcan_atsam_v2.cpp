@@ -248,7 +248,7 @@ void THwCan_atsam_v2::Disable()
 
 void THwCan_atsam_v2::HandleTx()
 {
-	if (HasTxMessage())
+	while (HasTxMessage())
 	{
 		uint32_t txfs = regs->TXFQS.reg;  // store Tx FIFO status register
 
@@ -274,6 +274,8 @@ void THwCan_atsam_v2::HandleTx()
 		txmb->IDFL = (msg.cobid << 18);
 
 		regs->TXBAR.reg = (1 << tpi); // add the transmit request
+
+		++tx_msg_counter;
 	}
 }
 
@@ -302,6 +304,8 @@ void THwCan_atsam_v2::HandleRx()
 		uint32_t dt = rxmb->DLCTS;
 		msg.len = ((dt >> 16) & 15);
 		msg.timestamp = CLOCKCNT; // TODO: use the CAN timestamp
+
+		++rx_msg_counter;
 
 		OnRxMessage(&msg); // call the virtual function
 

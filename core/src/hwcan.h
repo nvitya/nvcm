@@ -51,7 +51,8 @@ class THwCan_pre
 public:	// settings
 	bool        initialized = false;
 	unsigned    speed = 1000000;  // 1 MBit/s by default
-	int         devnum = -1;
+	int         devnum = -1;      // 1 or 0 based index according the manufacturer specification
+	uint8_t     instance_id = 0;  // always 0 based device index
 
 	bool        silent_monitor_mode = false;
 	bool        loopback_mode = false;
@@ -64,14 +65,17 @@ public: // software queues
 	uint16_t    rxmb_count = 0;
 	uint16_t    txmb_count = 0;
 
-	uint16_t    rxmb_idx_wr = 0;
-	uint16_t    rxmb_idx_rd = 0;
+	volatile uint16_t    rxmb_idx_wr = 0;
+	volatile uint16_t    rxmb_idx_rd = 0;
 
-	uint16_t    txmb_idx_wr = 0;
-	uint16_t    txmb_idx_rd = 0;
+	volatile uint16_t  txmb_idx_wr = 0;
+	volatile uint16_t  txmb_idx_rd = 0;
 
 	uint32_t    lost_rx_msg_cnt = 0;
 	uint32_t    lost_tx_msg_cnt = 0;
+
+	uint32_t    rx_msg_counter = 0;
+	uint32_t    tx_msg_counter = 0;
 
 	void        InitMsgBuffers(TCanMsg * arxbuf, uint16_t arxcnt, TCanMsg * atxbuf, uint16_t atxcnt);
 

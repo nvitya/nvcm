@@ -29,6 +29,7 @@
 #include "platform.h"
 #include "string.h"
 #include "hwcan.h"
+//#include "traces.h"
 
 THwCan * hwcan_instance[HWCAN_MAX_INSTANCE] = {0};
 
@@ -85,6 +86,7 @@ void THwCan_pre::AddRxMessage(TCanMsg * amsg)
 
 	if (rxmb_idx_wr == rxmb_idx_rd) // buffer full !
 	{
+		//TRACE("CAN%i Rx Buffer Full!\r\n", devnum);
 		++lost_rx_msg_cnt;
 		// remove the oldest
 		++rxmb_idx_rd;
@@ -137,6 +139,8 @@ void THwCan_pre::AddTxMessage(TCanMsg * amsg)
 
 	if (txmb_idx_wr == txmb_idx_rd) // buffer full !
 	{
+		//TRACE("CAN%i Tx Buffer Full!\r\n", devnum);
+
 		++lost_tx_msg_cnt;
 		// remove the oldest
 		++txmb_idx_rd;
@@ -164,6 +168,9 @@ bool THwCan::Init(int adevnum, TCanMsg * arxbuf, uint16_t arxcnt, TCanMsg * atxb
 		return false;
 	}
 
+	instance_id = adevnum; // by default it is same as device number
+	                       // the device driver should correct this to an always 0 based index
+
 	InitMsgBuffers(arxbuf, arxcnt, atxbuf, atxcnt);
 
 	if (!HwInit(adevnum))
@@ -171,7 +178,7 @@ bool THwCan::Init(int adevnum, TCanMsg * arxbuf, uint16_t arxcnt, TCanMsg * atxb
 		return false;
 	}
 
-	hwcan_instance[adevnum] = this;
+	hwcan_instance[instance_id] = this;
 
 	AcceptListClear();
 
