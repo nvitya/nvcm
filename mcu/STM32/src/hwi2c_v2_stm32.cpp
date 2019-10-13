@@ -219,6 +219,8 @@ int THwI2c_stm32::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 	runstate = 0;
 	busy = true;  // start the state machine
 
+	regs->SR1 = 0x00FF; // clear all sticky errors
+
 	Run();
 
 	return ERROR_OK;
@@ -295,6 +297,8 @@ int THwI2c_stm32::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 
 	runstate = 0;
 	busy = true;  // start the state machine
+
+	regs->SR1 = 0x00FF; // clear all sticky errors
 
 	Run();
 

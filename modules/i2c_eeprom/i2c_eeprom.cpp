@@ -172,7 +172,7 @@ void TI2cEeprom::Run()
 	}
 	else if (I2C_STATE_WRITEMEM == state)  // write memory
 	{
-		// by writes the 16 byte internal page structure must be taken care of
+		// by the writes the 16 byte internal page structure must be taken care of
 
 		switch (phase)
 		{

@@ -180,6 +180,8 @@ int THwI2c_stm32::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 		regs->CR2 &= ~I2C_CR2_DMAEN;
 	}
 
+	regs->SR1 = 0x00FF; // clear all sticky errors
+
 	Run();
 
 	return ERROR_OK;
@@ -233,6 +235,8 @@ int THwI2c_stm32::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 	{
 		regs->CR2 &= ~I2C_CR2_DMAEN;
 	}
+
+	regs->SR1 = 0x00FF; // clear all sticky errors
 
 	Run();
 
