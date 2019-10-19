@@ -19,73 +19,44 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwi2cslave_stm32.h
+ *  brief:    STM32 I2C / TWI Slave
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-10-13
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
+#ifndef HWI2CSLAVE_STM32_H_
+#define HWI2CSLAVE_STM32_H_
+
+#define HWI2CSLAVE_PRE_ONLY
+#include "hwi2cslave.h"
+
+#ifdef I2C_CR2_NBYTES
+  #define I2C_HW_VER 2  // advanced HW on F0, L0, F7
+#else
+  #define I2C_HW_VER 1  // old HW on F1, F4
 #endif
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
+class THwI2cSlave_stm32 : public THwI2cSlave_pre
+{
+public:
+	I2C_TypeDef *  regs = nullptr;
 
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
+	bool InitHw(int adevnum);
 
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
+	void HandleIrq();
 
-#ifdef HWI2C_H_
-  #include "hwi2c_stm32.h"
-#endif
+	void Run();
 
-#ifdef HWI2CSLAVE_H_
-  #include "hwi2cslave_stm32.h"
-#endif
+	unsigned       runstate = 0;
+	uint8_t        devaddr = 0;
+	uint8_t        extradata[4];
+	unsigned       extracnt = 0;
+	unsigned       extraremaining = 0;
+	bool           waitreload = false;
+};
 
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
+#define HWI2CSLAVE_IMPL THwI2cSlave_stm32
 
-#ifdef HWINTFLASH_H_
-  #include "hwintflash_stm32.h"
-#endif
-
-#ifdef HWADC_H_
-  #include "hwadc_stm32.h"
-#endif
-
-#ifdef HWPWM_H_
-  #include "hwpwm_stm32.h"
-#endif
-
-#ifdef HWUSBCTRL_H_
-  #include "hwusbctrl_stm32.h"
-#endif
-
-#ifdef HWETH_H_
-  #include "hweth_stm32.h"
-#endif
-
-#if defined(HWCAN_H_)
-  #include "hwcan_stm32.h"
-#endif
-
-#if defined(QUADSPI) && defined(HWQSPI_H_)
-  #include "hwqspi_stm32.h"
-#endif
-
-#if defined(FMC_SDCR1_CAS) && defined(HWSDRAM_H_)
-  #include "hwsdram_stm32.h"
-#endif
-
-#if defined(LTDC_SRCR_IMR) && defined(HWLCDCTRL_H_)
-  #include "hwlcdctrl_stm32.h"
-#endif
+#endif // def HWI2CSLAVE_STM32_H_
