@@ -40,7 +40,7 @@ int THwI2c::WaitFinish()
 {
 	if (!busy)
 	{
-		return ERROR_OK;
+		return error;
 	}
 
 	while (!Finished())
@@ -48,5 +48,5 @@ int THwI2c::WaitFinish()
 		// wait
 	}
 
-	return ERROR_OK;
+	return error;
 }

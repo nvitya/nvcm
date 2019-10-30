@@ -160,6 +160,8 @@ void THwDmaChannel_stm32::Disable()
 	{
 		// wait
 	}
+
+	regs->CNDTR = 0; // this is required (at least on the F303) to properly stop the channel after broken transaction
 }
 
 void THwDmaChannel_stm32::Enable()

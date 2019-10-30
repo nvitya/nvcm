@@ -191,11 +191,12 @@ int THwI2c_stm32::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 	if (dmaused)
 	{
 		rxdma.Prepare(false, (void *)&(regs->RXDR), 0);
-		regs->CR1 |= I2C_CR1_RXDMAEN;
+		regs->CR1 &= ~I2C_CR1_TXDMAEN;
+		regs->CR1 |=  I2C_CR1_RXDMAEN;
 	}
 	else
 	{
-		regs->CR1 &= ~I2C_CR1_RXDMAEN;
+		regs->CR1 &= ~(I2C_CR1_TXDMAEN | I2C_CR1_RXDMAEN);
 	}
 
 	// clear all interrupt flags
@@ -219,7 +220,7 @@ int THwI2c_stm32::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 	runstate = 0;
 	busy = true;  // start the state machine
 
-	regs->SR1 = 0x00FF; // clear all sticky errors
+	regs->ICR = 0xFFFF; // clear all sticky errors
 
 	Run();
 
@@ -270,11 +271,12 @@ int THwI2c_stm32::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 	if (dmaused)
 	{
 		txdma.Prepare(true, (void *)&(regs->TXDR), 0);
-		regs->CR1 |= I2C_CR1_TXDMAEN;
+		regs->CR1 &= ~I2C_CR1_RXDMAEN;
+		regs->CR1 |=  I2C_CR1_TXDMAEN;
 	}
 	else
 	{
-		regs->CR1 &= ~I2C_CR1_TXDMAEN;
+		regs->CR1 &= ~(I2C_CR1_TXDMAEN | I2C_CR1_RXDMAEN);
 	}
 
 	// clear all interrupt flags
@@ -298,7 +300,7 @@ int THwI2c_stm32::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 	runstate = 0;
 	busy = true;  // start the state machine
 
-	regs->SR1 = 0x00FF; // clear all sticky errors
+	regs->ICR = 0xFFFF; // clear all sticky errors
 
 	Run();
 
@@ -624,6 +626,12 @@ void THwI2c_stm32::Run()
 		break;
 
 	case 90: // handling errors
+		if (dmaused)
+		{
+		  rxdma.Disable();
+		  txdma.Disable();
+		}
+
 		regs->CR2 |= I2C_CR2_STOP;  // send stop condition
 		runstate = 91;
 		break;
@@ -634,6 +642,7 @@ void THwI2c_stm32::Run()
 		{
 			return;
 		}
+		regs->ICR = I2C_ICR_STOPCF;
 		busy = false; // finished.
 		runstate = 50;
 		break;
