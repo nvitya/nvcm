@@ -25,13 +25,11 @@
  *  date:     2018-09-21
  *  authors:  nvitya
  *  notes:
- *
- *    WARNING: WORK IN PROGRESS, WRITE DOES NOT WORK YET ! ! !
 */
 
 #include "platform.h"
 
-#ifdef QUADSPI
+#if defined(QUADSPI) && !defined(MCUSF_G4)
 
 #include "hwqspi.h"
 #include "clockcnt.h"

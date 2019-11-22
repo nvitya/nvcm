@@ -32,6 +32,8 @@
 #define HWDMA_PRE_ONLY
 #include "hwdma.h"
 
+#if !defined(MCUSF_G4)
+
 #ifdef DMA1_Stream0_BASE
   #define DMASTREAMS
 #endif
@@ -79,5 +81,8 @@ public:
 };
 
 #define HWDMACHANNEL_IMPL  THwDmaChannel_stm32
+
+#endif // !defined(MCUSF_G4)
+
 
 #endif // def HWDMA_STM32_H_

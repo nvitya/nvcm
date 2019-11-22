@@ -28,6 +28,18 @@
 
 #include "hwpwm.h"
 
+#include "stm32_utils.h"
+
+#ifdef RCC_APB1ENR1_TIM2EN
+  #define RCC_APB1ENR_TIM2EN   RCC_APB1ENR1_TIM2EN
+  #define RCC_APB1ENR_TIM3EN   RCC_APB1ENR1_TIM3EN
+  #define RCC_APB1ENR_TIM4EN   RCC_APB1ENR1_TIM4EN
+  #define RCC_APB1ENR_TIM5EN   RCC_APB1ENR1_TIM5EN
+  #define RCC_APB1ENR_TIM6EN   RCC_APB1ENR1_TIM6EN
+  #define RCC_APB1ENR_TIM7EN   RCC_APB1ENR1_TIM7EN
+  #define RCC_APB1ENR_TIM8EN   RCC_APB1ENR1_TIM8EN
+#endif
+
 bool THwPwmChannel_stm32::Init(int atimernum, int achnum, int aoutnum) // outnum: 0 = A, 1 = B
 {
 	initialized = false;
@@ -53,42 +65,42 @@ bool THwPwmChannel_stm32::Init(int atimernum, int achnum, int aoutnum) // outnum
 	else if (2 == devnum)
 	{
 		regs = TIM2;
-		RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_TIM2EN;
 	}
 #endif
 #ifdef TIM3
 	else if (3 == devnum)
 	{
 		regs = TIM3;
-		RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_TIM3EN;
 	}
 #endif
 #ifdef TIM4
 	else if (4 == devnum)
 	{
 		regs = TIM4;
-		RCC->APB1ENR |= RCC_APB1ENR_TIM4EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_TIM4EN;
 	}
 #endif
 #ifdef TIM5
 	else if (5 == devnum)
 	{
 		regs = TIM5;
-		RCC->APB1ENR |= RCC_APB1ENR_TIM5EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_TIM5EN;
 	}
 #endif
 #ifdef TIM6
 	else if (6 == devnum)
 	{
 		regs = TIM6;
-		RCC->APB1ENR |= RCC_APB1ENR_TIM6EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_TIM6EN;
 	}
 #endif
 #ifdef TIM7
 	else if (7 == devnum)
 	{
 		regs = TIM7;
-		RCC->APB1ENR |= RCC_APB1ENR_TIM7EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_TIM7EN;
 	}
 #endif
 #ifdef TIM8

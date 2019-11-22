@@ -97,6 +97,9 @@ public: // mandatory
 
 #define HWDMACHANNEL_IMPL THwDmaChannel_noimpl
 
+  #define HWDMA_IMPLEMENTED 0
+#else
+  #define HWDMA_IMPLEMENTED 1
 #endif // ndef HWDMA_IMPL
 
 //-----------------------------------------------------------------------------

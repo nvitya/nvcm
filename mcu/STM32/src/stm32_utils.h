@@ -19,68 +19,22 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     hwintflash_stm32.h
- *  brief:    Internal Flash Handling for STM32
+ *  file:     stm32_utils.h
+ *  brief:    STM32 Utilities
  *  version:  1.00
- *  date:     2019-03-31
+ *  date:     2019-11-22
  *  authors:  nvitya
 */
 
-#ifndef HWINTFLASH_STM32_H_
-#define HWINTFLASH_STM32_H_
+#ifndef STM32_UTILS_H_
+#define STM32_UTILS_H_
 
-#define HWINTFLASH_PRE_ONLY
-#include "hwintflash.h"
+#include "platform.h"
 
-#if !defined(MCUSF_G4)
-
-#if defined(MCUSF_F4) || defined(MCUSF_F7)
-  #define HWINTFLASH_BIGBLOCKS  1
+#if defined(MCUSF_G4)
+  #define APB1ENR_REGISTER  RCC->APB1ENR1
 #else
-  #define HWINTFLASH_BIGBLOCKS  0
+  #define APB1ENR_REGISTER  RCC->APB1ENR
 #endif
 
-class THwIntFlash_stm32 : public THwIntFlash_pre
-{
-public:
-	bool             HwInit();
-
-public:
-	FLASH_TypeDef *  regs = nullptr;
-
-	//bool           StartFlashCmd(uint8_t acmd);
-
-	void             CmdEraseBlock(); // at address
-	void             CmdWritePage();
-
-	bool             CmdFinished();
-
-	void             Run();
-
-public:
-
-	void             Unlock();
-
-protected:
-
-	uint16_t *       src16;
-	uint16_t *       dst16;
-
-	void             Write32(uint32_t * adst, uint32_t avalue);
-
-#if HWINTFLASH_BIGBLOCKS
-
-	uint32_t         cr_reg_base;
-
-	int              BlockIdFromAddress(uint32_t aaddress);
-#endif
-
-};
-
-#define HWINTFLASH_IMPL     THwIntFlash_stm32
-
-#define HWINTFLASH_OWN_RUN
-
-#endif // !defined(MCUSF_G4)
-
-#endif // def HWINTFLASH_STM32_H_
+#endif /* STM32_UTILS_H_ */

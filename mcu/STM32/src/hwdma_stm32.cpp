@@ -31,7 +31,9 @@
 
 #include "hwdma.h"
 
-#if defined(MCUSF_F1) || defined(MCUSF_F0) || defined(MCUSF_L0) || defined(MCUSF_F3)
+#if HWDMA_IMPLEMENTED
+
+#if defined(MCUSF_F1) || defined(MCUSF_F0) || defined(MCUSF_L0) || defined(MCUSF_F3) || defined(MCUSF_G4)
 
 bool THwDmaChannel_stm32::Init(int admanum, int achannel, int arequest)
 {
@@ -281,3 +283,4 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 
 }
 
+#endif // if HWDMA_IMPLEMENTED

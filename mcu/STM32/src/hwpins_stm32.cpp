@@ -253,6 +253,8 @@ bool THwPinCtrl_stm32::GpioPortEnable(int aportnum)
   RCC->AHBENR |= (RCC_AHBENR_GPIOAEN << aportnum);
 #elif defined(RCC_APB2ENR_IOPAEN)
   RCC->APB2ENR |= (RCC_APB2ENR_IOPAEN << aportnum);
+#elif defined(RCC_AHB2ENR_GPIOAEN)
+  RCC->AHB2ENR |= (RCC_AHB2ENR_GPIOAEN << aportnum);
 #else
   RCC->AHB1ENR |= (RCC_AHB1ENR_GPIOAEN << aportnum);
 #endif

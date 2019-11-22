@@ -30,7 +30,15 @@
 #include "hwpins.h"
 #include "hwi2c.h"
 
+#include "stm32_utils.h"
+
 #include "traces.h"
+
+#ifdef RCC_APB1ENR1_I2C1EN
+  #define RCC_APB1ENR_I2C1EN     RCC_APB1ENR1_I2C1EN
+  #define RCC_APB1ENR_I2C2EN     RCC_APB1ENR1_I2C2EN
+  #define RCC_APB1ENR_I2C3EN     RCC_APB1ENR1_I2C3EN
+#endif
 
 #if I2C_HW_VER == 2
 
@@ -52,7 +60,7 @@ bool THwI2c_stm32::Init(int adevnum)
 	else if (1 == devnum)
 	{
 		regs = I2C1;
-		RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_I2C1EN;
 
 		#ifdef RCC_CFGR3_I2C1SW
 			RCC->CFGR3 |= RCC_CFGR3_I2C1SW; // select system clock for the source instead of the HSI
@@ -63,21 +71,25 @@ bool THwI2c_stm32::Init(int adevnum)
 	else if (2 == devnum)
 	{
 		regs = I2C2;
-		RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_I2C2EN;
 	}
 #endif
 #ifdef I2C3
 	else if (3 == devnum)
 	{
 		regs = I2C3;
-		RCC->APB1ENR |= RCC_APB1ENR_I2C3EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_I2C3EN;
 	}
 #endif
 #ifdef I2C4
 	else if (4 == devnum)
 	{
 		regs = I2C4;
-		RCC->APB1ENR |= RCC_APB1ENR_I2C4EN;
+    #ifdef RCC_APB1ENR2_I2C4EN
+		  RCC->APB1ENR2 |= RCC_APB1ENR2_I2C4EN;
+    #else
+  		RCC->APB1ENR |= RCC_APB1ENR_I2C4EN;
+    #endif
 	}
 #endif
 	if (!regs)

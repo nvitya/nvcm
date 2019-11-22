@@ -54,7 +54,11 @@ bool THwSpi_stm32::Init(int adevnum)
 	else if (2 == devnum)
 	{
 		regs = (HW_SPI_REGS *)SPI2_BASE;
-		RCC->APB1ENR |= RCC_APB1ENR_SPI2EN;
+		#if defined(RCC_APB1ENR1_SPI2EN)
+	    RCC->APB1ENR1 |= RCC_APB1ENR1_SPI2EN;
+    #else
+		  RCC->APB1ENR |= RCC_APB1ENR_SPI2EN;
+    #endif
 		clockdiv = 2;
 	}
 #endif

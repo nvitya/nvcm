@@ -200,8 +200,6 @@ void THwClkCtrl_stm32::PrepareHiSpeed(unsigned acpuspeed)
   	ws = FLASH_ACR_LATENCY_2;
   }
 
-  ws = 2;
-
   FLASH->ACR &= ~FLASH_ACR_LATENCY;
   FLASH->ACR |= ws;
 
@@ -376,6 +374,132 @@ bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acp
 		| (plln <<  6)
 		| (((pllp >> 1) - 1) << 16)
 		| (pllq << 24)
+	;
+
+	RCC->CR |= RCC_CR_PLLON;  // enable the PLL
+
+  /* Wait till PLL is ready */
+  while((RCC->CR & RCC_CR_PLLRDY) == 0)
+  {
+  }
+
+  // Set AHBCLK divider:
+  RCC->CFGR &= ~RCC_CFGR_HPRE;
+  RCC->CFGR |= RCC_CFGR_HPRE_DIV1;
+
+  // Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2
+  // clocks dividers
+
+  RCC->CFGR &= ~3;
+  RCC->CFGR |= RCC_CFGR_SW_PLL;
+  while (((RCC->CFGR >> 2) & 3) != RCC_CFGR_SW_PLL) // wait until it is set
+  {
+  }
+
+  // Set APB1CLK Divider:
+  RCC->CFGR &= ~RCC_CFGR_PPRE1;
+  RCC->CFGR |= RCC_CFGR_PPRE1_DIV4;
+
+  // Set APB2CLK Divider:
+  RCC->CFGR &= ~RCC_CFGR_PPRE2;
+  RCC->CFGR |= RCC_CFGR_PPRE2_DIV2;
+
+	return true;
+}
+
+#endif
+
+#if defined(MCUSF_G4)
+
+void THwClkCtrl_stm32::PrepareHiSpeed(unsigned acpuspeed)
+{
+	unsigned tmp;
+
+  RCC->APB1ENR1 |= RCC_APB1ENR1_PWREN;  // Enable Power Control clock
+
+  if (acpuspeed > 150000000)  // 1.28 V (Boost) required for the core
+  {
+    PWR->CR5 &= ~PWR_CR5_R1MODE;  // Enable boost
+  }
+  else // 1.2 V required for the Core (1.0 V not supported (up to 26 MHz))
+  {
+    PWR->CR5 |= PWR_CR5_R1MODE;   // Disable boost
+  }
+
+	// Set Voltage Scaling Range 1 (normal mode), (1.0 V mode (up to 26 MHz) not supported)
+
+	tmp = PWR->CR1;
+	tmp &= ~(PWR_CR1_VOS);
+	tmp |= PWR_CR1_VOS_0;
+	PWR->CR1 = tmp;
+	while (PWR->SR2 & PWR_SR2_VOSF)
+	{
+		// Wait until VOSF is cleared
+	}
+
+  // set Flash latency
+
+  unsigned ws;
+  if      (acpuspeed <=  60000000)  ws = FLASH_ACR_LATENCY_2WS;  // this is the safest minimum that works always, not the fastest one
+  else if (acpuspeed <=  80000000) 	ws = FLASH_ACR_LATENCY_3WS;
+  else if (acpuspeed <= 100000000) 	ws = FLASH_ACR_LATENCY_4WS;
+  else if (acpuspeed <= 120000000) 	ws = FLASH_ACR_LATENCY_5WS;
+  else if (acpuspeed <= 140000000) 	ws = FLASH_ACR_LATENCY_6WS;
+  else if (acpuspeed <= 160000000) 	ws = FLASH_ACR_LATENCY_7WS;
+  else
+  {
+  	ws = FLASH_ACR_LATENCY_8WS;
+  }
+
+  FLASH->ACR &= ~FLASH_ACR_LATENCY;
+  FLASH->ACR |= ws;
+
+  // enable caches and prefetch
+  FLASH->ACR |= (FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN);
+}
+
+bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed)
+{
+	// select the HSI as clock source
+  RCC->CFGR &= ~3;
+  RCC->CFGR |= RCC_CFGR_SW_HSI;
+  while (((RCC->CFGR >> 2) & 3) != RCC_CFGR_SW_HSI) // wait until it is set
+  {
+  }
+
+	RCC->CR &= ~RCC_CR_PLLON;  // disable the PLL
+
+  /* Wait till PLL is not ready */
+  while ((RCC->CR & RCC_CR_PLLRDY) != 0)
+  {
+  }
+
+  unsigned pllsrc = 3;  // HSE by default
+
+	if (!aextosc)
+	{
+		pllsrc = 2; // HSI (16 MHz)
+		abasespeed = 16000000;
+	}
+
+  unsigned vcospeed = acpuspeed * 2;
+	unsigned pllp = 2; // divide by 2 to get the final CPU speed
+	unsigned pllm = abasespeed / 4000000;   // generate 4 MHz VCO input
+	unsigned plln = vcospeed / 4000000;     // the vco multiplier
+
+	if (pllm > 1)  --pllm;
+
+	RCC->PLLCFGR = 0
+		| (pllsrc <<  0)  // PLLSRC(2)
+		| (pllm   <<  4)  // PLLM(4)
+		| (plln   <<  8)  // PLLN(7)
+		| (1      << 16)  // PLLPEN
+		| (0      << 17)  // PLLP: 0 = use PLLPDIV
+		| (1      << 20)  // PLLQEN
+		| (2      << 21)  // PLLQ(2): divide by 6, this gives only 48 MHz at 144 MHz CPU speed
+		| (1      << 24)  // PLLREN
+		| (0      << 25)  // PLLR(2): system clock = VCO speed / 2
+		| (2      << 27)  // PLLPDIV(5): divide by 2
 	;
 
 	RCC->CR |= RCC_CR_PLLON;  // enable the PLL

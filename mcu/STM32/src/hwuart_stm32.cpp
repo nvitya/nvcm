@@ -31,6 +31,15 @@
 
 #include "hwuart.h"
 
+#include "stm32_utils.h"
+
+#ifdef RCC_APB1ENR1_USART2EN
+  #define RCC_APB1ENR_USART2EN   RCC_APB1ENR1_USART2EN
+  #define RCC_APB1ENR_USART3EN   RCC_APB1ENR1_USART3EN
+  #define RCC_APB1ENR_UART4EN    RCC_APB1ENR1_UART4EN
+  #define RCC_APB1ENR_UART5EN    RCC_APB1ENR1_UART5EN
+#endif
+
 bool THwUart_stm32::Init(int adevnum)
 {
 	unsigned code;
@@ -44,21 +53,25 @@ bool THwUart_stm32::Init(int adevnum)
 	regs = nullptr;
 	if      (1 == devnum)
 	{
-#if defined(LPUART1_BASE)
-		regs = (HW_UART_REGS *)LPUART1_BASE;
-		RCC->APB1ENR |= RCC_APB1ENR_LPUART1EN;
-		lpuart = true;
-#else
-		regs = (HW_UART_REGS *)USART1_BASE;
-		//RCC->APB1ENR |= RCC_APB1ENR_USART1EN;
-		RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
-#endif
+		#if defined(USART1_BASE)
+			regs = (HW_UART_REGS *)USART1_BASE;
+			//RCC->APB1ENR |= RCC_APB1ENR_USART1EN;
+			RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+		#elif defined(LPUART1_BASE)
+			regs = (HW_UART_REGS *)LPUART1_BASE;
+			#ifdef RCC_APB1ENR2_LPUART1EN
+				RCC->APB1ENR2 |= RCC_APB1ENR2_LPUART1EN;
+			#else
+				RCC->APB1ENR |= RCC_APB1ENR_LPUART1EN;
+			#endif
+			lpuart = true;
+		#endif
 	}
 #if defined(USART2_BASE)
 	else if (2 == devnum)
 	{
 		regs = (HW_UART_REGS *)USART2_BASE;
-		RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_USART2EN;
 		clockdiv = 2;
 	}
 #endif
@@ -66,7 +79,7 @@ bool THwUart_stm32::Init(int adevnum)
 	else if (3 == devnum)
 	{
 		regs = (HW_UART_REGS *)USART3_BASE;
-		RCC->APB1ENR |= RCC_APB1ENR_USART3EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_USART3EN;
 		clockdiv = 2;
 	}
 #endif
@@ -74,7 +87,7 @@ bool THwUart_stm32::Init(int adevnum)
 	else if (4 == devnum)
 	{
 		regs = (HW_UART_REGS *)UART4_BASE;
-		RCC->APB1ENR |= RCC_APB1ENR_UART4EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_UART4EN;
 		clockdiv = 2;
 	}
 #endif
@@ -82,7 +95,7 @@ bool THwUart_stm32::Init(int adevnum)
 	else if (5 == devnum)
 	{
 		regs = (HW_UART_REGS *)UART5_BASE;
-		RCC->APB1ENR |= RCC_APB1ENR_UART5EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_UART5EN;
 		clockdiv = 2;
 	}
 #endif
@@ -218,6 +231,8 @@ bool THwUart_stm32::SendFinished()
 	}
 }
 
+#if HWDMA_IMPLEMENTED
+
 void THwUart_stm32::DmaAssign(bool istx, THwDmaChannel * admach)
 {
 	if (istx)
@@ -263,3 +278,4 @@ bool THwUart_stm32::DmaStartRecv(THwDmaTransfer * axfer)
 	return true;
 }
 
+#endif
