@@ -130,7 +130,7 @@
 
   #include "stm32g474xx.h"
 
-#elif defined(MCU_STM32G431CB)
+#elif defined(MCU_STM32G431CB) || defined(MCU_STM32G431KB)
 
   #define MCUF_STM32
   #define MCUSF_G4

@@ -51,13 +51,14 @@ bool THwUart_stm32::Init(int adevnum)
 	initialized = false;
 
 	regs = nullptr;
-	if      (1 == devnum)
+
+	if ( (0x101 == devnum)  // fix LPUART1
+#if !defined(USART1_BASE)
+			 || (1 == devnum)
+#endif
+		 )
 	{
-		#if defined(USART1_BASE)
-			regs = (HW_UART_REGS *)USART1_BASE;
-			//RCC->APB1ENR |= RCC_APB1ENR_USART1EN;
-			RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
-		#elif defined(LPUART1_BASE)
+		#if defined(LPUART1_BASE)
 			regs = (HW_UART_REGS *)LPUART1_BASE;
 			#ifdef RCC_APB1ENR2_LPUART1EN
 				RCC->APB1ENR2 |= RCC_APB1ENR2_LPUART1EN;
@@ -67,6 +68,14 @@ bool THwUart_stm32::Init(int adevnum)
 			lpuart = true;
 		#endif
 	}
+#if defined(USART1_BASE)
+	else if (1 == devnum)
+	{
+			regs = (HW_UART_REGS *)USART1_BASE;
+			//RCC->APB1ENR |= RCC_APB1ENR_USART1EN;
+			RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+	}
+#endif
 #if defined(USART2_BASE)
 	else if (2 == devnum)
 	{
