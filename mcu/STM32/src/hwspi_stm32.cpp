@@ -27,14 +27,19 @@
 */
 
 #include "platform.h"
-//#include "hwclkctrl.h"
 #include "hwspi.h"
+
+#include "stm32_utils.h"
+
+#ifdef RCC_APB1ENR1_SPI2EN
+  #define RCC_APB1ENR_SPI2EN   RCC_APB1ENR1_SPI2EN
+#endif
 
 bool THwSpi_stm32::Init(int adevnum)
 {
-	devnum = adevnum;
+	uint8_t busid = STM32_BUSID_APB2;
 
-	unsigned clockdiv = 1;
+	devnum = adevnum;
 
 	initialized = false;
 
@@ -54,20 +59,16 @@ bool THwSpi_stm32::Init(int adevnum)
 	else if (2 == devnum)
 	{
 		regs = (HW_SPI_REGS *)SPI2_BASE;
-		#if defined(RCC_APB1ENR1_SPI2EN)
-	    RCC->APB1ENR1 |= RCC_APB1ENR1_SPI2EN;
-    #else
-		  RCC->APB1ENR |= RCC_APB1ENR_SPI2EN;
-    #endif
-		clockdiv = 2;
+		APB1ENR_REGISTER |= RCC_APB1ENR_SPI2EN;
+		busid = STM32_BUSID_APB1;
 	}
 #endif
 #if defined(SPI3_BASE) && defined(RCC_APB1ENR_SPI3EN)
 	else if (3 == devnum)
 	{
 		regs = (HW_SPI_REGS *)SPI3_BASE;
-		RCC->APB1ENR |= RCC_APB1ENR_SPI3EN;
-		clockdiv = 2;
+		APB1ENR_REGISTER |= RCC_APB1ENR_SPI3EN;
+		busid = STM32_BUSID_APB1;
 	}
 #endif
 #if defined(SPI4_BASE)
@@ -97,20 +98,9 @@ bool THwSpi_stm32::Init(int adevnum)
 		return false;
 	}
 
-	if (SystemCoreClock <= 48000000)
-	{
-		clockdiv = 1;
-	}
-	else
-	{
-		// on higher speed devices the Peripheral clock is always divided by at least 2
-		clockdiv = (clockdiv << 1);
-	}
+	basespeed = stm32_bus_speed(busid);
 
 	// speed: the base speed will be divided with the powers of 2
-
-	basespeed = SystemCoreClock / clockdiv;
-
 	unsigned dcode = 0;
 	while ((basespeed / (1 << dcode) > speed) && (dcode < 7))
 	{

@@ -522,13 +522,15 @@ bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acp
   {
   }
 
+  // on the G4 devices the APB1 and APB2 buses allowed to run with system clock speed
+
   // Set APB1CLK Divider:
   RCC->CFGR &= ~RCC_CFGR_PPRE1;
-  RCC->CFGR |= RCC_CFGR_PPRE1_DIV4;
+  RCC->CFGR |= RCC_CFGR_PPRE1_DIV1;
 
   // Set APB2CLK Divider:
   RCC->CFGR &= ~RCC_CFGR_PPRE2;
-  RCC->CFGR |= RCC_CFGR_PPRE2_DIV2;
+  RCC->CFGR |= RCC_CFGR_PPRE2_DIV1;
 
 	return true;
 }

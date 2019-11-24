@@ -37,4 +37,11 @@
   #define APB1ENR_REGISTER  RCC->APB1ENR
 #endif
 
+// constants helping determine peripheral bus base frequencies
+#define STM32_BUSID_AHB     0
+#define STM32_BUSID_APB1    1
+#define STM32_BUSID_APB2    2
+
+uint32_t stm32_bus_speed(uint8_t abusid);
+
 #endif /* STM32_UTILS_H_ */

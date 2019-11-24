@@ -44,8 +44,7 @@
 
 bool THwI2c_stm32::Init(int adevnum)
 {
-	unsigned tmp;
-	unsigned clockdiv = 2;
+	uint8_t busid = STM32_BUSID_APB1;
 
 	initialized = false;
 
@@ -118,16 +117,7 @@ bool THwI2c_stm32::Init(int adevnum)
 	;
 	regs->CR1 = cr1;
 
-	if (SystemCoreClock <= 48000000)
-	{
-		clockdiv = 1;
-	}
-	else if (SystemCoreClock > 72000000)
-	{
-		clockdiv = (clockdiv << 1);
-	}
-
-	unsigned periphclock = SystemCoreClock / clockdiv;
+	unsigned periphclock = stm32_bus_speed(busid);
 
 	// TIMING
 
@@ -178,7 +168,7 @@ int THwI2c_stm32::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 	if (extracnt)
 	{
 		// reverse byte order
-		uint32_t edr = __REV(aextra);
+		//uint32_t edr = __REV(aextra);
 		if (1 == extracnt)
 		{
 			extradata[0] = (aextra & 0xFF);
@@ -260,7 +250,7 @@ int THwI2c_stm32::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 	if (extracnt)
 	{
 		// reverse byte order
-		uint32_t edr = __REV(aextra);
+		//uint32_t edr = __REV(aextra);
 		if (1 == extracnt)
 		{
 			extradata[0] = (aextra & 0xFF);
@@ -327,7 +317,7 @@ void THwI2c_stm32::Run()
 		return;
 	}
 
-	uint8_t  firstbyte;
+	//uint8_t  firstbyte;
 	unsigned cr2;
 	unsigned isr = regs->ISR;
 	unsigned nbytes;

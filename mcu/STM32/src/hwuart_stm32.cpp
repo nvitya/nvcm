@@ -43,9 +43,9 @@
 bool THwUart_stm32::Init(int adevnum)
 {
 	unsigned code;
-	unsigned clockdiv = 1;
+	uint8_t busid = STM32_BUSID_APB1;
 
-	bool     lpuart = false;
+	//bool     lpuart = false;
 
 	devnum = adevnum;
 	initialized = false;
@@ -65,7 +65,7 @@ bool THwUart_stm32::Init(int adevnum)
 			#else
 				RCC->APB1ENR |= RCC_APB1ENR_LPUART1EN;
 			#endif
-			lpuart = true;
+			//lpuart = true;
 		#endif
 	}
 #if defined(USART1_BASE)
@@ -74,6 +74,7 @@ bool THwUart_stm32::Init(int adevnum)
 			regs = (HW_UART_REGS *)USART1_BASE;
 			//RCC->APB1ENR |= RCC_APB1ENR_USART1EN;
 			RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+			busid = STM32_BUSID_APB2;
 	}
 #endif
 #if defined(USART2_BASE)
@@ -81,7 +82,6 @@ bool THwUart_stm32::Init(int adevnum)
 	{
 		regs = (HW_UART_REGS *)USART2_BASE;
 		APB1ENR_REGISTER |= RCC_APB1ENR_USART2EN;
-		clockdiv = 2;
 	}
 #endif
 #if defined(USART3_BASE)
@@ -89,7 +89,6 @@ bool THwUart_stm32::Init(int adevnum)
 	{
 		regs = (HW_UART_REGS *)USART3_BASE;
 		APB1ENR_REGISTER |= RCC_APB1ENR_USART3EN;
-		clockdiv = 2;
 	}
 #endif
 #if defined(UART4_BASE)
@@ -97,7 +96,6 @@ bool THwUart_stm32::Init(int adevnum)
 	{
 		regs = (HW_UART_REGS *)UART4_BASE;
 		APB1ENR_REGISTER |= RCC_APB1ENR_UART4EN;
-		clockdiv = 2;
 	}
 #endif
 #if defined(UART5_BASE)
@@ -105,7 +103,6 @@ bool THwUart_stm32::Init(int adevnum)
 	{
 		regs = (HW_UART_REGS *)UART5_BASE;
 		APB1ENR_REGISTER |= RCC_APB1ENR_UART5EN;
-		clockdiv = 2;
 	}
 #endif
 #if defined(USART6_BASE)
@@ -113,6 +110,7 @@ bool THwUart_stm32::Init(int adevnum)
 	{
 		regs = (HW_UART_REGS *)USART6_BASE;
 		RCC->APB2ENR |= RCC_APB2ENR_USART6EN;
+		busid = STM32_BUSID_APB2;
 	}
 #endif
 
@@ -167,19 +165,7 @@ bool THwUart_stm32::Init(int adevnum)
 	regs->CR3 &= ~(USART_CR3_RTSE | USART_CR3_CTSE | USART_CR3_HDSEL);
 #endif
 
-	// setup baud rate
-
-	if (SystemCoreClock <= 48000000)
-	{
-		clockdiv = 1;
-	}
-	else if (SystemCoreClock > 72000000)
-	{
-		clockdiv = (clockdiv << 1);
-	}
-
-	unsigned periphclock;
-	periphclock = SystemCoreClock / clockdiv;
+	unsigned periphclock = stm32_bus_speed(busid);
 	unsigned baseclock = periphclock / 16;
 	unsigned divider = ((baseclock << 4) + 8) / baudrate;
 
