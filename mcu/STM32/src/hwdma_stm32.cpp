@@ -65,7 +65,7 @@ bool THwDmaChannel_stm32::Init(int admanum, int achannel, int arequest)  // adma
 	else if (2 == dma)
 	{
 		HWDMA_EN_REGISTER |= RCC_AHBENR_DMA2EN;
-		regs = (HW_DMA_REGS * )(DMA2_Channel2_BASE + chid * (DMA2_Channel2_BASE - DMA2_Channel2_BASE));
+		regs = (HW_DMA_REGS * )(DMA2_Channel1_BASE + chid * (DMA2_Channel2_BASE - DMA2_Channel1_BASE));
 	}
 #endif
 	else

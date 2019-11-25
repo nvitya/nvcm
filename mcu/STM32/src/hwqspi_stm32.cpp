@@ -29,7 +29,7 @@
 
 #include "platform.h"
 
-#if defined(QUADSPI) && !defined(MCUSF_G4)
+#if defined(QUADSPI)
 
 #include "hwqspi.h"
 #include "clockcnt.h"
@@ -39,6 +39,8 @@
 bool THwQspi_stm32::InitInterface() // the pins must be configured before, because of the alternatives
 {
 /* possible pins for the F746:
+
+	unsigned qspipincfg = PINCFG_PULLUP;
 
 	hwpinctrl.PinSetup(PORTNUM_B,  6, qspipincfg | PINCFG_AF_10);  // NCS
 	hwpinctrl.PinSetup(PORTNUM_B,  2, qspipincfg | PINCFG_AF_9);   // CLK
@@ -53,14 +55,25 @@ bool THwQspi_stm32::InitInterface() // the pins must be configured before, becau
 	hwpinctrl.PinSetup(PORTNUM_A,  1, qspipincfg | PINCFG_AF_9);   // IO3
 	hwpinctrl.PinSetup(PORTNUM_D, 13, qspipincfg | PINCFG_AF_9);   // IO3
 	hwpinctrl.PinSetup(PORTNUM_F,  6, qspipincfg | PINCFG_AF_9);   // IO3
+
+	G4: AF10
+	--------
+	A6: IO3
+	A7: IO2
+	B0: IO1
+	B1: IO0
+	B10: CLK
+	B11: NCS
 */
 
-	unsigned qspipincfg = PINCFG_PULLUP;
-
+#if defined(MCUSF_G4)
+	txdma.Init(dmanum, dmach, 40);  // request 40 = QUADSPI
+	rxdma.Init(dmanum, dmach, 40);  // use the same channel for tx and rx
+#else
 	// The DMA 2 / stream 7 / chanel 3 is assigned to the QSPI
 	txdma.Init(2, 7, 3);
-	// use the same channel for tx and rx
-	rxdma.Init(2, 7, 3);
+	rxdma.Init(2, 7, 3);  // use the same channel for tx and rx
+#endif
 
 	return true;
 }
@@ -390,7 +403,7 @@ void THwQspi_stm32::Run()
 	{
 		if (istx)
 		{
-			if (dmaused && txdma.Enabled())
+			if (dmaused && txdma.Active())
 			{
 				return;
 			}
@@ -407,7 +420,7 @@ void THwQspi_stm32::Run()
 				return;
 			}
 
-			if (dmaused && rxdma.Enabled())
+			if (dmaused && rxdma.Active())
 			{
 				return;
 			}
