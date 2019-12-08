@@ -53,16 +53,16 @@ bool THwDmaChannel_stm32::Init(int admanum, int achannel, int arequest)  // adma
 		return false;
 	}
 
-	int      dma   = (admanum  & 0x03);
+	dmanum   = (admanum  & 0x03);
 	int      chid    = ((achannel-1) & 0x07);
 
-	if (1 == dma)
+	if (1 == dmanum)
 	{
 		HWDMA_EN_REGISTER |= RCC_AHBENR_DMA1EN;
 		regs = (HW_DMA_REGS * )(DMA1_Channel1_BASE + chid * (DMA1_Channel2_BASE - DMA1_Channel1_BASE));
 	}
 #ifdef RCC_AHBENR_DMA2EN
-	else if (2 == dma)
+	else if (2 == dmanum)
 	{
 		HWDMA_EN_REGISTER |= RCC_AHBENR_DMA2EN;
 		regs = (HW_DMA_REGS * )(DMA2_Channel1_BASE + chid * (DMA2_Channel2_BASE - DMA2_Channel1_BASE));
@@ -77,7 +77,7 @@ bool THwDmaChannel_stm32::Init(int admanum, int achannel, int arequest)  // adma
 
 	DMA_TypeDef * dmaptr = DMA1;
 #ifdef DMA2
-	if (2 == dma)  dmaptr = DMA2;
+	if (2 == dmanum)  dmaptr = DMA2;
 #endif
 	irqstreg = (unsigned *)&dmaptr->ISR;
 	irqstclrreg = (unsigned *)&dmaptr->IFCR;
@@ -96,7 +96,7 @@ bool THwDmaChannel_stm32::Init(int admanum, int achannel, int arequest)  // adma
 
 #ifdef RCC_AHB1ENR_DMAMUX1EN
   RCC->AHB1ENR |= RCC_AHB1ENR_DMAMUX1EN;
-  int muxch = (2 == dma ? 8 : 0) + chid;
+  int muxch = (2 == dmanum ? 8 : 0) + chid;
   DMAMUX1[muxch].CCR = 0
     | ((arequest & 0x7F) <<  0)  // DMAREQ_ID(7): DMA request identification
     | (0 <<  8)  // SOIE: Synchronization overrun interrupt enable

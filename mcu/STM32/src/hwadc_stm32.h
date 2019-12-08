@@ -34,7 +34,13 @@
 
 #include "hwdma.h"
 
-#define HW_ADC_REGS  ADC_TypeDef
+#define HWADC_REGS  ADC_TypeDef
+
+#ifdef ADC12_COMMON
+  #define HWADC_COMMON_REGS  ADC_Common_TypeDef
+#else
+  #define HWADC_COMMON_REGS  void
+#endif
 
 #define HWADC_MAX_CHANNELS  18
 #define HWADC_DATA_LSHIFT    0
@@ -45,6 +51,7 @@ public:
 	THwDmaChannel   dmach;
 	THwDmaTransfer  dmaxfer;
 
+	int             dmaalloc = -1;    // -1 = use some default, otherwise 0x103 = dma1/ch3
 	int             dmastream = -1;   // -1 = use default dma stream
 
 	uint32_t        channel_map = 0;  // by default convert only ch 0
@@ -54,7 +61,8 @@ public:
 
 	uint8_t         dmadatacnt = 0;
 
-	HW_ADC_REGS *   regs = nullptr;
+	HWADC_REGS *          regs = nullptr;
+	HWADC_COMMON_REGS *   commonregs = nullptr;
 
 	bool            Init(int adevnum, uint32_t achannel_map);
 	inline uint16_t ChValue(uint8_t ach) { return *(databyid[ach]); }

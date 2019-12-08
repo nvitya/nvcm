@@ -45,6 +45,7 @@
 class THwDmaChannel_stm32 : public THwDmaChannel_pre
 {
 public:
+	int                dmanum = 1;
 	HW_DMA_REGS *      regs = nullptr;
 
 #ifdef DMASTREAMS

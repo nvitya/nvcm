@@ -203,7 +203,7 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 	}
 #endif
 #ifdef ADC3
-	else if (2 == devnum)
+	else if (3 == devnum)
 	{
 		regs = ADC3;
 		RCC->APB2ENR |= RCC_APB2ENR_ADC3EN;
@@ -305,6 +305,204 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 
 	// total conversion cycles:  15 ADC clocks + sampling time (= 3 ADC clocks)
 	conv_adc_clocks = sampling_clocks[stcode] + 15;
+	act_conv_rate = adc_clock / conv_adc_clocks;
+
+	// setup the regular sequence based on the channel map and start the cyclic conversion
+	StartFreeRun(channel_map);
+
+	initialized = true;
+	return true;
+}
+
+#elif defined(MCUSF_G4)
+
+bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
+{
+	initialized = false;
+
+	devnum = adevnum;
+	initialized = false;
+	channel_map = achannel_map;
+
+	uint8_t dmamux;
+	uint16_t defaultdma;
+
+	regs = nullptr;
+	if      (1 == devnum)
+	{
+		regs = ADC1;
+		commonregs = ADC12_COMMON;
+		RCC->AHB2ENR |= RCC_AHB2ENR_ADC12EN;
+		dmamux = 5;
+		defaultdma = 0x201;
+	}
+#ifdef ADC2
+	else if (2 == devnum)
+	{
+		regs = ADC2;
+		commonregs = ADC12_COMMON;
+		RCC->AHB2ENR |= RCC_AHB2ENR_ADC12EN;
+		dmamux = 36;
+		defaultdma = 0x202;
+	}
+#endif
+#ifdef ADC3
+	else if (3 == devnum)
+	{
+		regs = ADC3;
+		commonregs = ADC345_COMMON;
+		RCC->AHB2ENR |= RCC_AHB2ENR_ADC345EN;
+		dmamux = 37;
+		defaultdma = 0x203;
+	}
+#endif
+#ifdef ADC4
+	else if (4 == devnum)
+	{
+		regs = ADC4;
+		commonregs = ADC345_COMMON;
+		RCC->AHB2ENR |= RCC_AHB2ENR_ADC345EN;
+		dmamux = 38;
+		defaultdma = 0x204;
+	}
+#endif
+#ifdef ADC5
+	else if (5 == devnum)
+	{
+		regs = ADC5;
+		commonregs = ADC345_COMMON;
+		RCC->AHB2ENR |= RCC_AHB2ENR_ADC345EN;
+		dmamux = 39;
+		defaultdma = 0x205;
+	}
+#endif
+	else
+	{
+		return false;
+	}
+
+	if (dmaalloc < 0)  dmaalloc = defaultdma;
+
+	dmach.Init((dmaalloc >> 8), dmaalloc & 15, dmamux);  // re-init the DMA channel with the proper DMAMUX
+	dmach.Prepare(false, (void *)&regs->DR, 0);
+
+	// current setup: ADC clock = System Clock (AHB clock) / 4
+	// this gives at 168 MHz CPU speed the maximal 42 MHz ADC clock (for single ended mode)
+	adc_clock = SystemCoreClock / 4;
+
+	// ADC Common register
+	commonregs->CCR = 0
+		| (1 << 24)  // VBATSEL: 1 = VBAT ch enable
+		| (1 << 23)  // VSENSESEL: 1 = temp sensor channel enable
+		| (1 << 22)  // VREFEN: 1 = Vrefint channel enable
+		| (0 << 18)  // PRESC(4): ADC prescaler, 0 = do not divide
+		| (3 << 16)  // CLKMODE(2): ADC clock mode, 3 = AHB clock / 4 (synchronous clock mode)
+		| (0 << 14)  // MDMA(2): Direct memory access mode for dual ADC mode, 0 = disabled
+		| (0 << 13)  // DMACFG: Dual mode DMA config, 0 = one shot, 1 = circular
+		| (0 <<  8)  // DELAY(4): Delay between 2 sampling phases (for dual / triple mode)
+		| (0 <<  0)  // MULTI(5): Dual ADC selection, 0 = independent mode
+	;
+
+
+	// stop adc adc
+
+	if (regs->CR & ADC_CR_ADEN)
+	{
+		regs->CR |= ADC_CR_ADDIS;
+		while (regs->CR & ADC_CR_ADDIS) { } // wait until disabled
+	}
+
+	regs->DIFSEL = 0; // all channels are single ended
+
+	regs->CR = 0
+	  | (0 << 31)  // ADCAL: ADC calibration
+	  | (0 << 30)  // ADCALDIF: Differential mode for calibration
+	  | (0 << 29)  // DEEPPWD: Deep-power-down enable
+	  | (1 << 28)  // ADVREGEN: ADC voltage regulator enable
+	  | (0 <<  5)  // JADSTP: ADC stop of injected conversion command
+	  | (0 <<  4)  // ADSTP: ADC stop of regular conversion command
+	  | (0 <<  3)  // JADSTART: ADC start of injected conversion
+	  | (0 <<  2)  // ADSTART: ADC start of regular conversion
+	  | (0 <<  1)  // ADDIS: ADC disable command
+	  | (0 <<  0)  // ADEN: ADC enable control
+	;
+
+	delay_us(30); // wait for ADC the reference voltage
+
+	// start the calibration
+	regs->CR |= ADC_CR_ADCAL;
+	while (regs->CR & ADC_CR_ADCAL)
+	{
+		// wait for the calibration
+	}
+
+	// enable the ADC to be able to modify the other registers
+	regs->CR |= ADC_CR_ADEN;
+
+	regs->CFGR = 0
+		| (1 << 31)  // JQDIS: Injected Queue disable
+		| (0 << 26)  // AWD1CH(5): Analog watchdog 1 channel selection
+		| (0 << 25)  // JAUTO: Automatic injected group conversion
+		| (0 << 24)  // JAWD1EN: Analog watchdog 1 enable on injected channels
+		| (0 << 23)  // AWD1EN: Analog watchdog 1 enable on regular channels
+		| (0 << 22)  // AWD1SGL: Enable the watchdog 1 on a single channel or on all channels
+		| (0 << 21)  // JQM: JSQR queue mode
+		| (0 << 20)  // JDISCEN: Discontinuous mode on injected channels
+		| (0 << 17)  // DISCNUM(3): Discontinuous mode channel count
+		| (0 << 16)  // DISCEN: Discontinuous mode for regular channels
+		| (1 << 15)  // ALIGN: Data alignment, 0 = right alignment, 1 = left alignment
+		| (0 << 14)  // AUTDLY: Delayed conversion mode
+		| (1 << 13)  // CONT: Single / continuous conversion mode for regular conversions
+		| (1 << 12)  // OVRMOD: Overrun mode, 1 = overwrite
+		| (0 << 10)  // EXTEN(2): External trigger enable and polarity selection for regular channels
+		| (0 <<  5)  // EXTSEL(5): External trigger selection for regular group
+		| (0 <<  3)  // RES(2): Data resolution, 0 = 12 bit, 1 = 10 bit, 2 = 8 bit, 3 = 6 bit
+		| (1 <<  1)  // DMACFG: Direct memory access configuration, 0 = One shot mode, 1 = circular mode
+		| (1 <<  0)  // DMAEN: Direct memory access enable
+	;
+
+	regs->CFGR2 = 0
+		| (0 << 27)  // SMPTRIG: Sampling time control trigger mode
+		| (0 << 26)  // BULB: Bulb sampling mode
+		| (0 << 25)  // SWTRIG: Software trigger bit for sampling time control trigger mode
+		| (0 << 16)  // GCOMP: Gain compensation mode
+		| (0 << 10)  // ROVSM: Regular Oversampling mode
+		| (0 <<  9)  // TROVS: Triggered Regular Oversampling
+		| (0 <<  5)  // OVSS(4): Oversampling shift
+		| (0 <<  2)  // OVSR(3): Oversampling ratio
+		| (0 <<  1)  // JOVSE: Injected Oversampling Enable
+		| (0 <<  0)  // ROVSE: Regular Oversampling Enable
+	;
+
+	// disable ADC Watchdogs
+	regs->TR1 = 0;
+	regs->TR2 = 0;
+	regs->TR3 = 0;
+
+	regs->AWD2CR = 0;
+	regs->AWD3CR = 0;
+
+	// setup sampling time
+
+	uint32_t stcode = 0; // sampling time code, index for the following array
+	uint32_t sampling_clocks[8] = {3, 7, 13, 25, 48, 93, 248, 641};  // actually its 0.5 CLK less
+	uint32_t target_sampling_clocks = (sampling_time_ns * 1000) / (adc_clock / 1000);
+	while ((stcode < 7) && (sampling_clocks[stcode] < target_sampling_clocks))
+	{
+		++stcode;
+	}
+
+	int i;
+	uint32_t tmp = 0;
+	for (i = 0; i < 9; ++i)
+	{
+		tmp |= (stcode << (i * 3));
+	}
+	regs->SMPR1 = tmp;
+	regs->SMPR2 = tmp;
+
+	// total conversion cycles:  12 ADC clocks + sampling time
+	conv_adc_clocks = sampling_clocks[stcode] + 12;
 	act_conv_rate = adc_clock / conv_adc_clocks;
 
 	// setup the regular sequence based on the channel map and start the cyclic conversion
@@ -451,14 +649,24 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 
 // Shared functions
 
+#if defined(MCUSF_G4) || defined(MCUSF_F3)
+  #define HWADC_SQREG_SHIFT  6
+  #define STM32_FASTADC
+#else
+  #define HWADC_SQREG_SHIFT  5
+#endif
+
 void THwAdc_stm32::SetupChannels(uint32_t achsel)
 {
 	channel_map = achsel;
 
 	uint32_t ch;
-	uint32_t sqr[3] = {0, 0, 0};
+	uint32_t sqr[4] = {0, 0, 0, 0};
 	uint32_t * psqr = &sqr[0];
 	uint32_t bitshift = 0;
+#ifdef STM32_FASTADC
+	bitshift = HWADC_SQREG_SHIFT;  // the sequence length is on the bits 0..3 here
+#endif
 
 	for (ch = 0; ch < HWADC_MAX_CHANNELS; ++ch)
 	{
@@ -477,7 +685,7 @@ void THwAdc_stm32::SetupChannels(uint32_t achsel)
 
 			++dmadatacnt;
 
-			bitshift += 5;
+			bitshift += HWADC_SQREG_SHIFT;
 			if (bitshift > 25)
 			{
 				// go to the next register
@@ -489,6 +697,12 @@ void THwAdc_stm32::SetupChannels(uint32_t achsel)
 
 #if defined(MCUSF_F0)
 	regs->CHSELR = channel_map;
+
+#elif defined(STM32_FASTADC)
+	regs->SQR1 = sqr[0] | (dmadatacnt-1);  // this contains the sequence length too
+	regs->SQR2 = sqr[1];
+	regs->SQR3 = sqr[2];
+	regs->SQR4 = sqr[3];
 #else
 	regs->SQR3 = sqr[0];
 	regs->SQR2 = sqr[1];
@@ -522,6 +736,12 @@ void THwAdc_stm32::StopFreeRun()
 	{
 		// wait until stopped
 	}
+#elif defined(STM32_FASTADC)
+	regs->CR |= ADC_CR_ADSTP;
+	while (regs->CR & ADC_CR_ADSTP)
+	{
+		// wait until stopped
+	}
 #else
 	regs->CR2 &= ~ADC_CR2_CONT;  // disable the continuous mode
 	delay_us(10);
@@ -537,6 +757,9 @@ void THwAdc_stm32::StartContConv()
 	// and start the conversion
 	regs->CR2 |= ADC_CR2_CONT;  // enable the continuous mode
 	regs->CR2 |= (ADC_CR2_SWSTART | ADC_CR2_ADON | ADC_CR2_EXTTRIG);
+#elif defined(STM32_FASTADC)
+	regs->CFGR |= ADC_CFGR_CONT;  // enable the continuous mode
+	regs->CR |= ADC_CR_ADSTART;
 #else
 	// and start the conversion
 	regs->CR2 |= ADC_CR2_CONT;  // enable the continuous mode
