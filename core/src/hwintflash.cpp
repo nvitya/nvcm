@@ -165,8 +165,6 @@ bool THwIntFlash::StartCopyMem(uint32_t aaddr, void * asrcptr, uint32_t alen)
 
 void THwIntFlash::Run()
 {
-	uint32_t n;
-
 	if (0 == state)
 	{
 		return;  // idle

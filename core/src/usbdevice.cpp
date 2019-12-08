@@ -79,7 +79,7 @@ int TUsbInterface::AppendConfigDesc(uint8_t * dptr, uint16_t amaxlen)
 	uint8_t i;
 	uint8_t *  dp = dptr;
 	uint16_t   remaining = amaxlen;
-	uint16_t   result = 0;
+	//uint16_t   result = 0;
 	uint8_t    dsize;
 
 	// first add the interface descriptor
@@ -540,7 +540,7 @@ bool TUsbDevice::HandleControlEndpoint(bool htod)
 	if (htod)
 	{
 		rxlen = ep_ctrl.ReadRecvData(&rxbuf[0], sizeof(rxbuf));
-		if (r < 0)
+		if (rxlen < 0)
 		{
 			return false; // the ep will stall
 		}
