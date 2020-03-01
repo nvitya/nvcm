@@ -117,11 +117,26 @@
 
 #elif defined(MCU_STM32F407VE) || defined(MCU_STM32F407VE) || defined(MCU_STM32F407VG) || defined(MCU_STM32F407ZE) || defined(MCU_STM32F407ZG)
 
-	#define MCUF_STM32
+  #define MCUF_STM32
   #define MCUSF_F4
   #define MAX_CLOCK_SPEED  168000000
 
   #include "stm32f407xx.h"
+
+#elif defined(MCU_STM32G474RE)
+
+  #define MCUF_STM32
+  #define MCUSF_G4
+
+  #include "stm32g474xx.h"
+
+#elif defined(MCU_STM32G431CB) || defined(MCU_STM32G431KB)
+
+  #define MCUF_STM32
+  #define MCUSF_G4
+
+  #include "stm32g431xx.h"
+
 
 // STM32F7: Cortex-M7
 

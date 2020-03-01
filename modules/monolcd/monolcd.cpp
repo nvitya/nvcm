@@ -143,20 +143,28 @@ void TMonoLcd::InitPanel()
 	  // Set display to Normal
 	  WriteCmd(0x08 | 0x4);  // PCD8544_DISPLAYCONTROL | PCD8544_DISPLAYNORMAL
 	}
+	else if (MLCD_CTRL_HX1230 == ctrltype)
+	{
+    WriteCmd(0x2f);
+    WriteCmd(0x90);
+    WriteCmd(0xa6);
+    WriteCmd(0xa4);
+    WriteCmd(0xaf);  // power on
+    WriteCmd(0x40);
+    WriteCmd(0xb0);
+    WriteCmd(0x10);
+    WriteCmd(0x00);
+
+    // set contrast:
+	  WriteCmd(0x80 | (contrast & 31));
+	}
 
   SetRotation(rotation);
 }
 
 void TMonoLcd::SetRotation(uint8_t m)
 {
-	if (MLCD_CTRL_PCD8544 == ctrltype)
-	{
-		rotation = 0;
-  	width = hwwidth;
-  	height = hwheight;
-  	return;
-	}
-	else
+	if (MLCD_CTRL_UC1701 == ctrltype)
 	{
 		rotation = m;
 
@@ -176,6 +184,36 @@ void TMonoLcd::SetRotation(uint8_t m)
 			WriteCmd(0xA1);  // set segment re-map to normal
 			break;
 		}
+	}
+	else if (MLCD_CTRL_HX1230 == ctrltype)
+	{
+		// somehow flipping segments does not work, only com scan
+
+		rotation = m;
+
+		switch (rotation)
+		{
+		case 0:
+		default:
+			width = hwwidth;
+			height = hwheight;
+			//WriteCmd(0xA0);  // set segment re-map to remap
+			//WriteCmd(0xC8);  // set com scan direction to remap
+			break;
+		case 2:
+			width = hwwidth;
+			height = hwheight;
+			//WriteCmd(0xC0);  // set com scan direction to normal
+			//WriteCmd(0xA0);  // set segment re-map to normal
+			break;
+		}
+	}
+	else
+	{
+		rotation = 0;
+		width = hwwidth;
+		height = hwheight;
+		return;
 	}
 }
 

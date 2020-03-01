@@ -31,59 +31,78 @@
 
 #include "hwuart.h"
 
+#include "stm32_utils.h"
+
+#ifdef RCC_APB1ENR1_USART2EN
+  #define RCC_APB1ENR_USART2EN   RCC_APB1ENR1_USART2EN
+  #define RCC_APB1ENR_USART3EN   RCC_APB1ENR1_USART3EN
+  #define RCC_APB1ENR_UART4EN    RCC_APB1ENR1_UART4EN
+  #define RCC_APB1ENR_UART5EN    RCC_APB1ENR1_UART5EN
+#endif
+
 bool THwUart_stm32::Init(int adevnum)
 {
 	unsigned code;
-	unsigned clockdiv = 1;
+	uint8_t busid = STM32_BUSID_APB1;
 
-	bool     lpuart = false;
+	//bool     lpuart = false;
 
 	devnum = adevnum;
 	initialized = false;
 
 	regs = nullptr;
-	if      (1 == devnum)
-	{
-#if defined(LPUART1_BASE)
-		regs = (HW_UART_REGS *)LPUART1_BASE;
-		RCC->APB1ENR |= RCC_APB1ENR_LPUART1EN;
-		lpuart = true;
-#else
-		regs = (HW_UART_REGS *)USART1_BASE;
-		//RCC->APB1ENR |= RCC_APB1ENR_USART1EN;
-		RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+
+	if ( (0x101 == devnum)  // fix LPUART1
+#if !defined(USART1_BASE)
+			 || (1 == devnum)
 #endif
+		 )
+	{
+		#if defined(LPUART1_BASE)
+			regs = (HW_UART_REGS *)LPUART1_BASE;
+			#ifdef RCC_APB1ENR2_LPUART1EN
+				RCC->APB1ENR2 |= RCC_APB1ENR2_LPUART1EN;
+			#else
+				RCC->APB1ENR |= RCC_APB1ENR_LPUART1EN;
+			#endif
+			//lpuart = true;
+		#endif
 	}
+#if defined(USART1_BASE)
+	else if (1 == devnum)
+	{
+			regs = (HW_UART_REGS *)USART1_BASE;
+			//RCC->APB1ENR |= RCC_APB1ENR_USART1EN;
+			RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
+			busid = STM32_BUSID_APB2;
+	}
+#endif
 #if defined(USART2_BASE)
 	else if (2 == devnum)
 	{
 		regs = (HW_UART_REGS *)USART2_BASE;
-		RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
-		clockdiv = 2;
+		APB1ENR_REGISTER |= RCC_APB1ENR_USART2EN;
 	}
 #endif
 #if defined(USART3_BASE)
 	else if (3 == devnum)
 	{
 		regs = (HW_UART_REGS *)USART3_BASE;
-		RCC->APB1ENR |= RCC_APB1ENR_USART3EN;
-		clockdiv = 2;
+		APB1ENR_REGISTER |= RCC_APB1ENR_USART3EN;
 	}
 #endif
 #if defined(UART4_BASE)
 	else if (4 == devnum)
 	{
 		regs = (HW_UART_REGS *)UART4_BASE;
-		RCC->APB1ENR |= RCC_APB1ENR_UART4EN;
-		clockdiv = 2;
+		APB1ENR_REGISTER |= RCC_APB1ENR_UART4EN;
 	}
 #endif
 #if defined(UART5_BASE)
 	else if (5 == devnum)
 	{
 		regs = (HW_UART_REGS *)UART5_BASE;
-		RCC->APB1ENR |= RCC_APB1ENR_UART5EN;
-		clockdiv = 2;
+		APB1ENR_REGISTER |= RCC_APB1ENR_UART5EN;
 	}
 #endif
 #if defined(USART6_BASE)
@@ -91,6 +110,7 @@ bool THwUart_stm32::Init(int adevnum)
 	{
 		regs = (HW_UART_REGS *)USART6_BASE;
 		RCC->APB2ENR |= RCC_APB2ENR_USART6EN;
+		busid = STM32_BUSID_APB2;
 	}
 #endif
 
@@ -145,19 +165,7 @@ bool THwUart_stm32::Init(int adevnum)
 	regs->CR3 &= ~(USART_CR3_RTSE | USART_CR3_CTSE | USART_CR3_HDSEL);
 #endif
 
-	// setup baud rate
-
-	if (SystemCoreClock <= 48000000)
-	{
-		clockdiv = 1;
-	}
-	else if (SystemCoreClock > 72000000)
-	{
-		clockdiv = (clockdiv << 1);
-	}
-
-	unsigned periphclock;
-	periphclock = SystemCoreClock / clockdiv;
+	unsigned periphclock = stm32_bus_speed(busid);
 	unsigned baseclock = periphclock / 16;
 	unsigned divider = ((baseclock << 4) + 8) / baudrate;
 
@@ -218,6 +226,8 @@ bool THwUart_stm32::SendFinished()
 	}
 }
 
+#if HWDMA_IMPLEMENTED
+
 void THwUart_stm32::DmaAssign(bool istx, THwDmaChannel * admach)
 {
 	if (istx)
@@ -263,3 +273,4 @@ bool THwUart_stm32::DmaStartRecv(THwDmaTransfer * axfer)
 	return true;
 }
 
+#endif

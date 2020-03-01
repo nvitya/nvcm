@@ -30,14 +30,21 @@
 #include "hwpins.h"
 #include "hwi2c.h"
 
+#include "stm32_utils.h"
+
 #include "traces.h"
+
+#ifdef RCC_APB1ENR1_I2C1EN
+  #define RCC_APB1ENR_I2C1EN     RCC_APB1ENR1_I2C1EN
+  #define RCC_APB1ENR_I2C2EN     RCC_APB1ENR1_I2C2EN
+  #define RCC_APB1ENR_I2C3EN     RCC_APB1ENR1_I2C3EN
+#endif
 
 #if I2C_HW_VER == 2
 
 bool THwI2c_stm32::Init(int adevnum)
 {
-	unsigned tmp;
-	unsigned clockdiv = 2;
+	uint8_t busid = STM32_BUSID_APB1;
 
 	initialized = false;
 
@@ -52,7 +59,7 @@ bool THwI2c_stm32::Init(int adevnum)
 	else if (1 == devnum)
 	{
 		regs = I2C1;
-		RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_I2C1EN;
 
 		#ifdef RCC_CFGR3_I2C1SW
 			RCC->CFGR3 |= RCC_CFGR3_I2C1SW; // select system clock for the source instead of the HSI
@@ -63,21 +70,25 @@ bool THwI2c_stm32::Init(int adevnum)
 	else if (2 == devnum)
 	{
 		regs = I2C2;
-		RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_I2C2EN;
 	}
 #endif
 #ifdef I2C3
 	else if (3 == devnum)
 	{
 		regs = I2C3;
-		RCC->APB1ENR |= RCC_APB1ENR_I2C3EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_I2C3EN;
 	}
 #endif
 #ifdef I2C4
 	else if (4 == devnum)
 	{
 		regs = I2C4;
-		RCC->APB1ENR |= RCC_APB1ENR_I2C4EN;
+    #ifdef RCC_APB1ENR2_I2C4EN
+		  RCC->APB1ENR2 |= RCC_APB1ENR2_I2C4EN;
+    #else
+  		RCC->APB1ENR |= RCC_APB1ENR_I2C4EN;
+    #endif
 	}
 #endif
 	if (!regs)
@@ -106,16 +117,7 @@ bool THwI2c_stm32::Init(int adevnum)
 	;
 	regs->CR1 = cr1;
 
-	if (SystemCoreClock <= 48000000)
-	{
-		clockdiv = 1;
-	}
-	else if (SystemCoreClock > 72000000)
-	{
-		clockdiv = (clockdiv << 1);
-	}
-
-	unsigned periphclock = SystemCoreClock / clockdiv;
+	unsigned periphclock = stm32_bus_speed(busid);
 
 	// TIMING
 
@@ -166,7 +168,7 @@ int THwI2c_stm32::StartReadData(uint8_t adaddr, unsigned aextra, void * dstptr, 
 	if (extracnt)
 	{
 		// reverse byte order
-		uint32_t edr = __REV(aextra);
+		//uint32_t edr = __REV(aextra);
 		if (1 == extracnt)
 		{
 			extradata[0] = (aextra & 0xFF);
@@ -248,7 +250,7 @@ int THwI2c_stm32::StartWriteData(uint8_t adaddr, unsigned aextra, void * srcptr,
 	if (extracnt)
 	{
 		// reverse byte order
-		uint32_t edr = __REV(aextra);
+		//uint32_t edr = __REV(aextra);
 		if (1 == extracnt)
 		{
 			extradata[0] = (aextra & 0xFF);
@@ -315,7 +317,7 @@ void THwI2c_stm32::Run()
 		return;
 	}
 
-	uint8_t  firstbyte;
+	//uint8_t  firstbyte;
 	unsigned cr2;
 	unsigned isr = regs->ISR;
 	unsigned nbytes;

@@ -93,6 +93,19 @@
   #define MCU_STM32F446ZE
   #define MCU_INPUT_FREQ   8000000
 
+#elif defined(BOARD_NUCLEO_G474RE)
+
+  #define BOARD_NAME "STM32G474RE Nucleo-64"
+  #define MCU_STM32G474RE
+  #define MCU_INPUT_FREQ   24000000
+
+#elif defined(BOARD_NUCLEO_G431KB)
+
+  #define BOARD_NAME "STM32G431KB Nucleo-32"
+  #define MCU_STM32G431KB
+  // the external crystal is not connected by default
+  //#define MCU_INPUT_FREQ   24000000
+
 #elif defined(BOARD_NUCLEO_F746)
 
   #define BOARD_NAME "STM32F746 Nucleo-144"

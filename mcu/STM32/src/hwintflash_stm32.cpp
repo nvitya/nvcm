@@ -34,6 +34,8 @@
 #include "hwintflash_stm32.h"
 #include "hwintflash.h"
 
+#if !defined(MCUSF_G4)
+
 #include "hwclkctrl.h"
 
 #include "traces.h"
@@ -453,3 +455,5 @@ void THwIntFlash_stm32::Run()
 		state = 0;
 	}
 }
+
+#endif // defined(HWINTFLASH_IMPL)

@@ -367,7 +367,11 @@ bool THwUsbCtrl_stm32::InitHw()
 
 	regs = (HWUSBCTRL_REGS *)USB_BASE;
 
-	RCC->APB1ENR |= RCC_APB1ENR_USBEN; // enable USB
+  #ifdef RCC_APB1ENR1_USBEN
+	  RCC->APB1ENR1 |= RCC_APB1ENR1_USBEN; // enable USB (MCUSF_G4)
+  #else
+  	RCC->APB1ENR |= RCC_APB1ENR_USBEN; // enable USB
+  #endif
 
 #if defined(MCUSF_F0)
 	// for STM32F070F6 remap the PA11 + PA12 from UART to USB

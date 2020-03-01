@@ -30,6 +30,8 @@
 #include "hwpins.h"
 #include "hwi2cslave.h"
 
+#include "stm32_utils.h"
+
 #include "traces.h"
 
 #if I2C_HW_VER == 1
@@ -37,7 +39,7 @@
 bool THwI2cSlave_stm32::InitHw(int adevnum)
 {
 	unsigned tmp;
-	unsigned clockdiv = 1;
+	uint8_t busid = STM32_BUSID_APB1;
 
 	initialized = false;
 
@@ -53,7 +55,6 @@ bool THwI2cSlave_stm32::InitHw(int adevnum)
 	{
 		regs = I2C1;
 		RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
-		clockdiv = 2;
 	}
 #endif
 #ifdef I2C2
@@ -61,7 +62,6 @@ bool THwI2cSlave_stm32::InitHw(int adevnum)
 	{
 		regs = I2C2;
 		RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
-		clockdiv = 2;
 	}
 #endif
 	if (!regs)
@@ -79,25 +79,12 @@ bool THwI2cSlave_stm32::InitHw(int adevnum)
 
 	regs->CR1 = cr1;
 
-#ifdef MCUSF_F3
-	clockdiv = (clockdiv << 1);
-#else
-	if (SystemCoreClock <= 48000000)
-	{
-		clockdiv = 1;
-	}
-	else if (SystemCoreClock > 72000000)
-	{
-		clockdiv = (clockdiv << 1);
-	}
-#endif
-
 	// setup address
 	// this device does not support address mask
 
 	regs->OAR1 = ((address & 0x7F) << 1);
 
-	unsigned periphclock = SystemCoreClock / clockdiv;
+	unsigned periphclock = stm32_bus_speed(busid);
 
 	// CR2
 	tmp = 0

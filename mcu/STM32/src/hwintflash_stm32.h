@@ -32,6 +32,8 @@
 #define HWINTFLASH_PRE_ONLY
 #include "hwintflash.h"
 
+#if !defined(MCUSF_G4)
+
 #if defined(MCUSF_F4) || defined(MCUSF_F7)
   #define HWINTFLASH_BIGBLOCKS  1
 #else
@@ -78,5 +80,7 @@ protected:
 #define HWINTFLASH_IMPL     THwIntFlash_stm32
 
 #define HWINTFLASH_OWN_RUN
+
+#endif // !defined(MCUSF_G4)
 
 #endif // def HWINTFLASH_STM32_H_

@@ -19,38 +19,29 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     hwuart_stm32.h
- *  brief:    STM32 UART
+ *  file:     stm32_utils.h
+ *  brief:    STM32 Utilities
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2019-11-22
  *  authors:  nvitya
 */
 
-#ifndef HWUART_STM32_H_
-#define HWUART_STM32_H_
+#ifndef STM32_UTILS_H_
+#define STM32_UTILS_H_
 
-#define HWUART_PRE_ONLY
-#include "hwuart.h"
+#include "platform.h"
 
-class THwUart_stm32 : public THwUart_pre
-{
-public:
-	bool Init(int adevnum);  // 0x101 = LPUART1
+#if defined(MCUSF_G4)
+  #define APB1ENR_REGISTER  RCC->APB1ENR1
+#else
+  #define APB1ENR_REGISTER  RCC->APB1ENR
+#endif
 
-	bool TrySendChar(char ach);
-	bool TryRecvChar(char * ach);
+// constants helping determine peripheral bus base frequencies
+#define STM32_BUSID_AHB     0
+#define STM32_BUSID_APB1    1
+#define STM32_BUSID_APB2    2
 
-	bool SendFinished();
+uint32_t stm32_bus_speed(uint8_t abusid);
 
-	void DmaAssign(bool istx, THwDmaChannel * admach);
-
-	bool DmaStartSend(THwDmaTransfer * axfer);
-	bool DmaStartRecv(THwDmaTransfer * axfer);
-
-public:
-	HW_UART_REGS *      regs = nullptr;
-};
-
-#define HWUART_IMPL THwUart_stm32
-
-#endif // def HWUART_STM32_H_
+#endif /* STM32_UTILS_H_ */

@@ -56,6 +56,14 @@
     #define MAX_CLOCK_SPEED  180000000
   #endif
 
+#elif	defined(MCUSF_G4)
+
+  #if !defined(MAX_CLOCK_SPEED)
+    #define MAX_CLOCK_SPEED  168000000  // better divisible than the allowed 170 MHz, for USB 144 MHz required
+  #endif
+
+  #define MCU_INTRC_SPEED     16000000
+
 #elif	defined(MCUSF_F7)
 
   #if !defined(MAX_CLOCK_SPEED)
@@ -71,7 +79,7 @@
   #define HW_QSPI_REGS  QUADSPI_TypeDef
 #endif
 
-#if defined(MCUSF_F1) || defined(MCUSF_F0) || defined(MCUSF_L0) || defined(MCUSF_F3)
+#if defined(MCUSF_F1) || defined(MCUSF_F0) || defined(MCUSF_L0) || defined(MCUSF_F3) || defined(MCUSF_G4)
   #define HW_DMA_REGS 	DMA_Channel_TypeDef
 #else
   #define HW_DMA_REGS   DMA_Stream_TypeDef

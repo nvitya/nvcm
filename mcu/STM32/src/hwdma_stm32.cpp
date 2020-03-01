@@ -31,28 +31,41 @@
 
 #include "hwdma.h"
 
-#if defined(MCUSF_F1) || defined(MCUSF_F0) || defined(MCUSF_L0) || defined(MCUSF_F3)
+#if HWDMA_IMPLEMENTED
 
-bool THwDmaChannel_stm32::Init(int admanum, int achannel, int arequest)
+#if defined(MCUSF_F1) || defined(MCUSF_F0) || defined(MCUSF_L0) || defined(MCUSF_F3) || defined(MCUSF_G4)
+
+#ifdef RCC_AHB1ENR_DMA1EN
+  #define HWDMA_EN_REGISTER  RCC->AHB1ENR
+  #define RCC_AHBENR_DMA1EN  RCC_AHB1ENR_DMA1EN
+  #define RCC_AHBENR_DMA2EN  RCC_AHB1ENR_DMA2EN
+#else
+  #define HWDMA_EN_REGISTER  RCC->AHBENR
+#endif
+
+bool THwDmaChannel_stm32::Init(int admanum, int achannel, int arequest)  // admanum = 1..2, achannel = 1..8
 {
 	initialized = false;
 
-	int      dma   = (admanum  & 0x03);
-	int      ch    = (achannel & 0x07);
-	unsigned rqnum = (arequest & 0x0F);
-
-	if ((ch < 1) || (ch > 7))  return false;
-
-	if (1 == dma)
+	if ((achannel < 1) || (achannel > 8)) // check if the channel number is 1 based
 	{
-		RCC->AHBENR |= RCC_AHBENR_DMA1EN;
-		regs = (HW_DMA_REGS * )(DMA1_Channel1_BASE + (ch-1) * (DMA1_Channel2_BASE - DMA1_Channel1_BASE));
+		__BKPT(); // invalid channel number
+		return false;
+	}
+
+	dmanum   = (admanum  & 0x03);
+	int      chid    = ((achannel-1) & 0x07);
+
+	if (1 == dmanum)
+	{
+		HWDMA_EN_REGISTER |= RCC_AHBENR_DMA1EN;
+		regs = (HW_DMA_REGS * )(DMA1_Channel1_BASE + chid * (DMA1_Channel2_BASE - DMA1_Channel1_BASE));
 	}
 #ifdef RCC_AHBENR_DMA2EN
-	else if (2 == dma)
+	else if (2 == dmanum)
 	{
-		RCC->AHBENR |= RCC_AHBENR_DMA2EN;
-		regs = (HW_DMA_REGS * )(DMA2_Channel2_BASE + (ch-1) * (DMA2_Channel2_BASE - DMA2_Channel2_BASE));
+		HWDMA_EN_REGISTER |= RCC_AHBENR_DMA2EN;
+		regs = (HW_DMA_REGS * )(DMA2_Channel1_BASE + chid * (DMA2_Channel2_BASE - DMA2_Channel1_BASE));
 	}
 #endif
 	else
@@ -64,20 +77,35 @@ bool THwDmaChannel_stm32::Init(int admanum, int achannel, int arequest)
 
 	DMA_TypeDef * dmaptr = DMA1;
 #ifdef DMA2
-	if (2 == dma)  dmaptr = DMA2;
+	if (2 == dmanum)  dmaptr = DMA2;
 #endif
 	irqstreg = (unsigned *)&dmaptr->ISR;
 	irqstclrreg = (unsigned *)&dmaptr->IFCR;
 	crreg = (unsigned *)&regs->CCR;
 
-	irqstshift = 4 * (ch - 1);
+	irqstshift = 4 * chid;
 
 #ifdef DMA1_CSELR
+	unsigned rqnum = (arequest & 0x0F);
 	unsigned csr = DMA1_CSELR->CSELR;
-	unsigned shnum = 4 * (ch - 1);
+	unsigned shnum = 4 * chid;
 	csr &= ~(0xF << shnum);
 	csr |=  (rqnum << shnum);
 	DMA1_CSELR->CSELR = csr;
+#endif
+
+#ifdef RCC_AHB1ENR_DMAMUX1EN
+  RCC->AHB1ENR |= RCC_AHB1ENR_DMAMUX1EN;
+  int muxch = (2 == dmanum ? 8 : 0) + chid;
+  DMAMUX1[muxch].CCR = 0
+    | ((arequest & 0x7F) <<  0)  // DMAREQ_ID(7): DMA request identification
+    | (0 <<  8)  // SOIE: Synchronization overrun interrupt enable
+    | (0 <<  9)  // EGE: Event generation enable
+    | (0 << 16)  // SE: Synchronization enable
+    | (0 << 17)  // SPOL(2): Synchronization polarity
+    | (0 << 19)  // NBREQ(4): Number of DMA requests minus 1 to forward
+    | (0 << 24)  // SYNC_ID(5): Synchronization identification
+  ;
 #endif
 
 	Prepare(true, nullptr, 0); // set some defaults
@@ -161,7 +189,11 @@ void THwDmaChannel_stm32::Disable()
 		// wait
 	}
 
+#ifndef DMASTREAMS
 	regs->CNDTR = 0; // this is required (at least on the F303) to properly stop the channel after broken transaction
+#else
+	regs->NDTR = 0;
+#endif
 }
 
 void THwDmaChannel_stm32::Enable()
@@ -281,3 +313,4 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 
 }
 
+#endif // if HWDMA_IMPLEMENTED

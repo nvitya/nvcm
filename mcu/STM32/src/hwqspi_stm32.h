@@ -34,6 +34,10 @@
 
 class THwQspi_stm32 : public THwQspi_pre
 {
+public: // default DMA channels (for G4)
+	uint8_t   dmanum = 2;
+	uint8_t   dmach  = 7;
+
 public:
 	HW_QSPI_REGS * regs = nullptr;
 

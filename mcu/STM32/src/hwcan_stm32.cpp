@@ -33,10 +33,15 @@
 #include "hwcan_stm32.h"
 #include "clockcnt.h"
 
+#include "stm32_utils.h"
+
 #ifdef HWCAN_IMPL
+
+#include "hwcan.h" // for the eclise indexer
 
 bool THwCan_stm32::HwInit(int adevnum)
 {
+	uint8_t busid = STM32_BUSID_APB1;
 	uint32_t tmp;
 
 	if (false)  { }
@@ -97,22 +102,7 @@ bool THwCan_stm32::HwInit(int adevnum)
 
 	// set speed
 
-	uint32_t clockdiv;
-
-	if (SystemCoreClock <= 48000000)
-	{
-		clockdiv = 1;
-	}
-	else if (SystemCoreClock <= 72000000)
-	{
-		clockdiv = 2;
-	}
-	else
-	{
-		clockdiv = 4;
-	}
-
-	uint32_t periphclock = SystemCoreClock / clockdiv;
+	uint32_t periphclock = stm32_bus_speed(busid);
 
 	uint32_t brp = 1;
 	uint32_t ts1, ts2;
