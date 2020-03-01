@@ -122,55 +122,39 @@ bool THwI2cSlave_stm32::InitHw(int adevnum)
 	return true;
 }
 
-static uint8_t i2ctxdata = 0xda;
-
 // runstate:
 //   0: idle
 //   1: receive data
 //   5: transmit data
-//   9: finish
 
 void THwI2cSlave_stm32::HandleIrq()
 {
 	uint32_t sr1 = regs->SR1;
 	uint32_t sr2 = regs->SR2;
 
-	//TRACE("[I2C IRQ %04X %04X]\r\n", sr1, sr2);
-
 	// warning, the sequence above clears some of the status bits
+
+	//TRACE("[I2C IRQ %04X %04X]\r\n", sr1, sr2);
 
 	// check errors
 	if (sr1 & 0xFF00)
 	{
-		if (5 == runstate)
+		if (sr1 & I2C_SR1_AF)  // ACK Failure ?
 		{
-			if (sr1 & I2C_SR1_AF)  // ACK Failure ?
-			{
-				// this is normal for the last byte
-				regs->CR1 |= I2C_CR1_STOP;  // this must be done here for the proper STOP
-
-				runstate = 0; // do not expect stop
-			}
+			// this is normal
+			regs->SR1 = ~I2C_SR1_AF; // clear AF error
 		}
 		else
 		{
-			TRACE("I2C errors: %04X\r\n", sr1);
+			//TRACE("I2C errors: %04X\r\n", sr1);
+			regs->SR1 = ~(sr1 & 0xFF00); // clear errors
 		}
-
-		regs->SR1 = 0x0000; // clear errors
-		return;
 	}
 
 	// check events
 
 	if (sr1 & I2C_SR1_ADDR) // address matched, after start / restart
-	{
-		// read SR1 (again) and SR2 clears the ADDR Flag and sets the proper TRA mode
-		//sr1 = regs->SR1;
-		//sr2 = regs->SR2;
-
-		//TRACE(" SR2=%04X\r\n", sr2);
-
+  {
 		if (sr2 & I2C_SR2_TRA)
 		{
 			istx = true;
@@ -182,40 +166,46 @@ void THwI2cSlave_stm32::HandleIrq()
 			runstate = 1;  // go to receive data
 		}
 
-		//OnAddressRw(address); // there is no other info on this chip, use own address
+		OnAddressRw(address); // there is no other info on this chip, use own address
 	}
-	else
+
+	if (sr1 & I2C_SR1_RXNE)
 	{
+		uint8_t d = regs->DR;
 		if (1 == runstate)
 		{
-			if (sr1 & I2C_SR1_RXNE)
-			{
-				//OnByteReceived(regs->DR);
-				uint8_t d = regs->DR;
-				//TRACE(" > %02X\r\n", d);
-			}
+			OnByteReceived(d);
 		}
-		else if (5 == runstate)
+		else
 		{
-			if (sr1 & I2C_SR1_TXE)
-			{
-				//OnTransmitRequest();
+			// unexpected byte
+		}
+	}
 
-				++i2ctxdata;
-				regs->DR = i2ctxdata;
-
-				//TRACE(" < %02X\r\n", i2ctxdata);
-			}
+	if (sr1 & I2C_SR1_TXE)
+	{
+		if (5 == runstate)
+		{
+			uint8_t d = OnTransmitRequest();
+			regs->DR = d;
+		}
+		else
+		{
+			// force stop, releases the data lines
+			regs->CR1 |= I2C_CR1_STOP;  // this must be done here for the proper STOP
 		}
 	}
 
 	// check stop
 	if (sr1 & I2C_SR1_STOPF)
 	{
-		runstate = 0;
-		regs->CR1 = (regs->CR1 & ~I2C_CR1_STOP);  // write to CR1 clears the STOPF
-
 		//TRACE(" STOP DETECTED.\r\n");
+
+		// the CR1 must be written in order to clear this flag
+		runstate = 0;
+		uint32_t cr1 = regs->CR1;
+		cr1 &= ~I2C_CR1_STOP;
+		regs->CR1 = cr1;
 	}
 
 	if (sr2)  // to keep sr2 if unused

@@ -39,29 +39,30 @@
 class THwI2cSlave_pre
 {
 public:	// settings
-	bool 					 initialized = false;
+	bool 					   initialized = false;
 
-	int      			 devnum = -1;
+	int      			   devnum = -1;
 
-	uint8_t        address     = 0x7F;
-	uint8_t        addressmask = 0x00;
+	uint8_t          address     = 0x7F;
+	uint8_t          addressmask = 0x00;
 
 public: // run state
-	bool           istx = false;
-	bool           dmaused = false;
-	uint8_t *      dataptr = nullptr;
-	unsigned       datalen = 0;
-	unsigned       remainingbytes = 0;
+	bool             istx = false;
+	bool             dmaused = false;
+	uint8_t *        dataptr = nullptr;
+	unsigned         datalen = 0;
+	unsigned         remainingbytes = 0;
 
-	bool           busy = false;
-	int            error = 0;
+	bool             busy = false;
+	int              error = 0;
 
 public:
-	virtual        ~THwI2cSlave_pre() { };  // to avoid compiler warning
+	virtual          ~THwI2cSlave_pre() { };  // to avoid compiler warning
 
-	virtual void   OnAddressRw(uint8_t aaddress)    { }; // must be overridden
-	virtual void   OnTransmitRequest()              { }; // must be overridden
-	virtual void   OnByteReceived(uint8_t adata)    { }; // must be overridden
+public:
+	virtual void     OnAddressRw(uint8_t aaddress)    { }; // must be overridden, warning: IRQ context !
+	virtual uint8_t  OnTransmitRequest()              { return 0; }; // must be overridden, warning: IRQ context !
+	virtual void     OnByteReceived(uint8_t adata)    { }; // must be overridden, warning: IRQ context !
 };
 
 #endif // ndef HWI2CSLAVE_H_PRE_
