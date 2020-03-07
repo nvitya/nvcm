@@ -19,10 +19,10 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     hwi2cslave_stm32.cpp
- *  brief:    STM32 I2C / TWI Slave
+ *  file:     hwi2cslave_stm32_v1.cpp
+ *  brief:    STM32 I2C / TWI Slave for F1
  *  version:  1.00
- *  date:     2019-10-13
+ *  date:     2020-03-06
  *  authors:  nvitya
 */
 
@@ -35,6 +35,8 @@
 #include "traces.h"
 
 #if I2C_HW_VER == 1
+
+// v1: STM32F1xx: different register names and defines
 
 bool THwI2cSlave_stm32::InitHw(int adevnum)
 {

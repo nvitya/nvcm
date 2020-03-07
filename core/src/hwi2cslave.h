@@ -44,7 +44,7 @@ public:	// settings
 	int      			   devnum = -1;
 
 	uint8_t          address     = 0x7F;
-	uint8_t          addressmask = 0x00;
+	uint8_t          addressmask = 0x00;   // 1 bits = ignore
 
 public: // run state
 	bool             istx = false;
