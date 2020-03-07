@@ -20,7 +20,7 @@
  * --------------------------------------------------------------------------- */
 /*
  *  file:     hwi2cslave_stm32_v1.cpp
- *  brief:    STM32 I2C / TWI Slave for F1
+ *  brief:    STM32 I2C / TWI Slave for F1, F4
  *  version:  1.00
  *  date:     2020-03-06
  *  authors:  nvitya
@@ -36,7 +36,7 @@
 
 #if I2C_HW_VER == 1
 
-// v1: STM32F1xx: different register names and defines
+// v1 (STM32F1xx, STM32F4xx): different register names and defines
 
 bool THwI2cSlave_stm32::InitHw(int adevnum)
 {
@@ -64,6 +64,13 @@ bool THwI2cSlave_stm32::InitHw(int adevnum)
 	{
 		regs = I2C2;
 		RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
+	}
+#endif
+#ifdef I2C3
+	else if (3 == devnum)
+	{
+		regs = I2C3;
+		RCC->APB1ENR |= RCC_APB1ENR_I2C3EN;
 	}
 #endif
 	if (!regs)

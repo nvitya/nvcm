@@ -20,7 +20,7 @@
  * --------------------------------------------------------------------------- */
 /*
  *  file:     hwi2cslave_stm32_v2.cpp
- *  brief:    STM32 I2C / TWI Slave for F3, F4, F7 etc
+ *  brief:    STM32 I2C / TWI Slave for F0, F3, F7 etc
  *  version:  1.00
  *  date:     2020-06-07
  *  authors:  nvitya
@@ -36,7 +36,13 @@
 
 #if I2C_HW_VER != 1
 
-// v2: F0, F3, F4, F7 etc.
+#ifdef RCC_APB1ENR1_I2C1EN
+  #define RCC_APB1ENR_I2C1EN     RCC_APB1ENR1_I2C1EN
+  #define RCC_APB1ENR_I2C2EN     RCC_APB1ENR1_I2C2EN
+  #define RCC_APB1ENR_I2C3EN     RCC_APB1ENR1_I2C3EN
+#endif
+
+// v2: F0, F3, F7 etc.
 
 bool THwI2cSlave_stm32::InitHw(int adevnum)
 {
@@ -56,14 +62,36 @@ bool THwI2cSlave_stm32::InitHw(int adevnum)
 	else if (1 == devnum)
 	{
 		regs = I2C1;
-		RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_I2C1EN;
+
+		#ifdef RCC_CFGR3_I2C1SW
+			RCC->CFGR3 |= RCC_CFGR3_I2C1SW; // select system clock for the source instead of the HSI
+		#endif
 	}
 #endif
 #ifdef I2C2
 	else if (2 == devnum)
 	{
 		regs = I2C2;
-		RCC->APB1ENR |= RCC_APB1ENR_I2C2EN;
+		APB1ENR_REGISTER |= RCC_APB1ENR_I2C2EN;
+	}
+#endif
+#ifdef I2C3
+	else if (3 == devnum)
+	{
+		regs = I2C3;
+		APB1ENR_REGISTER |= RCC_APB1ENR_I2C3EN;
+	}
+#endif
+#ifdef I2C4
+	else if (4 == devnum)
+	{
+		regs = I2C4;
+    #ifdef RCC_APB1ENR2_I2C4EN
+		  RCC->APB1ENR2 |= RCC_APB1ENR2_I2C4EN;
+    #else
+  		RCC->APB1ENR |= RCC_APB1ENR_I2C4EN;
+    #endif
 	}
 #endif
 	if (!regs)
