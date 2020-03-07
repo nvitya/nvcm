@@ -42,7 +42,6 @@ bool THwI2c_atsam::Init(int adevnum)
 	regs = nullptr;
 
 	// because of the peripheral IDs we need full multiple definitions
-	// advanced SPIs
 	if (false)
 	{
 

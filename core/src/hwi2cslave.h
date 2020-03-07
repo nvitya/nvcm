@@ -84,6 +84,9 @@ class THwI2cSlave_noimpl : public THwI2cSlave_pre
 {
 public: // mandatory
 	bool InitHw(int adevnum)      { return false; }
+
+	void HandleIrq()              { }
+	void Run()                    { }
 };
 
 #define HWI2CSLAVE_IMPL   THwI2cSlave_noimpl

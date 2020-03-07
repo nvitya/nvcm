@@ -54,6 +54,10 @@
   #include "hwi2c_atsam.h"
 #endif
 
+#ifdef HWI2CSLAVE_H_
+  #include "hwi2cslave_atsam.h"
+#endif
+
 #ifdef HWADC_H_
   #include "hwadc_atsam.h"
 #endif
