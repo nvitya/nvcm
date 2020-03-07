@@ -71,7 +71,7 @@ This list does not cover all built-in boards, and it is simple to define a board
 
 __Family__ | __Board Id.__          | __Name__
 -----------|------------------------|-------------------------------------
-ATSAM      | BOARD_MIBO64_ATSAM4S   | [MIBO64-ATSAM4S](https://github.com/nvitya/minimal_boards/tree/master/mibo64-atsam4s)
+ATSAM      | BOARD_MIBO64_ATSAM4S   | [MIBO64-ATSAM4S](https://github.com/nvitya/minimal_boards/tree/master/mibo64_atsam4s)
 ATSAM_V2   | BOARD_MIBO64_ATSAME5x  | [MIBO64-ATSAME5x](https://github.com/nvitya/minimal_boards/tree/master/mibo64-atsame5x)
 STM32      | BOARD_MIBO20_STM32xxxx | [MIBO20-STM32](https://github.com/nvitya/minimal_boards/tree/master/mibo20_stm32)
 STM32      | BOARD_MIBO48_STM32xxxx | [MIBO48-STM32](https://github.com/nvitya/minimal_boards/tree/master/mibo48_stm32)
