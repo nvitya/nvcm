@@ -35,6 +35,7 @@ __UART__              | OK      | OK      | OK    | OK    | OK         | OK     
 __DMA__               | OK      | OK      | OK    | -     | OK         | -        | OK       | -       | -         |
 __SPI Master__        | OK      | OK      | OK    | OK    | OK         | -        | OK       | -       | -         |
 __I2C Master__        | OK      | OK      | -     | OK    | OK         | -        | OK       | -       | -         |
+__I2C Slave__         | -       | OK      | -     | -     | -          | -        | -        | -       | -         |
 __Internal Flash__    | OK      | OK      | -     | -     | OK         | -        | -        | -       | -         |
 __ADC__               | OK      | OK      | OK    | -     | -          | -        | -        | -       | -         |
 __Simple PWM__        | -       | OK      | -     | -     | -          | -        | -        | -       | -         |
@@ -66,11 +67,22 @@ XMC        | BOARD_BOOT_XMC1200     | [XMC1200 Boot Kit](https://www.infineon.co
 
 This list does not cover all built-in boards, and it is simple to define a board for a special project.
 
+## Special Minimal Boards
+
+__Family__ | __Board Id.__          | __Name__
+-----------|------------------------|-------------------------------------
+ATSAM      | BOARD_MIBO64_ATSAM4S   | [MIBO64-ATSAM4S](https://github.com/nvitya/minimal_boards/tree/master/mibo64-atsam4s)
+ATSAM_V2   | BOARD_MIBO64_ATSAME5x  | [MIBO64-ATSAME5x](https://github.com/nvitya/minimal_boards/tree/master/mibo64-atsame5x)
+STM32      | BOARD_MIBO20_STM32xxxx | [MIBO20-STM32](https://github.com/nvitya/minimal_boards/tree/master/mibo20_stm32)
+STM32      | BOARD_MIBO48_STM32xxxx | [MIBO48-STM32](https://github.com/nvitya/minimal_boards/tree/master/mibo48_stm32)
+STM32      | BOARD_MIBO64_STM32xxxx | [MIBO64-STM32](https://github.com/nvitya/minimal_boards/tree/master/mibo64_stm32)
+
 # Module Drivers
 
 This NVCM core project contains some useful external module drivers as well:
  * TFT LCD displays: SPI, Parallel
  * I2C OLED displays (SSD1306)
+ * Some monochrome LCD displays
  * SPI, QSPI flash memories, I2C EEPROM
  * Led and Key module and some other serial 7 segment displays
  * Simple stepper motor
