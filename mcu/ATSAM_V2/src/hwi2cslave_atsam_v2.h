@@ -19,49 +19,33 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (ATSAM_V2)
- *  brief:    ATSAM_V2 list of implemented NVCM core peripherals
+ *  file:     hwi2cslave_atsam_v2.h
+ *  brief:    ATSAM v2 I2C / TWI Slave
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2020-03-07
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_atsam_v2.h"
-#endif
+#ifndef HWI2CSLAVE_ATSAM_V2_H_
+#define HWI2CSLAVE_ATSAM_V2_H_
 
-#ifdef HWPINS_H_
-  #include "hwpins_atsam_v2.h"
-#endif
+#define HWI2CSLAVE_PRE_ONLY
+#include "hwi2cslave.h"
 
-#ifdef HWINTFLASH_H_
-  #include "hwintflash_atsam_v2.h"
-#endif
+class THwI2cSlave_atsam_v2 : public THwI2cSlave_pre
+{
+public:
+	SercomI2cs *   regs = nullptr;
 
-#ifdef HWUART_H_
-  #include "hwuart_atsam_v2.h"
-#endif
+	bool InitHw(int adevnum);
 
-#ifdef HWSPI_H_
-  #include "hwspi_atsam_v2.h"
-#endif
+	void HandleIrq();
 
-#ifdef HWI2C_H_
-  #include "hwi2c_atsam_v2.h"
-#endif
+	void Run();
 
-#ifdef HWI2CSLAVE_H_
-  #include "hwi2cslave_atsam_v2.h"
-#endif
+	uint8_t        runstate = 0;
+};
 
-#ifdef HWDMA_H_
-  #include "hwdma_atsam_v2.h"
-#endif
+#define HWI2CSLAVE_IMPL THwI2cSlave_atsam_v2
 
-#ifdef HWCAN_H_
-  #include "hwcan_atsam_v2.h"
-#endif
-
-#ifdef HWQSPI_H_
-  #include "hwqspi_atsam_v2.h"
-#endif
+#endif // def HWI2CSLAVE_ATSAM_V2_H_
