@@ -88,7 +88,7 @@ bool THwUsbEndpoint_atsam::ConfigureHwEp()
 
 	*csreg = tmp;
 
-	usbctrl->regs->UDP_IER = (1 << index); // enable the usb interrupt
+	//usbctrl->regs->UDP_IER = (1 << index); // enable the usb interrupt
 
 	return true;
 }
@@ -119,19 +119,17 @@ int THwUsbEndpoint_atsam::ReadRecvData(void * buf, uint32_t buflen)
 	return cnt;
 }
 
-int THwUsbEndpoint_atsam::SendRemaining()
+int THwUsbEndpoint_atsam::StartSendData(void * buf, unsigned len)
 {
-	uint16_t  sendlen = tx_remaining_len;
+	uint16_t  sendlen = len;
 	if (sendlen > maxlen)  sendlen = maxlen;
 
-	uint16_t * psrc = (uint16_t *)(tx_remaining_dataptr);
+	uint8_t * psrc = (uint8_t *)(buf);
 
 	for (uint32_t n = 0; n < sendlen; ++n)
 	{
-		*fiforeg = *tx_remaining_dataptr++;
+		*fiforeg = *psrc++;
 	}
-
-	tx_remaining_len -= sendlen;
 
 	uint32_t tmp = (*csreg | UDP_REG_NO_EFFECT_1_ALL);
 
@@ -159,59 +157,39 @@ void THwUsbEndpoint_atsam::SendAck()
 	 tmp |= UDP_CSR_DIR;  // set the direction too
 	}
 	*csreg = tmp;
-
 	if (*csreg) { }
 	if (*csreg) { }
 	if (*csreg) { }
 }
 
-void THwUsbEndpoint_atsam::FinishRecv(bool reenable)
+void THwUsbEndpoint_atsam::Nak()
 {
-	// clear RX flags
-	uint32_t tmp = (*csreg | UDP_REG_NO_EFFECT_1_ALL);
-
-	if (tmp & UDP_CSR_RXSETUP)
-	{
-		tmp &= ~(UDP_CSR_RXSETUP);
-	}
-	else if (tmp & UDP_CSR_RX_DATA_BK0)
-	{
-		tmp &= ~(UDP_CSR_RX_DATA_BK0);
-	}
-	else if (tmp & UDP_CSR_RX_DATA_BK1)
-	{
-		tmp &= ~(UDP_CSR_RX_DATA_BK1);
-	}
-	*csreg = tmp;
-
-	if (*csreg) { }
-	if (*csreg) { }
-	if (*csreg) { }
-
-	if (reenable)
-	{
-		EnableRecv();
-	}
 }
 
 void THwUsbEndpoint_atsam::EnableRecv()
 {
-	uint32_t tmp = (*csreg | UDP_REG_NO_EFFECT_1_ALL);
-	tmp &= ~(UDP_CSR_FORCESTALL | UDP_CSR_STALLSENT);
-	if (iscontrol)
+	if (*csreg & (UDP_CSR_FORCESTALL | UDP_CSR_STALLSENT))
 	{
-		tmp &= ~(UDP_CSR_DIR);
+		uint32_t tmp = (*csreg | UDP_REG_NO_EFFECT_1_ALL);
+		tmp &= ~(UDP_CSR_FORCESTALL | UDP_CSR_STALLSENT);
+		if (iscontrol)
+		{
+			tmp &= ~(UDP_CSR_DIR);
+		}
+		*csreg = tmp;
+		if (*csreg) { }
+		if (*csreg) { }
+		if (*csreg) { }
 	}
-	*csreg = tmp;
-
-	if (*csreg) { }
-	if (*csreg) { }
-	if (*csreg) { }
 }
 
 void THwUsbEndpoint_atsam::DisableRecv()
 {
-	//set_epreg_rx_status(preg, 0);
+	uint32_t tmp = (*csreg | UDP_REG_NO_EFFECT_1_ALL | UDP_CSR_FORCESTALL);
+	*csreg = tmp;
+	if (*csreg) { }
+	if (*csreg) { }
+	if (*csreg) { }
 }
 
 void THwUsbEndpoint_atsam::StopSend()
@@ -223,8 +201,6 @@ void THwUsbEndpoint_atsam::StopSend()
 	if (*csreg) { }
 	if (*csreg) { }
 	if (*csreg) { }
-
-	tx_remaining_len = 0;
 }
 
 void THwUsbEndpoint_atsam::FinishSend()
@@ -265,11 +241,11 @@ bool THwUsbCtrl_atsam::InitHw()
 
 	// enable USB clock
 #if defined(PMC_SCER_UDP)
-	PMC->PMC_SCER = PMC_SCER_UDP;
+	PMC->PMC_SCER |= PMC_SCER_UDP;
 #elif defined(PMC_SCER_USBCLK)
-	PMC->PMC_SCER = PMC_SCER_USBCLK;
+	PMC->PMC_SCER |= PMC_SCER_USBCLK;
 #elif defined(PMC_SCER_UOTGCLK)
-	PMC->PMC_SCER = PMC_SCER_UOTGCLK;
+	PMC->PMC_SCER |= PMC_SCER_UOTGCLK;
 #endif
 
 	DisableIrq();
@@ -277,11 +253,13 @@ bool THwUsbCtrl_atsam::InitHw()
 	// clear clearable interrupts
 	regs->UDP_ICR = UDP_ISR_RXSUSP | UDP_ISR_RXRSM | UDP_ISR_EXTRSM | UDP_ISR_SOFINT | UDP_ISR_ENDBUSRES | UDP_ISR_WAKEUP;
 
+	irq_mask = 0xFF | UDP_ISR_ENDBUSRES;
+
   // clear device address:
   regs->UDP_FADDR = 0;
-  regs->UDP_GLB_STAT = UDP_GLB_STAT_RMWUPE | UDP_GLB_STAT_ESR;
+  regs->UDP_GLB_STAT = 0; //UDP_GLB_STAT_RMWUPE | UDP_GLB_STAT_ESR;
 
-  regs->UDP_IER = (0x3F << 8); // enable all special interrupts
+  regs->UDP_IER = irq_mask;
 
   ResetEndpoints();
 
@@ -296,44 +274,88 @@ void THwUsbCtrl_atsam::HandleIrq()
 
 	if (isr & 0xFF)  // some endpoint interrupt ?
 	{
-		TRACE("Endpoint interrupt: ISR=%08X\r\n", isr);
+		TRACE("[EP IRQ, ISR=%08X]\r\n", isr);
 
-		//TRACE_FLUSH();
-
-		__BKPT();
-
-#if 0
 		// Endpoint transfer finished.
 		//PCD_EP_ISR_Handler(hpcd);
 
-		int epid = (istr & 7);
-		bool htod = ((istr & 0x10) != 0);
-
-		//TRACE("EP(%03X) event\r\n", istr & 0x17);
-
-		if (!HandleEpTransferEvent(epid, htod))
+		uint32_t rev_epirq = __RBIT(isr & 0xFF);  // prepare for CLZ
+		while (true)
 		{
-			TRACE("Unhandled endpoint: %u, htod=%u\r\n", epid, htod);
+			uint32_t epid = __CLZ(rev_epirq); // returns leading zeros, 32 when the argument = 0
+			if (epid > 7)  break; // -->
+
+			volatile uint32_t * pepreg = &regs->UDP_CSR[epid];
+			uint32_t epreg = *pepreg;
+			uint32_t epregclr = (epreg | UDP_REG_NO_EFFECT_1_ALL);  // used for clearing single event bits
+
+			TRACE("[EP(%i)=%02X]\r\n", epreg & 0xFF);
+
+			if (epreg & UDP_CSR_RXSETUP)
+			{
+				if (!HandleEpTransferEvent(epid, true))
+				{
+					// todo: handle error
+				}
+
+				*pepreg = (epregclr & ~UDP_CSR_RXSETUP);
+				if (*pepreg) { }  // delay required after modification
+				if (*pepreg) { }
+				if (*pepreg) { }
+			}
+
+			if (epreg & UDP_CSR_RX_DATA_BK0)
+			{
+				if (!HandleEpTransferEvent(epid, true))
+				{
+					// todo: handle error
+				}
+
+				*pepreg = (epregclr & ~UDP_CSR_RX_DATA_BK0);
+				if (*pepreg) { } // delay required after modification
+				if (*pepreg) { }
+				if (*pepreg) { }
+			}
+
+			if (epreg & UDP_CSR_RX_DATA_BK1)
+			{
+				if (!HandleEpTransferEvent(epid, true))
+				{
+					// todo: handle error
+				}
+
+				*pepreg = (epregclr & ~UDP_CSR_RX_DATA_BK1);
+				if (*pepreg) { }  // delay required after modification
+				if (*pepreg) { }
+				if (*pepreg) { }
+			}
+
+			if (epreg & UDP_CSR_TXCOMP)
+			{
+				if (!HandleEpTransferEvent(epid, false))
+				{
+					// todo: handle error
+				}
+
+				*pepreg = (epregclr & ~UDP_CSR_TXCOMP);
+				if (*pepreg) { } // delay required after modification
+				if (*pepreg) { }
+				if (*pepreg) { }
+			}
+
+			if (epreg & UDP_CSR_STALLSENT)
+			{
+				*pepreg = (epregclr & ~UDP_CSR_STALLSENT);
+				if (*pepreg) { } // delay required after modification
+				if (*pepreg) { }
+				if (*pepreg) { }
+			}
+
+			rev_epirq &= ~(1 << (31-epid));
 		}
-
-#endif
-
-		//strace("CTR on EP(%i), ISRX=%i, EPREG=%04X\r\n", epid, isrx, *epdef->preg);
-
-		//uartx.printf("EPR0 = %04X\r\n", regs->EP0R);
-
-		//uartx.printf("  EP.COUNT_RX = %04X\r\n", epdef->pdesc->COUNT_RX);
-
-		// EPR0 = EA60
-		//  EP.COUNT_RX = 8808
-
-		//show_ep_rxdata(0);
-
-//  	__BKPT(0);
-
 	}
 
-	if (regs->UDP_ISR & UDP_ISR_ENDBUSRES)
+	if (regs->UDP_ISR & UDP_ISR_ENDBUSRES)  // RESET
 	{
 		TRACE("USB RESET, ISR=%04X\r\n", regs->UDP_ISR);
 
@@ -341,14 +363,24 @@ void THwUsbCtrl_atsam::HandleIrq()
 
 		HandleReset();
 
+		regs->UDP_ICR = UDP_ISR_ENDBUSRES;
+
 		// clear the address
 		regs->UDP_FADDR = UDP_FADDR_FEN | (0 << 0);  // enable address, set address to 0
+	  regs->UDP_GLB_STAT &= (UDP_GLB_STAT_FADDEN);
 
-	  regs->UDP_GLB_STAT = UDP_GLB_STAT_RMWUPE; // | UDP_GLB_STAT_ESR;
-	  regs->UDP_IER = (0x3F << 8); // enable all special interrupts
+	  regs->UDP_CSR[0] |= (1 << 15); // enable EP0
 
-		regs->UDP_ICR = UDP_ISR_ENDBUSRES;
+	  regs->UDP_IER = irq_mask;
+
+		regs->UDP_TXVC = 0
+			| (0 << 8)  // 0 = transceiver enabled, 1 = transceived disabled
+			| (1 << 9)  // enable pullup
+		;
+
 	}
+
+#if 0
 
 	if (regs->UDP_ISR & UDP_ISR_WAKEUP)
 	{
@@ -357,8 +389,8 @@ void THwUsbCtrl_atsam::HandleIrq()
 		if (regs->UDP_ISR) { }
 		if (regs->UDP_ISR) { }
 		if (regs->UDP_ISR) { }
-		//regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_RMWUPE);
-		//regs->UDP_GLB_STAT |=  (UDP_GLB_STAT_ESR);
+		regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_RMWUPE);
+		regs->UDP_GLB_STAT |=  (UDP_GLB_STAT_ESR);
 		regs->UDP_ICR = UDP_ISR_RXSUSP;
 	}
 
@@ -366,7 +398,8 @@ void THwUsbCtrl_atsam::HandleIrq()
 	{
 		TRACE("USB RESUME, ISTR=%04X\r\n", regs->UDP_ISR);
 		regs->UDP_ICR = (UDP_ISR_RXRSM | UDP_ISR_EXTRSM | UDP_ISR_WAKEUP);
-		//regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_ESR);
+		regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_ESR);
+	  regs->UDP_IER = ((0x3F << 8) | 0xFF); // enable all special interrupts + endpoint interrupts
 		regs->UDP_ICR = UDP_ISR_RXSUSP;
 	}
 
@@ -375,7 +408,7 @@ void THwUsbCtrl_atsam::HandleIrq()
 	{
 		TRACE("USB SUSP, ISTR=%04X\r\n", regs->UDP_ISR);
 		//regs->UDP_ICR = (UDP_ISR_RXRSM | UDP_ISR_EXTRSM | UDP_ISR_WAKEUP);
-		//regs->UDP_GLB_STAT |= (UDP_GLB_STAT_RMWUPE);
+		regs->UDP_GLB_STAT |= (UDP_GLB_STAT_RMWUPE);
 		regs->UDP_ICR = UDP_ISR_RXSUSP;
 	}
 
@@ -385,6 +418,10 @@ void THwUsbCtrl_atsam::HandleIrq()
 		//TRACE("USB SOF, ISTR=%04X\r\n", regs->UDP_ISR);
 		regs->UDP_ICR = UDP_ISR_SOFINT;
 	}
+
+#endif
+
+	regs->UDP_ICR = 0xFF00;
 }
 
 void THwUsbCtrl_atsam::ResetEndpoints()

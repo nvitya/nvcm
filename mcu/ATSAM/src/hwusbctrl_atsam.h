@@ -50,24 +50,26 @@ public:
 	virtual ~THwUsbEndpoint_atsam() { }
 
 	bool ConfigureHwEp();
-	int  SendRemaining();
-	void SendAck();
   int  ReadRecvData(void * buf, uint32_t buflen);
+	int  StartSendData(void * buf, unsigned len);
 
-  void FinishRecv(bool reenable);
+	void SendAck();
+  void Stall();
+  void Nak();
+
+  inline bool IsSetupRequest()  { return (*csreg & UDP_CSR_RXSETUP); }
+
   void EnableRecv();
   void DisableRecv();
   void StopSend();
   void FinishSend();
-  void Stall();
 };
 
 class THwUsbCtrl_atsam : public THwUsbCtrl_pre
 {
 public:
 	HWUSBCTRL_REGS *    regs = nullptr;
-	uint32_t            irq_mask;
-	uint16_t       			pma_mem_end;
+	uint32_t            irq_mask = 0;
 
 	bool InitHw();
 

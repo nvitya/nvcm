@@ -92,7 +92,10 @@ public:
 	bool ConfigureHwEp();
   int  ReadRecvData(void * buf, uint32_t buflen);
 	int  StartSendData(void * buf, unsigned len);
+
 	void SendAck();
+  void Stall();
+  void Nak();
 
   bool IsSetupRequest();
 
@@ -101,8 +104,6 @@ public:
   void DisableRecv();
   void StopSend();
   void FinishSend();
-  void Stall();
-  void Nak();
 };
 
 class THwUsbCtrl_stm32 : public THwUsbCtrl_pre
