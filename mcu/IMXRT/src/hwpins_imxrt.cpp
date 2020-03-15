@@ -496,6 +496,7 @@ void TGpioPin_imxrt::Assign(int aportnum, int apinnum, bool ainvert)
 	clrbitvalue = (1 << pinnum);
 	setbitvalue = (1 << pinnum);
   getbitptr = (unsigned *)&(regs->PSR);
+  getoutbitptr = (unsigned *)&(regs->DR);
   getbitshift = pinnum;
   togglebitptr = (unsigned *)&(regs->DR_TOGGLE);
 

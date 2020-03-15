@@ -127,6 +127,7 @@ public:
 	unsigned *       setbitptr = nullptr;
 	unsigned *       clrbitptr = nullptr;
 	unsigned *       getbitptr = nullptr;
+	unsigned *       getoutbitptr = nullptr;
 	unsigned         setbitvalue = 0;
 	unsigned         clrbitvalue = 0;
 	unsigned         getbitshift = 0;
@@ -136,6 +137,7 @@ public:
 	inline void SetTo(unsigned value)  { if (value & 1) Set1(); else Set0(); }
 
 	inline unsigned char Value()       { return ((*getbitptr >> getbitshift) & 1); }
+	inline unsigned char OutValue()    { return ((*getoutbitptr >> getbitshift) & 1); }
 };
 
 #endif // ndef HWPINS_H_PRE_
@@ -187,7 +189,8 @@ public: // mandatory
 	void SetTo(unsigned value)  { }
 	void Toggle()  { }
 
-	unsigned char Value() { return 0; }
+	unsigned char Value()    { return 0; }
+	unsigned char OutValue() { return 0; }
 	void SwitchDirection(int adirection)  { }
 };
 

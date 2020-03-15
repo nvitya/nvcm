@@ -60,9 +60,6 @@ public:
 
 	uint32_t        attr = 0;
 
-	uint8_t *       tx_remaining_dataptr = nullptr;
-	uint32_t        tx_remaining_len = 0;
-
 	virtual         ~THwUsbEndpoint_pre() { }
 };
 
@@ -96,15 +93,21 @@ class THwUsbEndpoint_noimpl : public THwUsbEndpoint_pre
 {
 public: // mandatory functions
 	bool ConfigureHwEp()  { return false; }  // based on previously set fields
-	int  SendRemaining()  { return 0; }
+
+	int  ReadRecvData(void * buf, uint32_t buflen) { return 0; }
+	int  StartSendData(void * buf, unsigned len)   { return 0; }
 	void SendAck()  { }
-  int  ReadRecvData(void * buf, uint32_t buflen) { return 0; }
+
   void FinishRecv(bool reenable) { }
-  void EnableRecv()  { }
-  void DisableRecv() { }
-  void StopSend()    { }
-  void FinishSend()  { }
-  void Stall()       { }
+  void EnableRecv()     { }
+  void DisableRecv()    { }
+  void StopSend()       { }
+  void FinishSend()     { }
+  void Stall()          { }
+  void Nak()            { }
+
+  void SetData0()       { }
+  bool IsSetupRequest() { return false; }
 };
 
 class THwUsbCtrl_noimpl : public THwUsbCtrl_pre
@@ -128,8 +131,7 @@ public: // mandatory functions
 
 class THwUsbEndpoint : public HWUSBENDPOINT_IMPL
 {
-public: // mandatory
-	int     StartSend(void * buf, unsigned len);
+public:
   void    Reset();
 };
 

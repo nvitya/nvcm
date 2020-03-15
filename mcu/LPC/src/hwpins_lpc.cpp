@@ -225,8 +225,8 @@ void TGpioPin_lpc::Assign(int aportnum, int apinnum, bool ainvert)
 	clrbitvalue = (1 << pinnum);
 
   togglebitptr = (unsigned *)&(LPC_GPIO_PORT->NOT[aportnum]);
-
   getbitptr = (unsigned *)&(LPC_GPIO_PORT->PIN[aportnum]);
+  getoutbitptr = (unsigned *)&(LPC_GPIO_PORT->PIN[aportnum]);
   getbitshift = apinnum;
 
   if (ainvert)

@@ -292,7 +292,8 @@ void TGpioPin_atsam::Assign(int aportnum, int apinnum, bool ainvert)
 
 	setbitvalue = (1 << pinnum);
 	clrbitvalue = setbitvalue;
-  getbitptr = (unsigned *)&(regs->PIO_PDSR);
+  getbitptr    = (unsigned *)&(regs->PIO_PDSR);
+  getoutbitptr = (unsigned *)&(regs->PIO_ODSR);
   getbitshift = pinnum;
 
   if (ainvert)

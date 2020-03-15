@@ -236,6 +236,7 @@ void TGpioPin_xmc::Assign(int aportnum, int apinnum, bool ainvert)
   setbitptr = (unsigned *)&(regs->OMR);
   clrbitptr = (unsigned *)&(regs->OMR);
   getbitptr = (unsigned *)&(regs->IN);
+  getoutbitptr = (unsigned *)&(regs->OUT);
   getbitshift = apinnum;
 
   if (ainvert)

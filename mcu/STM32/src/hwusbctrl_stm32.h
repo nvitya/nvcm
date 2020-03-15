@@ -90,9 +90,11 @@ public:
 	virtual ~THwUsbEndpoint_stm32() { }
 
 	bool ConfigureHwEp();
-	int  SendRemaining();
-	void SendAck();
   int  ReadRecvData(void * buf, uint32_t buflen);
+	int  StartSendData(void * buf, unsigned len);
+	void SendAck();
+
+  bool IsSetupRequest();
 
   void FinishRecv(bool reenable);
   void EnableRecv();
@@ -100,6 +102,7 @@ public:
   void StopSend();
   void FinishSend();
   void Stall();
+  void Nak();
 };
 
 class THwUsbCtrl_stm32 : public THwUsbCtrl_pre

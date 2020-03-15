@@ -331,6 +331,7 @@ void TGpioPin_stm32::Assign(int aportnum, int apinnum, bool ainvert)
   setbitptr = (unsigned *)&(regs->BSRR);
   clrbitptr = (unsigned *)&(regs->BSRR);
   getbitptr = (unsigned *)&(regs->IDR);
+  getoutbitptr = (unsigned *)&(regs->ODR);
   getbitshift = apinnum;
 
   if (ainvert)

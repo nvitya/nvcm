@@ -42,19 +42,6 @@ void THwUsbCtrl::HandleReset()
 #endif
 }
 
-int THwUsbEndpoint::StartSend(void * buf, unsigned len)
-{
-	if (tx_remaining_len > 0)
-	{
-		return USBERR_TX_OVERWRITE;
-	}
-
-	tx_remaining_dataptr = (uint8_t *)buf;
-	tx_remaining_len = len;
-
-	return SendRemaining();
-}
-
 void THwUsbEndpoint::Reset()
 {
 	StopSend();

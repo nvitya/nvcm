@@ -184,7 +184,8 @@ void TGpioPin_atsam_v2::Assign(int aportnum, int apinnum, bool ainvert)
 
 	setbitvalue = (1 << pinnum);
 	clrbitvalue = (1 << pinnum);
-  getbitptr = (unsigned *)&(regs->IN);
+  getbitptr    = (unsigned *)&(regs->IN);
+  getoutbitptr = (unsigned *)&(regs->OUT);
   getbitshift = pinnum;
   togglebitptr = (unsigned *)&(regs->OUTTGL.reg);
 

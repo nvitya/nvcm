@@ -24,14 +24,17 @@
  *  version:  1.00
  *  date:     2018-05-18
  *  authors:  nvitya
-*/
+ *  notes:
+ *    Speical thanks to Niklas Gürtler for this tutorial: https://www.mikrocontroller.net/articles/USB-Tutorial_mit_STM32
+ *    Special thanks to Craig Peacock for this tutorial: https://www.beyondlogic.org/usbnutshell/usb1.shtml
+**/
 
 #ifndef USBDEVICE_H_
 #define USBDEVICE_H_
 
 #include "hwusbctrl.h"
 
-#define USBDEV_CTRL_BUF_SIZE   128
+#define USBDEV_CTRL_BUF_SIZE   128  // every decriptor must fit into this, some are bigger than 64 byte !
 #define USBDEV_MAX_STRINGS      16
 #define USBDEV_MAX_INTERFACES    6
 #define USBDEV_MAX_DESCREC       8
@@ -60,13 +63,17 @@
 #define USB_LEN_LANGID_STR_DESC                        0x04
 #define USB_LEN_OTHER_SPEED_DESC_SIZ                   0x09
 
-
 #define USBD_STRIDX_LANGID        0x00
 #define USBD_STRIDX_MANUFACTURER  0x01
 #define USBD_STRIDX_PRODUCT       0x02
 #define USBD_STRIDX_SERIAL        0x03
 #define USBD_STRIDX_CONFIG        0x04
 #define USBD_STRIDX_INTERFACE     0x05
+
+#define USBCTRL_STAGE_SETUP    0
+#define USBCTRL_STAGE_DATAOUT  1
+#define USBCTRL_STAGE_DATAIN   2
+#define USBCTRL_STAGE_STATUS   3
 
 typedef struct TUsbSetupRequest
 {
@@ -201,8 +208,8 @@ public:
 		.alternate_setting = 0,
 		.num_endpoints = 0,  // will be set automatically
 		.interface_class = 0xFF, // invalid
-		.interface_subclass = 0,
-		.interface_protocol = 0,
+		.interface_subclass = 0xFF,
+		.interface_protocol = 0xFF,
 		.stri_interface = 0  // will be set automatically
 	};
 
@@ -237,11 +244,33 @@ public:
 
 class TUsbDevice : public THwUsbCtrl
 {
-public:
-	bool                  initialized = false;
+public:  // quick variables (the first 32 variables are accessed faster on ARM, because they can be addressed with 16 bit instructions)
+	uint8_t               ctrlstage = 0;
+	uint8_t               epcount = 0;
+	uint8_t               interface_count = 0;
+	uint8_t               string_count = 0;
 
+	TUsbSetupRequest      setuprq;  // 8 bytes
+
+	int                   cdlen = 0;
+	int                   ctrl_datastage_remaining = 0;
+
+protected:
+	bool                  set_devaddr_on_ack = false;
+
+public:
 	uint8_t  				      devaddr = 0xFF;    // assigned address
 	uint8_t               actualconfig = 0;  // actualy selected configuration, 0 = unconfigured
+
+	TUsbEndpoint          ep_ctrl;  // The Endpoint 0 provided here
+
+	TUsbEndpoint *        eplist[USBDEV_MAX_ENDPOINTS];
+	TUsbInterface *       interfaces[USBDEV_MAX_INTERFACES];
+	char *          			stringtable[USBDEV_MAX_STRINGS] = {0};
+
+	uint8_t               ctrlbuf[USBDEV_CTRL_BUF_SIZE];
+
+public: // Descriptors
 
 	TUsbDeviceDesc        devdesc =
 	{
@@ -254,7 +283,7 @@ public:
 		.max_packet_size = 64,
 		.vendor_id = 0, // must be overridden !
 		.product_id = 0,
-		.device_version = 0x0200,
+		.device_version = 0x0100,  // 0x0100 = full speed
 		.stri_manufacturer = 0,
 		.stri_product = 0,
 		.stri_serial_number = 0,
@@ -292,45 +321,43 @@ public:
 	const char *          device_name = "Unknown Device";
 	const char *          device_serial_number = "12345678";
 
-	TUsbInterface *       interfaces[USBDEV_MAX_INTERFACES];
-	uint8_t               interface_count = 0;
+public:
+	bool                  Init();
 
-	TUsbEndpoint *        eplist[USBDEV_MAX_ENDPOINTS];
-	uint8_t               epcount = 0;
+	virtual bool          HandleEpTransferEvent(uint8_t epid, bool htod); // called from the vendor specific code
 
-	char *          			stringtable[USBDEV_MAX_STRINGS] = {0};
-	uint8_t               stringcount = 0;
+	void                  HandleControlEndpoint(bool htod);
 
-	TUsbEndpoint          ep_ctrl;
-	uint8_t               rxbuf[64];
-	int                   rxlen = 0;
-	uint8_t               txbuf[128];  // configuration descriptors can be larger than 64 byte
-	int                   txlen = 0;
+	void                  ProcessSetupRequest();
+	void                  SendControlAck();
+
+	void                  SendControlStatus(bool asuccess);
+
+	void                  StartSendControlData(); // starts the dtoh data stage using ctrlbuf[cdlen]
+	void                  StartSendControlData(void * asrc, unsigned alen); // starts the dtoh data stage
+
+	void                  StartReceiveControlData(unsigned alen); // starts the htod data stage
+	void                  HandleControlData();
+
+  void                  AddInterface(TUsbInterface * aintf);
+  uint8_t               AddString(const char * astr); // returned string index + 1 as id
+  void                  AddEndpoint(TUsbEndpoint * aep);
+  bool                  PrepareInterface(uint8_t ifidx, TUsbInterface * pif);
+
+	void                  SetConfiguration(uint8_t aconfig);
+
+public: // virtual methods
+
+  virtual bool          InitDevice();
+	virtual void          HandleReset();
+
+	virtual bool          HandleSpecialSetupRequest() { return false; }  // returns true when handled
+	virtual bool          HandleSpecialControlData()  { return false; }  // returns true when handled
 
 protected:
-	bool                  set_devaddr_on_ack = false;
 
-	void                  MakeDeviceConfig(TUsbSetupRequest * psrq); // prepares the device config into the txbuf
+	void                  MakeDeviceConfig(); // prepares the device config into the ctrlbuf
 
-public:
-	bool           Init();
-
-  virtual bool   InitDevice(); // can be overridden
-
-  void           AddInterface(TUsbInterface * aintf);
-  uint8_t        AddString(const char * astr); // returned string index + 1 as id
-  void           AddEndpoint(TUsbEndpoint * aep);
-  bool           PrepareInterface(uint8_t ifidx, TUsbInterface * pif);
-
-	virtual void   HandleReset();
-	virtual bool   HandleEpTransferEvent(uint8_t epid, bool htod);
-
-	bool           HandleControlEndpoint(bool htod);
-	bool           ProcessControlRequest();
-	void           ProcessControlSendFinished();
-	void           SendControlAck();
-
-	void           SetConfiguration(uint8_t aconfig);
 };
 
 #endif /* USBDEVICE_H_ */

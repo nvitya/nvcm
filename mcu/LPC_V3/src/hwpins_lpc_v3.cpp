@@ -187,7 +187,8 @@ void TGpioPin_lpc_v3::Assign(int aportnum, int apinnum, bool ainvert)
 
 	setbitvalue = (1 << pinnum);
 	clrbitvalue = (1 << pinnum);
-  getbitptr = (unsigned *)&(regs->PIN[aportnum]);
+  getbitptr    = (unsigned *)&(regs->PIN[aportnum]);
+  getoutbitptr = (unsigned *)&(regs->PIN[aportnum]);
   getbitshift = apinnum;
   togglebitptr = (unsigned *)&(regs->NOT[aportnum]);
 

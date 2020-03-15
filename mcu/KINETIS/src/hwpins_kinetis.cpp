@@ -196,6 +196,7 @@ void TGpioPin_kinetis::Assign(int aportnum, int apinnum, bool ainvert)
 	setbitvalue = (1 << pinnum);
 	clrbitvalue = (1 << pinnum);
   getbitptr = (unsigned *)&(regs->PDIR);
+  getoutbitptr = (unsigned *)&(regs->PDOR);
   togglebitptr = (unsigned *)&(regs->PTOR);
   getbitshift = apinnum;
 

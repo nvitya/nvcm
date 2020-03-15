@@ -35,6 +35,8 @@
 #include <stdarg.h>
 #include <hwusbctrl.h>
 #include "clockcnt.h"
+
+#define LTRACES
 #include "traces.h"
 
 #if defined(USB_CNTR_LPMODE) && !defined(USB_CNTR_LP_MODE)
@@ -121,7 +123,7 @@ bool THwUsbEndpoint_stm32::ConfigureHwEp()
 
 	uint16_t htod_len;
 	uint16_t dtoh_len;
-	if (attr & HWUSB_EP_TYPE_CONTROL)
+	if ((attr & HWUSB_EP_TYPE_MASK) == HWUSB_EP_TYPE_CONTROL)
 	{
 		htod_len = maxlen;
 		dtoh_len = maxlen;
@@ -203,8 +205,9 @@ bool THwUsbEndpoint_stm32::ConfigureHwEp()
 
 	set_epreg_static_content(preg, epconf);
 
-	set_epreg_tx_status(preg, 0);
-	set_epreg_rx_status(preg, 0);
+	// set the default state to NAK, otherwise it stays disabled
+	set_epreg_tx_status(preg, 2);  // NAK
+	set_epreg_rx_status(preg, 2);  // NAK
 
 	return true;
 }
@@ -256,11 +259,11 @@ int THwUsbEndpoint_stm32::ReadRecvData(void * buf, uint32_t buflen)
 	return cnt;
 }
 
-int THwUsbEndpoint_stm32::SendRemaining()
+int THwUsbEndpoint_stm32::StartSendData(void * buf, unsigned len)
 {
 	// copy words
 
-	uint16_t  sendlen = tx_remaining_len;
+	uint16_t  sendlen = len;
 	if (sendlen > maxlen)  sendlen = maxlen;
 
 	uint16_t remaining = sendlen;
@@ -272,7 +275,7 @@ int THwUsbEndpoint_stm32::SendRemaining()
 #if HWUSB_16_32
 
 	pdst += pdesc->ADDR_TX;  // ADDR_TX in bytes but this will increment words !
-	uint16_t * psrc = (uint16_t *)(tx_remaining_dataptr);
+	uint16_t * psrc = (uint16_t *)(buf);
 	// do the copiing:
 	while (remaining >= 2)
 	{
@@ -284,7 +287,7 @@ int THwUsbEndpoint_stm32::SendRemaining()
 #else
 
 	pdst += (pdesc->ADDR_TX / 2);
-	uint8_t * psrc = (uint8_t *)(tx_remaining_dataptr);
+	uint8_t * psrc = (uint8_t *)(buf);
 
 	while (remaining >= 2)
 	{
@@ -303,9 +306,6 @@ int THwUsbEndpoint_stm32::SendRemaining()
 		*pdst = *psrc;
 	}
 
-	tx_remaining_dataptr += sendlen;
-	tx_remaining_len -= sendlen;
-
 	// signalize count
 	pdesc->COUNT_TX = sendlen;
 	// start the transfer
@@ -316,7 +316,6 @@ int THwUsbEndpoint_stm32::SendRemaining()
 
 void THwUsbEndpoint_stm32::SendAck()
 {
-	tx_remaining_len = 0;
 	pdesc->COUNT_TX = 0;
 	set_epreg_tx_status(preg, 3);
 }
@@ -343,7 +342,6 @@ void THwUsbEndpoint_stm32::DisableRecv()
 void THwUsbEndpoint_stm32::StopSend()
 {
 	set_epreg_tx_status(preg, 0);
-	tx_remaining_len = 0;
 }
 
 void THwUsbEndpoint_stm32::FinishSend()
@@ -355,6 +353,17 @@ void THwUsbEndpoint_stm32::Stall()
 {
 	if (iscontrol || dir_htod)  set_epreg_rx_status(preg, 1);
 	if (iscontrol || !dir_htod) set_epreg_tx_status(preg, 1);
+}
+
+void THwUsbEndpoint_stm32::Nak()
+{
+	if (iscontrol || dir_htod)  set_epreg_rx_status(preg, 2);
+	if (iscontrol || !dir_htod) set_epreg_tx_status(preg, 2);
+}
+
+bool THwUsbEndpoint_stm32::IsSetupRequest()
+{
+	return (*preg & USB_EP0R_SETUP);
 }
 
 /************************************************************************************************************
@@ -404,7 +413,7 @@ bool THwUsbCtrl_stm32::InitHw()
   // irq_mask = USB_CNTR_CTRM | USB_CNTR_WKUPM | USB_CNTR_SUSPM | USB_CNTR_ERRM | USB_CNTR_ESOFM | USB_CNTR_RESETM;
   irq_mask = USB_CNTR_CTRM | USB_CNTR_WKUPM | USB_CNTR_SUSPM | USB_CNTR_ERRM | USB_CNTR_RESETM;
 
-	DisableIrq();
+  regs->CNTR = 0; // disable all IRQs
 
   // USB_DevInit(hpcd->Instance, hpcd->Init) ->
   regs->CNTR = USB_CNTR_FRES; // reset USB registers
@@ -443,11 +452,23 @@ void THwUsbCtrl_stm32::HandleIrq()
 		int epid = (istr & 7);
 		bool htod = ((istr & 0x10) != 0);
 
-		//TRACE("EP(%03X) event\r\n", istr & 0x17);
+		volatile uint16_t * epreg = &regs->EP0R;
+		epreg += (epid * 2);  // the register distance is always 32 bit
+
+		if (htod)
+		{
+			clear_epreg_ctr_rx(epreg);
+		}
+		else
+		{
+			clear_epreg_ctr_tx(epreg);
+		}
+
+		//LTRACE("[EP-%i CTR %i]\r\n", epid, htod);
 
 		if (!HandleEpTransferEvent(epid, htod))
 		{
-			TRACE("Unhandled endpoint: %u, htod=%u\r\n", epid, htod);
+			LTRACE("Unhandled endpoint: %u, htod=%u\r\n", epid, htod);
 		}
 
 		//strace("CTR on EP(%i), ISRX=%i, EPREG=%04X\r\n", epid, isrx, *epdef->preg);
@@ -468,7 +489,7 @@ void THwUsbCtrl_stm32::HandleIrq()
 
 	if (regs->ISTR & USB_ISTR_RESET)
 	{
-		TRACE("USB RESET, ISTR=%04X\r\n", regs->ISTR);
+		LTRACE("USB RESET, ISTR=%04X\r\n", regs->ISTR);
 
 		// the USB registers were already cleared by the hw
 
@@ -482,19 +503,19 @@ void THwUsbCtrl_stm32::HandleIrq()
 
 	if (regs->ISTR & USB_ISTR_PMAOVR)
 	{
-		TRACE("USB PMAOVR, ISTR=%04X\r\n", regs->ISTR);
+		//LTRACE("USB PMAOVR, ISTR=%04X\r\n", regs->ISTR);
 		regs->ISTR &= ~USB_ISTR_PMAOVR;
 	}
 
 	if (regs->ISTR & USB_ISTR_ERR)
 	{
-		TRACE("USB ERR, ISTR=%04X\r\n", regs->ISTR);
+		//LTRACE("USB ERR, ISTR=%04X\r\n", regs->ISTR);
 		regs->ISTR &= ~USB_ISTR_ERR;
 	}
 
 	if (regs->ISTR & USB_ISTR_WKUP)
 	{
-		TRACE("USB WKUP, ISTR=%04X\r\n", regs->ISTR);
+		//LTRACE("USB WKUP, ISTR=%04X\r\n", regs->ISTR);
 
 		regs->CNTR &= ~(USB_CNTR_LP_MODE);
 
@@ -508,7 +529,7 @@ void THwUsbCtrl_stm32::HandleIrq()
 
 	if (regs->ISTR & USB_ISTR_SUSP)
 	{
-		TRACE("USB SUSP, ISTR=%04X\r\n", regs->ISTR);
+		//LTRACE("USB SUSP, ISTR=%04X\r\n", regs->ISTR);
 
 		// Force low-power mode in the macrocell
 		regs->CNTR |= USB_CNTR_FSUSP;
@@ -522,22 +543,6 @@ void THwUsbCtrl_stm32::HandleIrq()
 		/* clear of the ISTR bit must be done after setting of CNTR_FSUSP */
 		regs->ISTR &= ~USB_ISTR_SUSP;
 	}
-
-	if (regs->ISTR & USB_ISTR_SOF)
-	{
-		//strace("USB SOF, ISTR=%04X\r\n", regs->ISTR);
-
-		regs->ISTR &= ~USB_ISTR_SOF;
-		//HAL_PCD_SOFCallback(hpcd);
-	}
-
-/*
-	if (regs->ISTR & USB_ISTR_ESOF)
-	{
-		strace("USB ESOF, ISTR=%04X\r\n", regs->ISTR);
-		regs->ISTR &= ~USB_ISTR_ESOF;
-	}
-*/
 }
 
 void THwUsbCtrl_stm32::ResetEndpoints()
