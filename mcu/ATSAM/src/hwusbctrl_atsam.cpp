@@ -38,6 +38,36 @@
 
 #define UDP_REG_NO_EFFECT_1_ALL (UDP_CSR_RX_DATA_BK0 | UDP_CSR_RX_DATA_BK1 | UDP_CSR_STALLSENT | UDP_CSR_RXSETUP | UDP_CSR_TXCOMP)
 
+// the endpoint control and status registers have special handling needs
+
+void udp_ep_csreg_bit_clear(volatile uint32_t * preg, uint32_t amask)
+{
+	uint32_t tmp = *preg;
+	tmp |= UDP_REG_NO_EFFECT_1_ALL;
+	tmp &= ~amask;
+	*preg = tmp;
+	int i = 0;
+	while (*preg & amask)
+	{
+		++i;
+		if (i > 3)  break;
+	}
+}
+
+void udp_ep_csreg_bit_set(volatile uint32_t * preg, uint32_t amask)
+{
+	uint32_t tmp = *preg;
+	tmp |= UDP_REG_NO_EFFECT_1_ALL;
+	tmp |= amask;
+	*preg = tmp;
+	int i = 0;
+	while ((*preg & amask) == 0)
+	{
+		++i;
+		if (i > 3)  break;
+	}
+}
+
 bool THwUsbEndpoint_atsam::ConfigureHwEp()
 {
 	if (!usbctrl)
@@ -121,8 +151,18 @@ int THwUsbEndpoint_atsam::ReadRecvData(void * buf, uint32_t buflen)
 
 int THwUsbEndpoint_atsam::StartSendData(void * buf, unsigned len)
 {
-	uint16_t  sendlen = len;
+	int sendlen = len;
 	if (sendlen > maxlen)  sendlen = maxlen;
+
+	if (iscontrol)
+	{
+		// the DIR bit must be set before the RXSETUP is cleared !
+		udp_ep_csreg_bit_set(csreg, UDP_CSR_DIR);
+		if (*csreg & UDP_CSR_RXSETUP)
+		{
+			udp_ep_csreg_bit_clear(csreg, UDP_CSR_RXSETUP);
+		}
+	}
 
 	uint8_t * psrc = (uint8_t *)(buf);
 
@@ -131,35 +171,34 @@ int THwUsbEndpoint_atsam::StartSendData(void * buf, unsigned len)
 		*fiforeg = *psrc++;
 	}
 
-	uint32_t tmp = (*csreg | UDP_REG_NO_EFFECT_1_ALL);
+	udp_ep_csreg_bit_set(csreg, UDP_CSR_TXPKTRDY);
 
-	tmp |= UDP_CSR_TXPKTRDY;
-	if (iscontrol)
+	if (*csreg & UDP_CSR_TXCOMP)
 	{
-	 tmp |= UDP_CSR_DIR;  // set the direction too
+		udp_ep_csreg_bit_clear(csreg, UDP_CSR_TXCOMP);
 	}
-	*csreg = tmp;
-
-	if (*csreg) { }
-	if (*csreg) { }
-	if (*csreg) { }
 
 	return sendlen;
 }
 
 void THwUsbEndpoint_atsam::SendAck()
 {
-	uint32_t tmp = (*csreg | UDP_REG_NO_EFFECT_1_ALL);
-
-	tmp |= UDP_CSR_TXPKTRDY;
 	if (iscontrol)
 	{
-	 tmp |= UDP_CSR_DIR;  // set the direction too
+		// the DIR bit must be set before the RXSETUP is cleared !
+		udp_ep_csreg_bit_set(csreg, UDP_CSR_DIR);
+		if (*csreg & UDP_CSR_RXSETUP)
+		{
+			udp_ep_csreg_bit_clear(csreg, UDP_CSR_RXSETUP);
+		}
 	}
-	*csreg = tmp;
-	if (*csreg) { }
-	if (*csreg) { }
-	if (*csreg) { }
+
+	udp_ep_csreg_bit_set(csreg, UDP_CSR_TXPKTRDY);
+
+	if (*csreg & UDP_CSR_TXCOMP)
+	{
+		udp_ep_csreg_bit_clear(csreg, UDP_CSR_TXCOMP);
+	}
 }
 
 void THwUsbEndpoint_atsam::Nak()
@@ -168,53 +207,53 @@ void THwUsbEndpoint_atsam::Nak()
 
 void THwUsbEndpoint_atsam::EnableRecv()
 {
+	if (iscontrol)
+	{
+#if 0
+		// the DIR bit must be set before the RXSETUP is cleared !
+		if (*csreg & UDP_CSR_DIR)
+		{
+			udp_ep_csreg_bit_clear(csreg, UDP_CSR_DIR);
+		}
+#endif
+
+		if (*csreg & UDP_CSR_RXSETUP)
+		{
+			udp_ep_csreg_bit_clear(csreg, UDP_CSR_RXSETUP);
+		}
+	}
+
+#if 0
+	if (*csreg & UDP_CSR_TXCOMP)
+	{
+		udp_ep_csreg_bit_clear(csreg, UDP_CSR_TXCOMP);
+	}
+#endif
+
 	if (*csreg & (UDP_CSR_FORCESTALL | UDP_CSR_STALLSENT))
 	{
-		uint32_t tmp = (*csreg | UDP_REG_NO_EFFECT_1_ALL);
-		tmp &= ~(UDP_CSR_FORCESTALL | UDP_CSR_STALLSENT);
-		if (iscontrol)
-		{
-			tmp &= ~(UDP_CSR_DIR);
-		}
-		*csreg = tmp;
-		if (*csreg) { }
-		if (*csreg) { }
-		if (*csreg) { }
+		udp_ep_csreg_bit_clear(csreg, UDP_CSR_FORCESTALL | UDP_CSR_STALLSENT);
 	}
 }
 
 void THwUsbEndpoint_atsam::DisableRecv()
 {
-	uint32_t tmp = (*csreg | UDP_REG_NO_EFFECT_1_ALL | UDP_CSR_FORCESTALL);
-	*csreg = tmp;
-	if (*csreg) { }
-	if (*csreg) { }
-	if (*csreg) { }
+	udp_ep_csreg_bit_set(csreg, UDP_CSR_FORCESTALL);
 }
 
 void THwUsbEndpoint_atsam::StopSend()
 {
-	uint32_t tmp = (*csreg | UDP_REG_NO_EFFECT_1_ALL);
-	tmp &= ~(UDP_CSR_TXCOMP);
-	*csreg = tmp;
-
-	if (*csreg) { }
-	if (*csreg) { }
-	if (*csreg) { }
+	udp_ep_csreg_bit_clear(csreg, UDP_CSR_TXCOMP | UDP_CSR_TXPKTRDY);
 }
 
 void THwUsbEndpoint_atsam::FinishSend()
 {
-	uint32_t tmp = (*csreg | UDP_REG_NO_EFFECT_1_ALL);
-	tmp &= ~(UDP_CSR_TXCOMP);
-	*csreg = tmp;
+	udp_ep_csreg_bit_clear(csreg, UDP_CSR_TXCOMP);
 }
 
 void THwUsbEndpoint_atsam::Stall()
 {
-	uint32_t tmp = (*csreg | UDP_REG_NO_EFFECT_1_ALL);
-	tmp |= UDP_CSR_FORCESTALL;
-	*csreg = tmp;
+	udp_ep_csreg_bit_set(csreg, UDP_CSR_FORCESTALL);
 }
 
 /************************************************************************************************************
@@ -266,6 +305,47 @@ bool THwUsbCtrl_atsam::InitHw()
 	return true;
 }
 
+void THwUsbCtrl_atsam::ResetEndpoints()
+{
+	// reset all endpoints
+	regs->UDP_RST_EP = 0xFF;
+	if (regs->UDP_RST_EP) { } // some sync
+	if (regs->UDP_RST_EP) { } // some sync
+	if (regs->UDP_RST_EP) { } // some sync
+	regs->UDP_RST_EP = 0x00;
+	if (regs->UDP_RST_EP) { } // some sync
+	if (regs->UDP_RST_EP) { } // some sync
+	if (regs->UDP_RST_EP) { } // some sync
+}
+
+void THwUsbCtrl_atsam::SetPullUp(bool aenable)
+{
+	regs->UDP_TXVC = 0
+		| (0 << 8)  // 0 = transceiver enabled, 1 = transceived disabled
+		| (1 << 9)  // enable pullup
+	;
+}
+
+void THwUsbCtrl_atsam::DisableIrq()
+{
+	//{  /* regs->CNTR &= ~irq_mask; */ }
+}
+
+void THwUsbCtrl_atsam::EnableIrq()
+{
+	//{  /* regs->CNTR |=  irq_mask; */ }
+}
+
+void THwUsbCtrl_atsam::SetDeviceAddress(uint8_t aaddr)
+{
+	regs->UDP_GLB_STAT &= ~UDP_GLB_STAT_FADDEN;
+  regs->UDP_FADDR &= UDP_FADDR_FEN;
+
+  regs->UDP_FADDR = (aaddr & 0x7F);
+  regs->UDP_FADDR |= UDP_FADDR_FEN;
+	regs->UDP_GLB_STAT |= UDP_GLB_STAT_FADDEN;
+}
+
 void THwUsbCtrl_atsam::HandleIrq()
 {
 	//source:  HAL_PCD_IRQHandler
@@ -274,7 +354,7 @@ void THwUsbCtrl_atsam::HandleIrq()
 
 	if (isr & 0xFF)  // some endpoint interrupt ?
 	{
-		TRACE("[EP IRQ, ISR=%08X]\r\n", isr);
+		//TRACE("[EP IRQ, ISR=%08X]\r\n", isr);
 
 		// Endpoint transfer finished.
 		//PCD_EP_ISR_Handler(hpcd);
@@ -287,9 +367,7 @@ void THwUsbCtrl_atsam::HandleIrq()
 
 			volatile uint32_t * pepreg = &regs->UDP_CSR[epid];
 			uint32_t epreg = *pepreg;
-			uint32_t epregclr = (epreg | UDP_REG_NO_EFFECT_1_ALL);  // used for clearing single event bits
-
-			TRACE("[EP(%i)=%02X]\r\n", epreg & 0xFF);
+			TRACE("[EP(%i)=%08X]\r\n", epid, epreg);
 
 			if (epreg & UDP_CSR_RXSETUP)
 			{
@@ -298,57 +376,46 @@ void THwUsbCtrl_atsam::HandleIrq()
 					// todo: handle error
 				}
 
-				*pepreg = (epregclr & ~UDP_CSR_RXSETUP);
-				if (*pepreg) { }  // delay required after modification
-				if (*pepreg) { }
-				if (*pepreg) { }
+				// warning, the RXSETUP bit must be cleared only AFTER setting the DIR bit so the RXSETUP clear
+				// is included in the handler routines !
+				if (*pepreg & UDP_CSR_RXSETUP)
+				{
+					udp_ep_csreg_bit_clear(pepreg, UDP_CSR_RXSETUP);
+				}
 			}
-
-			if (epreg & UDP_CSR_RX_DATA_BK0)
+			else if (epreg & UDP_CSR_RX_DATA_BK0)
 			{
+				udp_ep_csreg_bit_clear(pepreg, UDP_CSR_RX_DATA_BK0);
+
 				if (!HandleEpTransferEvent(epid, true))
 				{
 					// todo: handle error
 				}
-
-				*pepreg = (epregclr & ~UDP_CSR_RX_DATA_BK0);
-				if (*pepreg) { } // delay required after modification
-				if (*pepreg) { }
-				if (*pepreg) { }
 			}
-
-			if (epreg & UDP_CSR_RX_DATA_BK1)
+			else if (epreg & UDP_CSR_RX_DATA_BK1)
 			{
+				udp_ep_csreg_bit_clear(pepreg, UDP_CSR_RX_DATA_BK1);
+
 				if (!HandleEpTransferEvent(epid, true))
 				{
 					// todo: handle error
 				}
-
-				*pepreg = (epregclr & ~UDP_CSR_RX_DATA_BK1);
-				if (*pepreg) { }  // delay required after modification
-				if (*pepreg) { }
-				if (*pepreg) { }
 			}
-
-			if (epreg & UDP_CSR_TXCOMP)
+			else if (epreg & UDP_CSR_TXCOMP)
 			{
 				if (!HandleEpTransferEvent(epid, false))
 				{
 					// todo: handle error
 				}
-
-				*pepreg = (epregclr & ~UDP_CSR_TXCOMP);
-				if (*pepreg) { } // delay required after modification
-				if (*pepreg) { }
-				if (*pepreg) { }
+				if (*pepreg & UDP_CSR_TXCOMP)
+				{
+				  udp_ep_csreg_bit_clear(pepreg, UDP_CSR_TXCOMP);
+				}
 			}
 
-			if (epreg & UDP_CSR_STALLSENT)
+			if (*pepreg & UDP_CSR_STALLSENT)
 			{
-				*pepreg = (epregclr & ~UDP_CSR_STALLSENT);
-				if (*pepreg) { } // delay required after modification
-				if (*pepreg) { }
-				if (*pepreg) { }
+				udp_ep_csreg_bit_clear(pepreg, UDP_CSR_STALLSENT);
 			}
 
 			rev_epirq &= ~(1 << (31-epid));
@@ -366,18 +433,11 @@ void THwUsbCtrl_atsam::HandleIrq()
 		regs->UDP_ICR = UDP_ISR_ENDBUSRES;
 
 		// clear the address
-		regs->UDP_FADDR = UDP_FADDR_FEN | (0 << 0);  // enable address, set address to 0
-	  regs->UDP_GLB_STAT &= (UDP_GLB_STAT_FADDEN);
-
-	  regs->UDP_CSR[0] |= (1 << 15); // enable EP0
+		//regs->UDP_FADDR = UDP_FADDR_FEN | (0 << 0);  // enable address, set address to 0
+	  regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_FADDEN);
+	  regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_CONFG);
 
 	  regs->UDP_IER = irq_mask;
-
-		regs->UDP_TXVC = 0
-			| (0 << 8)  // 0 = transceiver enabled, 1 = transceived disabled
-			| (1 << 9)  // enable pullup
-		;
-
 	}
 
 #if 0
@@ -424,42 +484,5 @@ void THwUsbCtrl_atsam::HandleIrq()
 	regs->UDP_ICR = 0xFF00;
 }
 
-void THwUsbCtrl_atsam::ResetEndpoints()
-{
-	// reset all endpoints
-	regs->UDP_RST_EP = 0xFF;
-	if (regs->UDP_RST_EP) { } // some sync
-	if (regs->UDP_RST_EP) { } // some sync
-	if (regs->UDP_RST_EP) { } // some sync
-	regs->UDP_RST_EP = 0x00;
-	if (regs->UDP_RST_EP) { } // some sync
-	if (regs->UDP_RST_EP) { } // some sync
-	if (regs->UDP_RST_EP) { } // some sync
-}
-
-void THwUsbCtrl_atsam::SetPullUp(bool aenable)
-{
-	regs->UDP_TXVC = 0
-		| (0 << 8)  // 0 = transceiver enabled, 1 = transceived disabled
-		| (1 << 9)  // enable pullup
-	;
-}
-
-void THwUsbCtrl_atsam::DisableIrq()
-{
-	//{  /* regs->CNTR &= ~irq_mask; */ }
-}
-
-void THwUsbCtrl_atsam::EnableIrq()
-{
-	//{  /* regs->CNTR |=  irq_mask; */ }
-}
-
-void THwUsbCtrl_atsam::SetDeviceAddress(uint8_t aaddr)
-{
-  regs->UDP_FADDR = (UDP_FADDR_FEN | (aaddr & 0x7F));
-	regs->UDP_GLB_STAT |= UDP_GLB_STAT_FADDEN;
-
-}
 
 #endif

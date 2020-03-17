@@ -581,31 +581,24 @@ void TUsbDevice::HandleControlEndpoint(bool htod)
 	}
 	else // DATA IN / DATA OUT or ACK
 	{
-		if (USBCTRL_STAGE_STATUS == ctrlstage)
-		{
-			if (set_devaddr_on_ack)
-			{
-				LTRACE("device address is set to %i\r\n", devaddr);
-				SetDeviceAddress(devaddr);
-				set_devaddr_on_ack = false;
-			}
-
-			// there should be only an empty packet
-			ctrlstage = USBCTRL_STAGE_SETUP;
-			ep_ctrl.EnableRecv();
-			return;
-		}
-
 		if (htod) // host data out
 		{
-			if (ctrlstage != USBCTRL_STAGE_DATAOUT)
+			r = ep_ctrl.ReadRecvData(&ctrlbuf[cdlen], sizeof(ctrlbuf) - cdlen);
+			if (r < 0)
 			{
 				SendControlStatus(false);
 				return;
 			}
 
-			r = ep_ctrl.ReadRecvData(&ctrlbuf[cdlen], sizeof(ctrlbuf) - cdlen);
-			if (r < 0)
+			if (r == 0) // ACK from the host
+			{
+				// there should be only an empty packet
+				ctrlstage = USBCTRL_STAGE_SETUP;
+				ep_ctrl.EnableRecv();
+				return;
+			}
+
+			if (ctrlstage != USBCTRL_STAGE_DATAOUT)
 			{
 				SendControlStatus(false);
 				return;
@@ -635,6 +628,12 @@ void TUsbDevice::HandleControlEndpoint(bool htod)
 
 			if (USBCTRL_STAGE_STATUS == ctrlstage) // ACK sent
 			{
+				if (set_devaddr_on_ack)
+				{
+					LTRACE("device address is set to %i\r\n", devaddr);
+					SetDeviceAddress(devaddr);
+					set_devaddr_on_ack = false;
+				}
 				ctrlstage = USBCTRL_STAGE_SETUP;
 				ep_ctrl.EnableRecv();
 				return;
@@ -666,7 +665,7 @@ void TUsbDevice::ProcessSetupRequest()
 {
 	int i;
 
-#if 0
+#if 1
 	LTRACE("SETUP request: %02X %02X  %04X %04X %04X\r\n", setuprq.rqtype, setuprq.request, setuprq.value, setuprq.index, setuprq.length);
 #endif
 
