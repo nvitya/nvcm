@@ -35,7 +35,7 @@
 
 #include "stm32_utils.h"
 
-#ifdef HWCAN_IMPL
+#if defined(HWCAN_IMPL) && !HWCAN_STM32_FD
 
 #include "hwcan.h" // for the eclise indexer
 

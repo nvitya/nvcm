@@ -363,7 +363,7 @@ void THwUsbEndpoint_stm32::Nak()
 
 bool THwUsbEndpoint_stm32::IsSetupRequest()
 {
-	return (*preg & USB_EP0R_SETUP);
+	return (*preg & USB_EP_SETUP);
 }
 
 /************************************************************************************************************

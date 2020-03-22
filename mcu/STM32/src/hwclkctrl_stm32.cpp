@@ -458,6 +458,12 @@ void THwClkCtrl_stm32::PrepareHiSpeed(unsigned acpuspeed)
   FLASH->ACR |= (FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN);
 }
 
+static bool is_divisible(unsigned nom, unsigned div)
+{
+	unsigned res = nom / div;
+	return (res * div == nom);
+}
+
 bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed)
 {
 	// select the HSI as clock source
@@ -484,8 +490,25 @@ bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acp
 
   unsigned vcospeed = acpuspeed * 2;
 	unsigned pllp = 2; // divide by 2 to get the final CPU speed
-	unsigned pllm = abasespeed / 4000000;   // generate 4 MHz VCO input
-	unsigned plln = vcospeed / 4000000;     // the vco multiplier
+
+	// try some round frequencies for VCO input:
+	unsigned vco_in_hz;
+	vco_in_hz = 4000000; // this is the default
+	if (!is_divisible(abasespeed, vco_in_hz) || !is_divisible(vcospeed, vco_in_hz))
+	{
+		vco_in_hz = 5000000; // for 25 MHz input cristals
+		if (!is_divisible(abasespeed, vco_in_hz) || !is_divisible(vcospeed, vco_in_hz))
+		{
+			vco_in_hz = 3000000;
+			if (!is_divisible(abasespeed, vco_in_hz) || !is_divisible(vcospeed, vco_in_hz))
+			{
+				vco_in_hz = 4000000;  // not synthetizable properly, stay with the default
+			}
+		}
+	}
+
+	unsigned pllm = abasespeed / vco_in_hz;
+	unsigned plln = vcospeed / vco_in_hz;
 
 	if (pllm > 1)  --pllm;
 
