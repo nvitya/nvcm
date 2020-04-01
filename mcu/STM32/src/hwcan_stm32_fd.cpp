@@ -50,12 +50,6 @@
 #define SRAMCAN_TBSA   0x0278  // Tx FIFO/Queue Start Address
 #define SRAMCAN_SIZE   0x0350  // Message RAM size
 
-static bool is_divisible(unsigned nom, unsigned div)
-{
-	unsigned res = nom / div;
-	return (res * div == nom);
-}
-
 bool THwCan_stm32::HwInit(int adevnum)
 {
 	uint8_t busid = STM32_BUSID_APB1;
@@ -63,7 +57,7 @@ bool THwCan_stm32::HwInit(int adevnum)
 
 	if (false)  { }
 #ifdef FDCAN1
-	else if ((adevnum == 1) || (adevnum == 0))
+	else if (adevnum == 1)
 	{
 		devnum = 1;
 		regs = FDCAN1;
@@ -72,7 +66,7 @@ bool THwCan_stm32::HwInit(int adevnum)
 	}
 #endif
 #ifdef FDCAN2
-	else if (adevnum == 1)
+	else if (adevnum == 2)
 	{
 		devnum = 2;
 		regs = FDCAN2;
@@ -177,6 +171,11 @@ bool THwCan_stm32::HwInit(int adevnum)
 		| (0 << 24) // TFQM: 0 = Tx FIFO operation
 	;
 
+	// setup interrupts
+	regs->ILS = 0; // select line 0 for all the interrupts
+	regs->ILE = 1; // enable only IRQ line 0
+	regs->IE = 1;  // enable only RX FIFO0 New Message Interrupt
+
 	return true;
 }
 
@@ -238,7 +237,7 @@ void THwCan_stm32::SetSpeed(uint32_t aspeed)
 	ts1 = bitclocks - 1 - ts2;  // should not bigger than 16
 
 	regs->NBTP = 0
-	  | ((ts2 >> 1) << 25)  // NSJW(7): Resynchronization jump width
+	  | (ts2  << 25)  // NSJW(7): Resynchronization jump width
 	  | ((brp - 1)  << 16)  // NBRP(9): Bit Rate Prescaler
 	  | ((ts1 - 1)  <<  8)  // NTSEG1(8): Time segment 1
 	  | ((ts2 - 1)  <<  0)  // NTSEG2(7): Time segment 2

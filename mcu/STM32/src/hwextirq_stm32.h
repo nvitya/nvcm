@@ -19,75 +19,37 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (ATSAM)
- *  brief:    ATSAM list of implemented NVCM core peripherals
+ *  file:     hwextirq_stm32.h
+ *  brief:    STM32 Extenal Pin Interrupt
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2020-04-01
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_atsam.h"
-#endif
+#ifndef _HWEXTIRQ_STM32_H
+#define _HWEXTIRQ_STM32_H
 
-#ifdef HWPINS_H_
-  #include "hwpins_atsam.h"
-#endif
+#define HWEXTIRQ_PRE_ONLY
+#include "hwextirq.h"
 
-#ifdef HWINTFLASH_H_
-  #include "hwintflash_atsam.h"
-#endif
+class THwExtIrq_stm32 : public THwExtIrq_pre
+{
+public:
+	volatile uint32_t *   irqpend_reg = nullptr;
+	volatile uint32_t *   irqack_reg = nullptr;
+	uint32_t              pin_mask = 0;
 
-#ifdef HWDMA_H_
-  #include "hwdma_atsam.h"
-#endif
+	// platform specific
+	bool Init(int aportnum, int apinnum, unsigned flags);
 
-#ifdef HWEXTIRQ_H_
-  #include "hwextirq_atsam.h"
-#endif
+	void Enable();
+	void Disable();
 
-#ifdef HWUART_H_
-  #include "hwuart_atsam.h"
-#endif
+	ALWAYS_INLINE void IrqBegin()   {  } // not reqired for this MCU
+	ALWAYS_INLINE bool IrqPending() { return (*irqpend_reg & pin_mask); }
+	ALWAYS_INLINE void IrqAck()     { *irqack_reg = pin_mask; }
+};
 
-#ifdef HWSPI_H_
-  #include "hwspi_atsam.h"
-#endif
+#define HWEXTIRQ_IMPL   THwExtIrq_stm32
 
-#ifdef HWI2C_H_
-  #include "hwi2c_atsam.h"
-#endif
-
-#ifdef HWI2CSLAVE_H_
-  #include "hwi2cslave_atsam.h"
-#endif
-
-#ifdef HWADC_H_
-  #include "hwadc_atsam.h"
-#endif
-
-#ifdef QSPI
-	#ifdef HWQSPI_H_
-		#include "hwqspi_atsam.h"
-	#endif
-#endif
-
-#if defined(HWCAN_H_)
-  #include "hwcan_atsam.h"
-#endif
-
-#if defined(HWUSBCTRL_H_) && defined(UDP)
-  #include "hwusbctrl_atsam.h"
-#endif
-
-#if defined(HWETH_H_) && defined(GMAC)
-  #include "hweth_atsam.h"
-#endif
-
-#if defined(HSMCI) && defined(HWSDCARD_H_)
-  #include "hwsdcard_atsam.h"
-#endif
-
-#if defined(SDRAMC) && defined(HWSDRAM_H_)
-  #include "hwsdram_atsam.h"
-#endif
+#endif /* HWEXTIRQ_STM32_H_ */

@@ -70,6 +70,15 @@ public:
 	void PrepareTransfer(THwDmaTransfer * axfer);
 	inline void StartPreparedTransfer() { Enable(); }
 
+	inline void ClearIrqFlag()
+	{
+		#ifndef DMASTREAMS
+			*irqstclrreg = (0x0F << irqstshift);
+		#else
+			*irqstclrreg = (0x3F << irqstshift);
+		#endif
+	}
+
 public:
   __IO unsigned *    crreg;
 

@@ -36,6 +36,7 @@ __DMA__               | OK      | OK      | OK    | -     | OK         | -      
 __SPI Master__        | OK      | OK      | OK    | OK    | OK         | -        | OK       | -       | -         |
 __I2C Master__        | OK      | OK      | -     | OK    | OK         | -        | OK       | -       | -         |
 __I2C Slave__         | OK      | OK      | -     | -     | OK         | -        | -        | -       | -         |
+__Ext. IRQ.__         | OK      | OK      | -     | -     | OK         | -        | -        | -       | -         |
 __Internal Flash__    | OK      | OK      | -     | -     | OK         | -        | -        | -       | -         |
 __ADC__               | OK      | OK      | OK    | -     | -          | -        | -        | -       | -         |
 __Simple PWM__        | -       | OK      | -     | -     | -          | -        | -        | -       | -         |

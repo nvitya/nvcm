@@ -19,77 +19,68 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     mcu_impl.h (STM32)
- *  brief:    STM32 list of implemented NVCM core peripherals
+ *  file:     hwextirq.h
+ *  brief:    External Pin Interrupt vendor-independent definitions
  *  version:  1.00
- *  date:     2018-02-10
+ *  date:     2020-04-01
  *  authors:  nvitya
 */
 
-#ifdef HWCLKCTRL_H_
-  #include "hwclkctrl_stm32.h"
-#endif
+#ifndef _HWEXTIRQ_H_PRE_
+#define _HWEXTIRQ_H_PRE_
 
-#ifdef HWPINS_H_
-  #include "hwpins_stm32.h"
-#endif
+#include "platform.h"
+#include "hwpins.h"
+#include "errors.h"
 
-#ifdef HWUART_H_
-  #include "hwuart_stm32.h"
-#endif
+#define HWEXTIRQ_RISING    1
+#define HWEXTIRQ_FALLING   2
 
-#ifdef HWSPI_H_
-  #include "hwspi_stm32.h"
-#endif
+class THwExtIrq_pre
+{
+public:	// settings
+};
 
-#ifdef HWI2C_H_
-  #include "hwi2c_stm32.h"
-#endif
+#endif // ndef HWEXTIRQ_H_PRE_
 
-#ifdef HWI2CSLAVE_H_
-  #include "hwi2cslave_stm32.h"
-#endif
+#ifndef HWEXTIRQ_PRE_ONLY
 
-#ifdef HWDMA_H_
-  #include "hwdma_stm32.h"
-#endif
+//-----------------------------------------------------------------------------
 
-#ifdef HWINTFLASH_H_
-  #include "hwintflash_stm32.h"
-#endif
+#ifndef HWEXTIRQ_H_
+#define HWEXTIRQ_H_
 
-#ifdef HWEXTIRQ_H_
-  #include "hwextirq_stm32.h"
-#endif
+#include "mcu_impl.h"
 
-#ifdef HWADC_H_
-  #include "hwadc_stm32.h"
-#endif
+#ifndef HWEXTIRQ_IMPL
 
-#ifdef HWPWM_H_
-  #include "hwpwm_stm32.h"
-#endif
+//#warning "HWEXTIRQ is not implemented!"
 
-#ifdef HWUSBCTRL_H_
-  #include "hwusbctrl_stm32.h"
-#endif
+class THwExtIrq_noimpl : public THwExtIrq_pre
+{
+public: // mandatory
+	bool Init(int aportnum, int apinnum, unsigned aflags)   { return false; }
 
-#ifdef HWETH_H_
-  #include "hweth_stm32.h"
-#endif
+	void IrqBegin()   {  }  // ATSAM MCU-s require this (but they don't require IrqAck in return)
+	bool IrqPending() { return false; }
+	void IrqAck()     {  }
+	void Enable()     {  }
+	void Disable()    {  }
+};
 
-#if defined(HWCAN_H_)
-  #include "hwcan_stm32.h"
-#endif
+#define HWEXTIRQ_IMPL   THwExtIrq_noimpl
 
-#if defined(QUADSPI) && defined(HWQSPI_H_)
-  #include "hwqspi_stm32.h"
-#endif
+#endif // ndef HWEXTIRQ_IMPL
 
-#if defined(FMC_SDCR1_CAS) && defined(HWSDRAM_H_)
-  #include "hwsdram_stm32.h"
-#endif
+//-----------------------------------------------------------------------------
 
-#if defined(LTDC_SRCR_IMR) && defined(HWLCDCTRL_H_)
-  #include "hwlcdctrl_stm32.h"
+class THwExtIrq : public HWEXTIRQ_IMPL
+{
+public:
+};
+
+#endif // HWEXTIRQ_H_
+
+#else
+  #undef HWEXTIRQ_PRE_ONLY
 #endif

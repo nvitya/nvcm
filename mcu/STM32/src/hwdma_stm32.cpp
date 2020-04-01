@@ -198,20 +198,14 @@ void THwDmaChannel_stm32::Disable()
 
 void THwDmaChannel_stm32::Enable()
 {
-	// clear interrupt flags! (without this it does not work...)
-#ifndef DMASTREAMS
-	*irqstclrreg = (0x0F << irqstshift);
-#else
-	*irqstclrreg = (0x3F << irqstshift);
-#endif
-
 	// start the channel
 	*crreg |= 1;
 }
 
 void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 {
-	//Disable();
+  Disable();  // this is important here
+	ClearIrqFlag();
 
 	int sizecode = 0;
 	if (axfer->bytewidth == 2)  sizecode = 1;

@@ -123,7 +123,7 @@
 
   #include "stm32f407xx.h"
 
-#elif defined(MCU_STM32G474RE)
+#elif defined(MCU_STM32G474RE) || defined(MCU_STM32G473RE) || defined(MCU_STM32G473CB) || defined(MCU_STM32G473CE)
 
   #define MCUF_STM32
   #define MCUSF_G4
@@ -136,7 +136,6 @@
   #define MCUSF_G4
 
   #include "stm32g431xx.h"
-
 
 // STM32F7: Cortex-M7
 
