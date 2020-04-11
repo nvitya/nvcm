@@ -65,6 +65,10 @@ public:
 
 class THwUsbCtrl_pre
 {
+public:  // parameters
+	int             devnum = 0;  // on stm32 0 = OTG_HS, 1 = OTG_FS
+	bool            highspeed = false;
+
 public:
 	bool            initialized = false;
 

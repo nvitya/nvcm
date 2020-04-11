@@ -72,6 +72,7 @@
 
 #ifdef HWUSBCTRL_H_
   #include "hwusbctrl_stm32.h"
+  #include "hwusbctrl_stm32_otg.h"
 #endif
 
 #ifdef HWETH_H_
