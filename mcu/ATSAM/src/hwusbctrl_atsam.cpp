@@ -367,7 +367,7 @@ void THwUsbCtrl_atsam::HandleIrq()
 
 			volatile uint32_t * pepreg = &regs->UDP_CSR[epid];
 			uint32_t epreg = *pepreg;
-			TRACE("[EP(%i)=%08X]\r\n", epid, epreg);
+			//TRACE("[EP(%i)=%08X]\r\n", epid, epreg);
 
 			if (epreg & UDP_CSR_RXSETUP)
 			{
@@ -385,20 +385,26 @@ void THwUsbCtrl_atsam::HandleIrq()
 			}
 			else if (epreg & UDP_CSR_RX_DATA_BK0)
 			{
-				udp_ep_csreg_bit_clear(pepreg, UDP_CSR_RX_DATA_BK0);
-
 				if (!HandleEpTransferEvent(epid, true))
 				{
 					// todo: handle error
 				}
+
+				if (*pepreg & UDP_CSR_RX_DATA_BK0)
+				{
+					udp_ep_csreg_bit_clear(pepreg, UDP_CSR_RX_DATA_BK0);
+				}
 			}
 			else if (epreg & UDP_CSR_RX_DATA_BK1)
 			{
-				udp_ep_csreg_bit_clear(pepreg, UDP_CSR_RX_DATA_BK1);
-
 				if (!HandleEpTransferEvent(epid, true))
 				{
 					// todo: handle error
+				}
+
+				if (*pepreg & UDP_CSR_RX_DATA_BK1)
+				{
+					udp_ep_csreg_bit_clear(pepreg, UDP_CSR_RX_DATA_BK1);
 				}
 			}
 			else if (epreg & UDP_CSR_TXCOMP)
