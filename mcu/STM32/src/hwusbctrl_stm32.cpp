@@ -378,6 +378,13 @@ bool THwUsbCtrl_stm32::InitHw()
 
   #ifdef RCC_APB1ENR1_USBEN
 	  RCC->APB1ENR1 |= RCC_APB1ENR1_USBEN; // enable USB (MCUSF_G4)
+
+	  RCC->CRRCR |= RCC_CRRCR_HSI48ON;
+	  while ((RCC->CRRCR & RCC_CRRCR_HSI48RDY) == 0)
+	  {
+	  	// wait until it is ready
+	  }
+
   #else
   	RCC->APB1ENR |= RCC_APB1ENR_USBEN; // enable USB
   #endif
