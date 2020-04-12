@@ -37,15 +37,34 @@
 #include "hwusbctrl.h"
 
 #define USB_MAX_ENDPOINTS     6
-#define PACKET_MEMORY_SIZE    1024
 
-#define HWUSBCTRL_REGS        USB_OTG_GlobalTypeDef
+#define USB_MEMORY_SIZE    1280
+#define USB_RX_FIFO_SIZE    640  // for all endpoints, multiple packets
+
+// Unified IN/OUT endpoint register definition
+
+typedef struct
+{
+  __IO uint32_t   CTL;           // IN/OUT Endpoint Control Reg
+  uint32_t        _res04;
+  __IO uint32_t   INT;           // IN/OUT Endpoint Interrupt Reg
+  uint32_t        _res0C;
+  __IO uint32_t   TSIZ;          // IN/OUT Endpoint Transfer Size
+  __IO uint32_t   DMA;           // IN/OUT Endpoint DMA Address Reg
+  __IO uint32_t   TXFSTS;        // IN Endpoint Tx FIFO Status
+  uint32_t        _res1C;
+//
+} THwOtgEndpointRegs;
 
 class THwUsbEndpoint_stm32_otg : public THwUsbEndpoint_pre
 {
 public:
-	uint16_t             rxbufoffs;
-	uint16_t             txbufoffs;
+	uint16_t               txbufoffs = 0;
+	volatile uint32_t *    txfifo = nullptr;
+	volatile uint32_t *    rxfifo = nullptr;
+
+	THwOtgEndpointRegs *   inregs = nullptr;
+	THwOtgEndpointRegs *   outregs = nullptr;
 
 	//__IO uint16_t *      preg;
 	//PUsbPmaDescriptor    pdesc;
@@ -76,12 +95,13 @@ public:
 	USB_OTG_DeviceTypeDef *    regs = nullptr;
 	USB_OTG_GlobalTypeDef *    gregs = nullptr;
 	volatile uint32_t *        pcgctrl = nullptr;
+	volatile uint32_t *        rxfifo = nullptr;
 
-	USB_OTG_INEndpointTypeDef *   inepregs = nullptr;
-	USB_OTG_OUTEndpointTypeDef *  outepregs = nullptr;
+	THwOtgEndpointRegs *       inepregs = nullptr;
+	THwOtgEndpointRegs *       outepregs = nullptr;
 
-	uint32_t                   irq_mask;
-	uint16_t       			       pma_mem_end;
+	uint32_t                   irq_mask = 0;
+	uint16_t       			       fifomem_end = 0; // used FIFO memory (shared RX + every TX)
 
 	bool InitHw();
 
