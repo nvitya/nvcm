@@ -76,8 +76,9 @@
   #include "hwcan_atsam.h"
 #endif
 
-#if defined(HWUSBCTRL_H_) && defined(UDP)
+#if defined(HWUSBCTRL_H_) 
   #include "hwusbctrl_atsam.h"
+  #include "hwusbctrl_atsam_hs.h"
 #endif
 
 #if defined(HWETH_H_) && defined(GMAC)

@@ -19,37 +19,35 @@
  * 3. This notice may not be removed or altered from any source distribution.
  * --------------------------------------------------------------------------- */
 /*
- *  file:     hwusbctrl_atsam.h
- *  brief:    ATSAM USB Controller
+ *  file:     hwusbctrl_atsam_hs.h
+ *  brief:    ATSAM USB HS Controller
  *  version:  1.00
- *  date:     2018-12-11
+ *  date:     2020-04-13
  *  authors:  nvitya
 */
 
-#ifndef HWUSBCTRL_ATSAM_H_
-#define HWUSBCTRL_ATSAM_H_
+#ifndef HWUSBCTRL_ATSAM_HS_H_
+#define HWUSBCTRL_ATSAM_HS_H_
 
 #include "platform.h"
 
-#if defined(UDP)
+#if defined(USBHS)
 
 #define HWUSBCTRL_PRE_ONLY
 #include "hwusbctrl.h"
 
-#define USB_MAX_ENDPOINTS       8
+#define USB_MAX_ENDPOINTS      10
 
 #define PACKET_MEMORY_SIZE    512
 
-#define HWUSBCTRL_REGS  Udp
-
-class THwUsbEndpoint_atsam : public THwUsbEndpoint_pre
+class THwUsbEndpoint_atsam_hs : public THwUsbEndpoint_pre
 {
 public:
 
 	__IO uint8_t *       fiforeg;
 	__IO uint32_t *      csreg;
 
-	virtual ~THwUsbEndpoint_atsam() { }
+	virtual ~THwUsbEndpoint_atsam_hs() { }
 
 	bool ConfigureHwEp();
   int  ReadRecvData(void * buf, uint32_t buflen);
@@ -59,7 +57,7 @@ public:
   void Stall();
   void Nak();
 
-  inline bool IsSetupRequest()  { return (*csreg & UDP_CSR_RXSETUP); }
+  inline bool IsSetupRequest()  { return false; }  // { return (*csreg & UDP_CSR_RXSETUP); }
 
   void EnableRecv();
   void DisableRecv();
@@ -67,10 +65,10 @@ public:
   void FinishSend();
 };
 
-class THwUsbCtrl_atsam : public THwUsbCtrl_pre
+class THwUsbCtrl_atsam_hs : public THwUsbCtrl_pre
 {
 public:
-	HWUSBCTRL_REGS *    regs = nullptr;
+	Usbhs *             regs = nullptr;
 	uint32_t            irq_mask = 0;
 
 	bool InitHw();
@@ -85,9 +83,9 @@ public:
 	void ResetEndpoints();
 };
 
-#define HWUSBENDPOINT_IMPL   THwUsbEndpoint_atsam
-#define HWUSBCTRL_IMPL       THwUsbCtrl_atsam
+#define HWUSBENDPOINT_IMPL   THwUsbEndpoint_atsam_hs
+#define HWUSBCTRL_IMPL       THwUsbCtrl_atsam_hs
 
-#endif // if defined(UDP)
+#endif // if defined(USBHS)
 
-#endif // def HWUSBCTRL_ATSAM_H_
+#endif // def HWUSBCTRL_ATSAM_HS_H_
