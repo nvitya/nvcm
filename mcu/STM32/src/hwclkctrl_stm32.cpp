@@ -639,6 +639,8 @@ bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acp
   RCC->CFGR &= ~RCC_CFGR_PPRE2;
   RCC->CFGR |= RCC_CFGR_PPRE2_DIV2;
 
+	RCC->DCKCFGR2 &= ~(RCC_DCKCFGR2_CK48MSEL); // select the 48 MHz from the PLL
+
 	return true;
 }
 

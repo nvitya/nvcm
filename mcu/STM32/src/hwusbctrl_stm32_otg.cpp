@@ -329,9 +329,6 @@ bool THwUsbCtrl_stm32_otg::InitHw()
 {
 	periph_address = 0;
 
-	// The 48 MHz clock from the main PLL is selected by default, should be running
-	RCC->DCKCFGR2 &= ~(RCC_DCKCFGR2_CK48MSEL); // select the 48 MHz from the PLL
-
 #if defined(USB_OTG_HS)
 	if (1 == devnum)
 	{
@@ -385,18 +382,26 @@ bool THwUsbCtrl_stm32_otg::InitHw()
   regs->GAHBCFG |= USB_OTG_GAHBCFG_DMAEN;
 #endif
 
+  // deactivate OTG / force device
+
   // Select FS device mode
   gregs->GUSBCFG &= ~USB_OTG_GUSBCFG_FHMOD;
   gregs->GUSBCFG |=  USB_OTG_GUSBCFG_FDMOD;
 
   delay_us(50000);  // delay 50 ms
 
-  // deactivate OTG / force device
+
+#if defined(USB_OTG_GCCFG_VBDEN)
 	gregs->GCCFG &= ~USB_OTG_GCCFG_VBDEN;  // Deactivate VBUS Sensing B
 
 	// B-peripheral session valid override enable
 	gregs->GOTGCTL |= USB_OTG_GOTGCTL_BVALOEN;
 	gregs->GOTGCTL |= USB_OTG_GOTGCTL_BVALOVAL;
+#else
+
+	gregs->GCCFG |= (USB_OTG_GCCFG_NOVBUSSENS);
+
+#endif
 
   // Restart the Phy Clock
   *pcgctrl = 0;
