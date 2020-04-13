@@ -773,8 +773,21 @@ void TUsbDevice::ProcessSetupRequest()
 		else if (0x05 == setuprq.request) // set address
 		{
 			devaddr = setuprq.value;
-			set_devaddr_on_ack = true;  // the device address must be set only after the ACK sent
 			LTRACE("Set device address: %i\r\n", devaddr);
+
+#ifdef HWUSB_SET_DADDR_BEFORE_ACK
+
+			// On STM32 OTG USB the address must be set before sending the status !
+
+			set_devaddr_on_ack = false;  // the device address must be set only after the ACK sent
+			SetDeviceAddress(devaddr);
+
+#else
+			// Normally the address must be set only after the status has been sent
+
+			set_devaddr_on_ack = true;  // the device address must be set only after the ACK sent
+#endif
+
 			SendControlStatus(true);
 			return;
 		}

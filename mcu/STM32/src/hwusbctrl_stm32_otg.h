@@ -36,10 +36,12 @@
 #define HWUSBCTRL_PRE_ONLY
 #include "hwusbctrl.h"
 
-#define USB_MAX_ENDPOINTS     6
+#define HWUSB_MAX_ENDPOINTS     6
 
-#define USB_MEMORY_SIZE    1280
-#define USB_RX_FIFO_SIZE    640  // for all endpoints, multiple packets
+#define HWUSB_MEMORY_SIZE    1280
+#define HWUSB_RX_FIFO_SIZE    640  // for all endpoints, multiple packets
+
+#define HWUSB_SET_DADDR_BEFORE_ACK  // set the device address before sending the status (ACK)
 
 // Unified IN/OUT endpoint register definition
 
@@ -63,8 +65,8 @@ public:
 	volatile uint32_t *    txfifo = nullptr;
 	volatile uint32_t *    rxfifo = nullptr;
 
-	THwOtgEndpointRegs *   inregs = nullptr;
-	THwOtgEndpointRegs *   outregs = nullptr;
+	THwOtgEndpointRegs *   txregs = nullptr;
+	THwOtgEndpointRegs *   rxregs = nullptr;
 
 	//__IO uint16_t *      preg;
 	//PUsbPmaDescriptor    pdesc;
@@ -100,6 +102,8 @@ public:
 	THwOtgEndpointRegs *       inepregs = nullptr;
 	THwOtgEndpointRegs *       outepregs = nullptr;
 
+	uint32_t                   rxstatus = 0;  // cached GRXSTSP content
+
 	uint32_t                   irq_mask = 0;
 	uint16_t       			       fifomem_end = 0; // used FIFO memory (shared RX + every TX)
 
@@ -109,7 +113,7 @@ public:
 
 	inline void DisableIrq() {  gregs->GAHBCFG &= ~USB_OTG_GAHBCFG_GINT; }
 	inline void EnableIrq()  {  gregs->GAHBCFG |=  USB_OTG_GAHBCFG_GINT; }
-	inline void SetDeviceAddress(uint8_t aaddr) {} //{ regs->DADDR = (USB_DADDR_EF | (aaddr & 0x7F)); }
+	void SetDeviceAddress(uint8_t aaddr);
 	virtual void SetPullUp(bool aenable);
 
 	void ResetEndpoints();
