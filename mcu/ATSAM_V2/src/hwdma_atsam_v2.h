@@ -60,6 +60,7 @@ public:
 	unsigned           chbit = 0;
 	int                perid = -1;
 	HW_DMA_REGS *      regs = nullptr;
+	HW_DMA_REGS *      llregs = nullptr;
 	HW_DMA_REGS *      wbregs = nullptr;
 	Dmac *             ctrlregs = nullptr;
 #ifndef DMAC_CHID_OFFSET
@@ -81,6 +82,7 @@ public:
 	inline bool Enabled() { return ((wbregs->BTCTRL & 1) != 0); }
 	//inline bool Enabled() { return (chregs->CHSTATUS.bit.BUSY != 0); }
 	inline bool Active()  { return Enabled(); }
+	unsigned Remaining();
 
 	void PrepareTransfer(THwDmaTransfer * axfer);
 	inline void StartPreparedTransfer()              { Enable(); }

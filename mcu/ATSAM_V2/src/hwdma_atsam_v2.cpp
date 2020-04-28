@@ -36,6 +36,9 @@ __attribute__((aligned(16)))
 TDmaChannelDesc  dma_channel_descriptors[MAX_DMA_CHANNELS];
 
 __attribute__((aligned(16)))
+TDmaChannelDesc  dma_channel_ll_descriptors[MAX_DMA_CHANNELS]; // used for circular mode
+
+__attribute__((aligned(16)))
 TDmaChannelDesc  dma_channel_wb_descriptors[MAX_DMA_CHANNELS];
 
 bool dma_global_initialized = false;
@@ -89,6 +92,7 @@ bool THwDmaChannel_atsam_v2::Init(int achnum, int aperid)  // perid = peripheral
 
 	chbit = (1 << chnum);
   regs = &dma_channel_descriptors[chnum];
+  llregs = &dma_channel_ll_descriptors[chnum];
   wbregs = &dma_channel_wb_descriptors[chnum];
 
   uint32_t trigact = 2; // TRIGACT(2): 0 = block, 2 = beat, 3 = transaction
@@ -180,6 +184,21 @@ void THwDmaChannel_atsam_v2::Enable()
 
 #endif
 
+unsigned THwDmaChannel_atsam_v2::Remaining()
+{
+	uint32_t active_reg = ctrlregs->ACTIVE.reg;
+	if (((active_reg >> 8) & 0x1F) == chnum)
+	{
+		// it is the active channel, it is not written back yet, so use the value from here
+		return (active_reg >> 16);
+	}
+	else
+	{
+		// not active, then written back to the WB memory
+	  return wbregs->BTCNT;
+	}
+}
+
 void THwDmaChannel_atsam_v2::PrepareTransfer(THwDmaTransfer * axfer)
 {
 	uint16_t ccreg = 0
@@ -261,6 +280,16 @@ void THwDmaChannel_atsam_v2::PrepareTransfer(THwDmaTransfer * axfer)
 
 	regs->BTCNT = axfer->count;
 	regs->BTCTRL = ccreg;
+
+	if (axfer->flags & DMATR_CIRCULAR)
+	{
+		regs->DESCADDR = (uint32_t)llregs;
+		*llregs = *regs;  // copy to the LL
+	}
+	else
+	{
+		regs->DESCADDR = 0;
+	}
 
 #ifdef DMAC_CHID_OFFSET
   ctrlregs->CHID.reg = chnum;  // select the channel
