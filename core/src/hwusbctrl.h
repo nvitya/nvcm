@@ -91,7 +91,7 @@ public:
 
 #if !defined(HWUSBCTRL_IMPL) || !defined(HWUSBENDPOINT_IMPL)
 
-#define USB_MAX_ENDPOINTS 8
+#define HWUSB_MAX_ENDPOINTS 8
 
 class THwUsbEndpoint_noimpl : public THwUsbEndpoint_pre
 {

@@ -36,16 +36,19 @@
 #define HWUSBCTRL_PRE_ONLY
 #include "hwusbctrl.h"
 
-#define USB_MAX_ENDPOINTS      10
-
-#define PACKET_MEMORY_SIZE    512
+#define HWUSB_MAX_ENDPOINTS      10
 
 class THwUsbEndpoint_atsam_hs : public THwUsbEndpoint_pre
 {
 public:
 
-	__IO uint8_t *       fiforeg;
-	__IO uint32_t *      csreg;
+	__IO uint8_t *       fifo_reg;
+	__IO uint32_t *      cfg_reg;
+	__IO uint32_t *      isr_reg;
+	__IO uint32_t *      icr_reg;
+	__IO uint32_t *      imr_reg;
+	__IO uint32_t *      ier_reg;
+	__IO uint32_t *      idr_reg;
 
 	virtual ~THwUsbEndpoint_atsam_hs() { }
 
@@ -57,7 +60,7 @@ public:
   void Stall();
   void Nak();
 
-  inline bool IsSetupRequest()  { return false; }  // { return (*csreg & UDP_CSR_RXSETUP); }
+  inline bool IsSetupRequest()  { return (*isr_reg & USBHS_DEVEPTISR_RXSTPI); }
 
   void EnableRecv();
   void DisableRecv();

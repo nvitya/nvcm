@@ -37,6 +37,8 @@
 #include "traces.h"
 #include "clockcnt.h"
 
+#define USBHS_RAM_ADDR  0xA0100000
+
 bool THwUsbEndpoint_atsam_hs::ConfigureHwEp()
 {
 	if (!usbctrl)
@@ -44,71 +46,75 @@ bool THwUsbEndpoint_atsam_hs::ConfigureHwEp()
 		return false;
 	}
 
-#if 0
+	cfg_reg = &usbctrl->regs->USBHS_DEVEPTCFG[index];
+	isr_reg = &usbctrl->regs->USBHS_DEVEPTISR[index];
+	icr_reg = &usbctrl->regs->USBHS_DEVEPTICR[index];
+	imr_reg = &usbctrl->regs->USBHS_DEVEPTIMR[index];
+	ier_reg = &usbctrl->regs->USBHS_DEVEPTIER[index];
+	idr_reg = &usbctrl->regs->USBHS_DEVEPTIDR[index];
 
-	fiforeg = (__IO uint8_t *)&(usbctrl->regs->UDP_FDR[index]);
-	csreg = &(usbctrl->regs->UDP_CSR[index]);
+	fifo_reg = (volatile uint8_t *)(USBHS_RAM_ADDR + 0x8000 * index);
 
-	uint32_t tmp;
+	return true;
 
-	tmp = 0
-	  | (0 <<  0)  // TXCOMP,rwc: 1 = TX Completed, w0: clear
-	  | (0 <<  1)  // RX_DATA_BK0: 1 = RX data received into BK0, w0 = clear
-	  | (0 <<  2)  // RXSETUP: 1 = Setup packet is received, w0 = clear
-	  | (0 <<  3)  // STALLSENT: 1 = Host has acknowledged the stall
-	  | (0 <<  4)  // TXPKTRDY: w1 = New data is written into the FIFO and ready to send
-	  | (0 <<  5)  // FORCESTALL: w1 = send stall to host
-	  | (0 <<  6)  // RX_DATA_BK1: 1 = RX data received into BK1 (only for ping-pong endpoints)
-	  | (0 <<  7)  // DIR: control ep direction, 1 = Device to Host (dtoh), 0 = Host do Device (htod)
-	  | (0 <<  8)  // EPTYPE(2): 0 = CTRL, 1 = ISOCHRONOUS, 2 = BULK, 3 = INTERRUPT
-	  | (0 << 10)  // EPDIR: 0 = OUT (htod), 1 = IN (dtoh)
-	  | (0 << 11)  // DTGLE,ro: data toggle
-	  | (1 << 15)  // EPEDS: 1 = enable endpoint, 0 = disable
-	  | (0 << 16)  // RXBYTECNT(11),ro:  Number of Bytes Available in the FIFO
+	uint8_t epsize;
+	if      (maxlen <=    8)  epsize = 0;
+	else if (maxlen <=   16)  epsize = 1;
+	else if (maxlen <=   32)  epsize = 2;
+	else if (maxlen <=   64)  epsize = 3;
+	else if (maxlen <=  128)  epsize = 4;
+	else if (maxlen <=  256)  epsize = 5;
+	else if (maxlen <=  512)  epsize = 6;
+	else          /* 1024 */  epsize = 7;
+
+	uint8_t eptype;
+	if      ((attr & HWUSB_EP_TYPE_MASK) == HWUSB_EP_TYPE_INTERRUPT)  	eptype = 3;
+	else if ((attr & HWUSB_EP_TYPE_MASK) == HWUSB_EP_TYPE_BULK)     		eptype = 2;
+	else if ((attr & HWUSB_EP_TYPE_MASK) == HWUSB_EP_TYPE_ISO)         	eptype = 1;
+	else                                 /* HWUSB_EP_TYPE_CONTROL */  	eptype = 0;
+
+	uint8_t epdir = (dir_htod ? 0 : 1);
+
+	uint32_t cfg = 0
+		| (1      <<  1)  // ALLOC
+		| (0      <<  2)  // EPBK(2): 0 = single bank
+		| (epsize <<  4)  // EPSIZE(3)
+		| (epdir  <<  8)  // EPDIR: 0 = out (dev rx), 1 = in (dev tx)
+		| (0      <<  9)  // AUTOSW: 0 = automatic bank switching disabled
+		| (eptype << 11)  // EPTYPE(2)
+		| (0      << 13)  // NBTRANS(2): transaction count for isochronous EPs
 	;
 
+	*cfg_reg = cfg;
 
-	if ((attr & HWUSB_EP_TYPE_MASK) == HWUSB_EP_TYPE_INTERRUPT)
+	if (0 == (*isr_reg & USBHS_DEVEPTISR_CFGOK))
 	{
-		tmp |= (3 << 8);
-	}
-	else if ((attr & HWUSB_EP_TYPE_MASK) == HWUSB_EP_TYPE_BULK)
-	{
-		tmp |= (2 << 8);
-	}
-	else if ((attr & HWUSB_EP_TYPE_MASK) == HWUSB_EP_TYPE_ISO)
-	{
-		tmp |= (1 << 8);
-	}
-	// else control by default
-
-	if (!iscontrol && !dir_htod)
-	{
-		tmp |= (1 << 10);
+		TRACE("EP(%i) config error\r\n", index);
+		return false;
 	}
 
-	*csreg = tmp;
+	//usbctrl->regs->USBHS_DEVEPT |= (1 << index); // enable the endpoint
 
-	//usbctrl->regs->UDP_IER = (1 << index); // enable the usb interrupt
+	*idr_reg = 0x7F;
+	*icr_reg = (USBHS_DEVEPTIER_RXSTPES | USBHS_DEVEPTIER_RXOUTES | USBHS_DEVEPTIER_TXINES);
+	*ier_reg = (USBHS_DEVEPTIER_RXSTPES | USBHS_DEVEPTIER_RXOUTES | USBHS_DEVEPTIER_TXINES);
 
-#endif
+	usbctrl->irq_mask |= (1 << (12 + index));
 
 	return true;
 }
 
 int THwUsbEndpoint_atsam_hs::ReadRecvData(void * buf, uint32_t buflen)
 {
-#if 0
+	uint32_t tmp = *isr_reg;
 
-	uint32_t tmp = *csreg;
-
-	if ((tmp & (UDP_CSR_RX_DATA_BK0 | UDP_CSR_RX_DATA_BK1 | UDP_CSR_RXSETUP)) == 0)
+	if ((tmp & (USBHS_DEVEPTISR_RXOUTI | USBHS_DEVEPTISR_RXSTPI)) == 0)
 	{
 		// no data to receive
 		return 0;
 	}
 
-	uint32_t cnt = ((tmp >> 16) & 0x7FF);
+	uint32_t cnt = ((tmp >> 20) & 0x7FF);
 
 	if (buflen < cnt)
 	{
@@ -116,51 +122,47 @@ int THwUsbEndpoint_atsam_hs::ReadRecvData(void * buf, uint32_t buflen)
 	}
 
 	uint8_t * pdst = (uint8_t *)buf;
-	for (unsigned i = 0; i < cnt; ++i)
+	uint8_t * pend = pdst + cnt;
+	while (pdst < pend)
 	{
-		*pdst++ = *fiforeg;
+		*pdst++ = *fifo_reg;
 	}
 
 	return cnt;
-#else
-	return 0;
-#endif
 }
 
 int THwUsbEndpoint_atsam_hs::StartSendData(void * buf, unsigned len)
 {
-#if 0
 	int sendlen = len;
 	if (sendlen > maxlen)  sendlen = maxlen;
 
 	if (iscontrol)
 	{
+#if 0
 		// the DIR bit must be set before the RXSETUP is cleared !
 		udp_ep_csreg_bit_set(csreg, UDP_CSR_DIR);
 		if (*csreg & UDP_CSR_RXSETUP)
 		{
 			udp_ep_csreg_bit_clear(csreg, UDP_CSR_RXSETUP);
 		}
+#endif
 	}
 
 	uint8_t * psrc = (uint8_t *)(buf);
-
-	for (uint32_t n = 0; n < sendlen; ++n)
+	uint8_t * pend = psrc + sendlen;
+	while (psrc < pend)
 	{
-		*fiforeg = *psrc++;
+		*fifo_reg = *psrc++;
 	}
 
-	udp_ep_csreg_bit_set(csreg, UDP_CSR_TXPKTRDY);
+	__DSB();
+	__ISB();
 
-	if (*csreg & UDP_CSR_TXCOMP)
-	{
-		udp_ep_csreg_bit_clear(csreg, UDP_CSR_TXCOMP);
-	}
+	*icr_reg = USBHS_DEVEPTICR_TXINIC; // start sending
+
+	*ier_reg = USBHS_DEVEPTIER_TXINES; // enable send interrupt
 
 	return sendlen;
-#else
-	return 0;
-#endif
 }
 
 void THwUsbEndpoint_atsam_hs::SendAck()
@@ -175,14 +177,11 @@ void THwUsbEndpoint_atsam_hs::SendAck()
 			udp_ep_csreg_bit_clear(csreg, UDP_CSR_RXSETUP);
 		}
 	}
-
-	udp_ep_csreg_bit_set(csreg, UDP_CSR_TXPKTRDY);
-
-	if (*csreg & UDP_CSR_TXCOMP)
-	{
-		udp_ep_csreg_bit_clear(csreg, UDP_CSR_TXCOMP);
-	}
 #endif
+
+	*icr_reg = USBHS_DEVEPTICR_TXINIC; // start sending (empty packet)
+
+	*ier_reg = USBHS_DEVEPTIER_TXINES; // enable send interrupt
 }
 
 void THwUsbEndpoint_atsam_hs::Nak()
@@ -191,7 +190,6 @@ void THwUsbEndpoint_atsam_hs::Nak()
 
 void THwUsbEndpoint_atsam_hs::EnableRecv()
 {
-#if 0
 	if (iscontrol)
 	{
 #if 0
@@ -202,24 +200,21 @@ void THwUsbEndpoint_atsam_hs::EnableRecv()
 		}
 #endif
 
-		if (*csreg & UDP_CSR_RXSETUP)
+		if (*isr_reg & USBHS_DEVEPTISR_RXSTPI)
 		{
-			udp_ep_csreg_bit_clear(csreg, UDP_CSR_RXSETUP);
+			*icr_reg = USBHS_DEVEPTISR_RXSTPI;
 		}
 	}
 
-#if 0
-	if (*csreg & UDP_CSR_TXCOMP)
+	if (*isr_reg & USBHS_DEVEPTISR_RXOUTI)
 	{
-		udp_ep_csreg_bit_clear(csreg, UDP_CSR_TXCOMP);
+		*icr_reg = USBHS_DEVEPTISR_RXOUTI;
 	}
-#endif
 
-	if (*csreg & (UDP_CSR_FORCESTALL | UDP_CSR_STALLSENT))
+	if (*imr_reg & USBHS_DEVEPTIMR_STALLRQ)
 	{
-		udp_ep_csreg_bit_clear(csreg, UDP_CSR_FORCESTALL | UDP_CSR_STALLSENT);
+		*idr_reg = USBHS_DEVEPTIDR_STALLRQC;
 	}
-#endif
 }
 
 void THwUsbEndpoint_atsam_hs::DisableRecv()
@@ -239,7 +234,7 @@ void THwUsbEndpoint_atsam_hs::FinishSend()
 
 void THwUsbEndpoint_atsam_hs::Stall()
 {
-	//udp_ep_csreg_bit_set(csreg, UDP_CSR_FORCESTALL);
+	*ier_reg = USBHS_DEVEPTIER_STALLRQS;
 }
 
 /************************************************************************************************************
@@ -264,10 +259,24 @@ bool THwUsbCtrl_atsam_hs::InitHw()
 
 	regs = USBHS;
 
-	// reference recommends enable the USB before enabling its clock
+	// Always authorize asynchrone USB interrupts to exit of sleep mode
+	// For SAM USB wake up device except BACKUP mode
+	PMC->PMC_FSMR |= PMC_FSMR_USBAL;
 
-	regs->USBHS_CTRL |= USBHS_CTRL_USBE;
-	regs->USBHS_CTRL &= ~USBHS_CTRL_FRZCLK;
+	// set device mode + reset USB
+	regs->USBHS_CTRL = USBHS_CTRL_UIMOD_DEVICE;
+
+	regs->USBHS_CTRL |= USBHS_CTRL_USBE; // enable the USB
+
+	tmp = regs->USBHS_DEVCTRL;
+	tmp &= ~USBHS_DEVCTRL_LS; // clear low speed force
+	//tmp &= ~USBHS_DEVCTRL_SPDCONF_Msk; // normal mode, high speed enabled
+	tmp |= USBHS_DEVCTRL_SPDCONF_Msk; // Force Full-Speed mode, disable high-speed
+	regs->USBHS_DEVCTRL = tmp;
+
+
+	// the reference manual suggest to enable USB clock after
+	// enabling the USB device
 
 	// Enable the UPLL (480 MHz clock)
 	PMC->CKGR_UCKR = CKGR_UCKR_UPLLCOUNT(3) | CKGR_UCKR_UPLLEN;
@@ -290,17 +299,8 @@ bool THwUsbCtrl_atsam_hs::InitHw()
 	PMC->PMC_SCER |= PMC_SCER_UOTGCLK;
 #endif
 
-	// Always authorize asynchrone USB interrupts to exit of sleep mode
-	// For SAM USB wake up device except BACKUP mode
-	PMC->PMC_FSMR |= PMC_FSMR_USBAL;
 
-	// ID pin not used then force device mode
-	regs->USBHS_CTRL = USBHS_CTRL_UIMOD_DEVICE;
-
-	tmp = regs->USBHS_DEVCTRL;
-	tmp &= ~USBHS_DEVCTRL_LS; // clear low speed force
-	tmp &= ~USBHS_DEVCTRL_SPDCONF_Msk; // normal mode, high speed enabled
-	regs->USBHS_DEVCTRL = tmp;
+	regs->USBHS_CTRL &= ~USBHS_CTRL_FRZCLK; // un-freeze USB clock
 
 	// Check USB clock
 
@@ -310,8 +310,11 @@ bool THwUsbCtrl_atsam_hs::InitHw()
 	}
 
 	// enable device interrupts (reset only)
-	regs->USBHS_DEVIER = (USBHS_DEVIER_EORSTES);
-	regs->USBHS_DEVICR = (USBHS_DEVICR_EORSTC); // clear pending reset
+	regs->USBHS_DEVIDR = 0xFFFFF07F;
+	irq_mask = USBHS_DEVIER_EORSTES;
+
+	regs->USBHS_DEVICR = 0xFFFFF07F; // clear pending reset
+	regs->USBHS_DEVIER = irq_mask;
 
 	//DisableIrq();
 
@@ -331,6 +334,17 @@ void THwUsbCtrl_atsam_hs::ResetEndpoints()
 	if (regs->USBHS_DEVEPT) { } // some sync
 	if (regs->USBHS_DEVEPT) { } // some sync
 	if (regs->USBHS_DEVEPT) { } // some sync
+
+	// disable all endpoints
+	regs->USBHS_DEVEPT = 0;
+	if (regs->USBHS_DEVEPT) { } // some sync
+
+	// clear allocations
+	for (int i = 0; i < HWUSB_MAX_ENDPOINTS; ++i)
+	{
+		regs->USBHS_DEVEPTCFG[i] = 0;
+		if (regs->USBHS_DEVEPTCFG[i]) { } // some sync
+	}
 }
 
 void THwUsbCtrl_atsam_hs::SetPullUp(bool aenable)
@@ -357,6 +371,7 @@ void THwUsbCtrl_atsam_hs::EnableIrq()
 
 void THwUsbCtrl_atsam_hs::SetDeviceAddress(uint8_t aaddr)
 {
+	// the ADDEN and the device address can not be written at the same time
 	regs->USBHS_DEVCTRL &= ~USBHS_DEVCTRL_ADDEN;
 	regs->USBHS_DEVCTRL &= ~0x7F;
 	regs->USBHS_DEVCTRL |= (aaddr & 0x7F);
@@ -365,108 +380,94 @@ void THwUsbCtrl_atsam_hs::SetDeviceAddress(uint8_t aaddr)
 
 void THwUsbCtrl_atsam_hs::HandleIrq()
 {
+	uint32_t isr = regs->USBHS_DEVISR;
 
-#if 0
-
-	uint32_t isr = regs->UDP_ISR;
-
-	if (isr & 0xFF)  // some endpoint interrupt ?
+	if (isr & 0x3FF000)  // some endpoint interrupt ?
 	{
-		//TRACE("[EP IRQ, ISR=%08X]\r\n", isr);
+		TRACE("[EP IRQ, ISR=%08X]\r\n", isr);
 
-		// Endpoint transfer finished.
-		//PCD_EP_ISR_Handler(hpcd);
-
-		uint32_t rev_epirq = __RBIT(isr & 0xFF);  // prepare for CLZ
+		uint32_t rev_epirq = __RBIT((isr >> 12) & 0x3FF);  // prepare for CLZ
 		while (true)
 		{
 			uint32_t epid = __CLZ(rev_epirq); // returns leading zeros, 32 when the argument = 0
-			if (epid > 7)  break; // -->
+			if (epid >= HWUSB_MAX_ENDPOINTS)  break; // -->
 
-			volatile uint32_t * pepreg = &regs->UDP_CSR[epid];
+			volatile uint32_t * pepreg   = &regs->USBHS_DEVEPTISR[epid];
+			volatile uint32_t * pepicreg = &regs->USBHS_DEVEPTICR[epid];
 			uint32_t epreg = *pepreg;
-			//TRACE("[EP(%i)=%08X]\r\n", epid, epreg);
 
-			if (epreg & UDP_CSR_RXSETUP)
+#if 1
+			TRACE("[EP(%i)=%08X]\r\n", epid, epreg);
+
+			if (epreg & USBHS_DEVEPTISR_RXSTPI)
 			{
-				if (!HandleEpTransferEvent(epid, true))
+				//if (!HandleEpTransferEvent(epid, true))
 				{
 					// todo: handle error
 				}
+
 
 				// warning, the RXSETUP bit must be cleared only AFTER setting the DIR bit so the RXSETUP clear
 				// is included in the handler routines !
-				if (*pepreg & UDP_CSR_RXSETUP)
+				if (*pepreg & USBHS_DEVEPTISR_RXSTPI)
 				{
-					udp_ep_csreg_bit_clear(pepreg, UDP_CSR_RXSETUP);
+					*pepicreg = USBHS_DEVEPTISR_RXSTPI;
 				}
 			}
-			else if (epreg & UDP_CSR_RX_DATA_BK0)
+			else if (epreg & USBHS_DEVEPTISR_RXOUTI)
 			{
-				if (!HandleEpTransferEvent(epid, true))
+				//if (!HandleEpTransferEvent(epid, true))
 				{
 					// todo: handle error
 				}
 
-				if (*pepreg & UDP_CSR_RX_DATA_BK0)
+				if (*pepreg & USBHS_DEVEPTISR_RXOUTI)
 				{
-					udp_ep_csreg_bit_clear(pepreg, UDP_CSR_RX_DATA_BK0);
+					*pepicreg = USBHS_DEVEPTISR_RXOUTI;
 				}
 			}
-			else if (epreg & UDP_CSR_RX_DATA_BK1)
+			else if (epreg & USBHS_DEVEPTISR_TXINI)
 			{
-				if (!HandleEpTransferEvent(epid, true))
+				//if (!HandleEpTransferEvent(epid, false))
 				{
 					// todo: handle error
 				}
-
-				if (*pepreg & UDP_CSR_RX_DATA_BK1)
+				if (*pepreg & USBHS_DEVEPTISR_TXINI)
 				{
-					udp_ep_csreg_bit_clear(pepreg, UDP_CSR_RX_DATA_BK1);
+					*pepicreg = USBHS_DEVEPTISR_TXINI;
 				}
 			}
-			else if (epreg & UDP_CSR_TXCOMP)
-			{
-				if (!HandleEpTransferEvent(epid, false))
-				{
-					// todo: handle error
-				}
-				if (*pepreg & UDP_CSR_TXCOMP)
-				{
-				  udp_ep_csreg_bit_clear(pepreg, UDP_CSR_TXCOMP);
-				}
-			}
+#endif
 
+#if 0
 			if (*pepreg & UDP_CSR_STALLSENT)
 			{
 				udp_ep_csreg_bit_clear(pepreg, UDP_CSR_STALLSENT);
 			}
+#endif
 
 			rev_epirq &= ~(1 << (31-epid));
+
+			regs->USBHS_DEVICR = (1 << (12 + epid));
 		}
 	}
 
-	if (regs->UDP_ISR & UDP_ISR_ENDBUSRES)  // RESET
+	if (isr & USBHS_DEVISR_EORST)  // RESET
 	{
-		TRACE("USB RESET, ISR=%04X\r\n", regs->UDP_ISR);
+		TRACE("USB RESET, ISR=%04X\r\n", isr);
 
 		// disable address, configured state
 
-		HandleReset();
+		//HandleReset();
 
-		regs->UDP_ICR = UDP_ISR_ENDBUSRES;
+		regs->USBHS_DEVICR = USBHS_DEVICR_EORSTC;
 
-		// clear the address
-		//regs->UDP_FADDR = UDP_FADDR_FEN | (0 << 0);  // enable address, set address to 0
-	  regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_FADDEN);
-	  regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_CONFG);
+		SetDeviceAddress(0);  // clear the address
 
-	  regs->UDP_IER = irq_mask;
+		irq_mask = USBHS_DEVIER_EORSTES | (1 << 12);
+		regs->USBHS_DEVIDR = 0xFFFFF07F;
+		regs->USBHS_DEVIER = irq_mask;
 	}
-
-	regs->UDP_ICR = 0xFF00;
-
-#endif
 
 }
 
