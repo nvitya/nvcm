@@ -32,6 +32,7 @@
 #include "platform.h"
 
 extern void swo_putc(char ch);
+extern bool swo_try_send_char(char ch);
 
 #define SWO_MAX_MESSAGE   256   // maximal length of the formatted message, allocated on stack
 extern void swo_printf(const char* fmt, ...);

@@ -40,6 +40,23 @@
   #undef PORT
 #endif
 
+bool swo_try_send_char(char ch)
+{
+  if (((ITM->TCR & ITM_TCR_ITMENA_Msk) != 0UL) &&      /* ITM enabled */
+      ((ITM->TER & 1UL               ) != 0UL)   )     /* ITM Port #0 enabled */
+  {
+    if (ITM->PORT[0U].u32)
+    {
+    	ITM->PORT[0U].u8 = ch;
+    	return true;
+    }
+
+    return false;
+  }
+
+  return true;  // drop the characters when not enabled
+}
+
 void swo_putc(char ch)
 {
   if (((ITM->TCR & ITM_TCR_ITMENA_Msk) != 0UL) &&      /* ITM enabled */
