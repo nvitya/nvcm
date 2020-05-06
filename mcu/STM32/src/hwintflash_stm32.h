@@ -32,8 +32,6 @@
 #define HWINTFLASH_PRE_ONLY
 #include "hwintflash.h"
 
-#if !defined(MCUSF_G4)
-
 #if defined(MCUSF_F4) || defined(MCUSF_F7)
   #define HWINTFLASH_BIGBLOCKS  1
 #else
@@ -71,16 +69,18 @@ protected:
 #if HWINTFLASH_BIGBLOCKS
 
 	uint32_t         cr_reg_base;
+#endif
+
+#ifdef MCUSF_G4
+	bool             dbank;
+#endif
 
 	int              BlockIdFromAddress(uint32_t aaddress);
-#endif
 
 };
 
 #define HWINTFLASH_IMPL     THwIntFlash_stm32
 
 #define HWINTFLASH_OWN_RUN
-
-#endif // !defined(MCUSF_G4)
 
 #endif // def HWINTFLASH_STM32_H_

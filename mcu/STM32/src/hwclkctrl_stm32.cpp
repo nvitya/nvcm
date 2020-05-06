@@ -467,8 +467,10 @@ static bool is_divisible(unsigned nom, unsigned div)
 bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed)
 {
 	// select the HSI as clock source
-  RCC->CFGR &= ~3;
-  RCC->CFGR |= RCC_CFGR_SW_HSI;
+	uint32_t tmp = RCC->CFGR;
+	tmp &= ~RCC_CFGR_SW_Msk;
+  tmp |= RCC_CFGR_SW_HSI;
+	RCC->CFGR = tmp;
   while (((RCC->CFGR >> 2) & 3) != RCC_CFGR_SW_HSI) // wait until it is set
   {
   }

@@ -252,28 +252,31 @@ void THwCan_stm32::SetSpeed(uint32_t aspeed)
 	}
 }
 
-void THwCan_stm32::HandleTx()
+void THwCan_stm32::HandleTx() // warning it can be called from multiple contexts!
 {
+	unsigned pm = __get_PRIMASK();  // save interrupt disable status
+	__disable_irq();
+
 	while (HasTxMessage())
 	{
 		uint32_t txfs = regs->TXFQS;  // store Tx FIFO status register
 
 		if (txfs & FDCAN_TXFQS_TFQF) // is the FIFO full?
 		{
-			return;
+			break;
 		}
 
 		uint32_t tpi = ((txfs >> 16) & 0x03); // get the put index
 		if (tpi >= 3)
 		{
-			return;
+			break;
 		}
 
 		// ok, we can send the message
 		TCanMsg msg;
 		if (!TryGetTxMessage(&msg))
 		{
-			return; // should not happen.
+			break; // should not happen.
 		}
 
 		hwcan_tx_fifo_t * txmb = (txfifo + tpi);
@@ -287,6 +290,8 @@ void THwCan_stm32::HandleTx()
 
 		++tx_msg_counter;
 	}
+
+ 	__set_PRIMASK(pm); // restore interrupt disable status
 }
 
 void THwCan_stm32::HandleRx()
@@ -298,6 +303,7 @@ void THwCan_stm32::HandleRx()
 		if ((rxfs & 0x3) == 0)
 		{
 			regs->IR = 1; // clear the interrupt (RF0N = New Message in RxFIFO0)
+			if (regs->IR) { } // some sync
 			return; // there are no (more) messages
 		}
 

@@ -34,8 +34,6 @@
 #include "hwintflash_stm32.h"
 #include "hwintflash.h"
 
-#if !defined(MCUSF_G4)
-
 #include "hwclkctrl.h"
 
 #include "traces.h"
@@ -48,40 +46,66 @@ bool THwIntFlash_stm32::HwInit()
 
 	bytesize = *(uint16_t *)(FLASHSIZE_BASE) * 1024;
 
-#if HWINTFLASH_BIGBLOCKS
+	pagesize = 256; // used here as burst length
 
-	#if defined(MCUSF_F4)
-		// the first 5 blocks are different in size: 16k, 16k, 16k, 16k, 64k
-		// from the 6th block (sector) are all 128k
+	bank_count = 1;
 
-		erasesize = 128 * 1024;
+#ifdef MCUSF_G4
 
-  #else // F7
+	regs->SR = (FLASH_SR_PGAERR | FLASH_SR_PGSERR | FLASH_SR_PROGERR | FLASH_SR_MISERR | FLASH_SR_SIZERR | FLASH_SR_OPERR);
 
-		// the first 5 blocks are different in size: 32k, 32k, 32k, 32k, 128k
-		// from the 6th block (sector) are all 256k
+	smallest_write = 8;
 
-		erasesize = 256 * 1024;
+	uint32_t fopt = *(uint32_t *)(0x1FFF7800); // flash option bytes
+	dbank = ((fopt & (1 << 22)) != 0);
 
-  #endif
-
-	cr_reg_base = (2 << FLASH_CR_PSIZE_Pos); // select x32 (4 byte) mode
-
-#else
-	if (bytesize <= 64 * 1024)
+	if (!dbank && (bytesize > 128 * 1024))
 	{
-		erasesize = 1024;
+		erasesize = 4096;
 	}
 	else
 	{
 		erasesize = 2048;
 	}
-#endif
 
-	pagesize = 256; // used here as burst length
+#else
+
+	#if HWINTFLASH_BIGBLOCKS
+
+		#if defined(MCUSF_F4)
+			// the first 5 blocks are different in size: 16k, 16k, 16k, 16k, 64k
+			// from the 6th block (sector) are all 128k
+
+			erasesize = 128 * 1024;
+
+		#else // F7
+
+			// the first 5 blocks are different in size: 32k, 32k, 32k, 32k, 128k
+			// from the 6th block (sector) are all 256k
+
+			erasesize = 256 * 1024;
+
+		#endif
+
+		cr_reg_base = (2 << FLASH_CR_PSIZE_Pos); // select x32 (4 byte) mode
+
+	#else
+		if (bytesize <= 64 * 1024)
+		{
+			erasesize = 1024;
+		}
+		else if (bytesize <= 128 * 1024)
+		{
+			erasesize = 2048;
+		}
+		else
+		{
+			erasesize = 4096; // G3 cat 3
+		}
+	#endif
 
 	smallest_write = 4;  // to be more compatible
-	bank_count = 1;
+#endif
 
 	start_address = FLASH_BASE;
 
@@ -132,6 +156,20 @@ int THwIntFlash_stm32::BlockIdFromAddress(uint32_t aaddress)
 	#endif
 }
 
+#else
+
+int THwIntFlash_stm32::BlockIdFromAddress(uint32_t aaddress)
+{
+	if ((aaddress < start_address) || (aaddress >= start_address + bytesize))
+	{
+		return -1;
+	}
+
+	uint32_t fladdr = aaddress - start_address;
+
+	return fladdr / erasesize;
+}
+
 #endif
 
 void THwIntFlash_stm32::Unlock()
@@ -174,6 +212,43 @@ bool THwIntFlash_stm32::CmdFinished()
 
 	return true;
 }
+
+#if defined(MCUSF_G4)
+
+void THwIntFlash_stm32::CmdEraseBlock()
+{
+  int blid = BlockIdFromAddress(address);
+  if (blid < 0)
+  {
+  	return;
+  }
+
+  uint32_t cr = (FLASH_CR_PER | (blid << 3));
+	regs->CR = cr; // prepare sector erase
+	regs->CR = (cr | FLASH_CR_STRT); // start page erase
+}
+
+// the Flash on the G4 is programmed with 64 bit units, so
+// every second call of the Write32 does something different
+
+void THwIntFlash_stm32::Write32(uint32_t * adst, uint32_t avalue)
+{
+  bool firstword = ((((uint32_t)adst) & 4) == 0);
+
+  if (firstword)
+  {
+		while (!CmdFinished())
+		{
+			// wait
+		}
+
+		regs->CR = FLASH_CR_PG;  // prepare write
+  }
+
+	*adst = avalue;
+}
+
+#else
 
 void THwIntFlash_stm32::CmdEraseBlock()
 {
@@ -232,6 +307,8 @@ void THwIntFlash_stm32::Write32(uint32_t * adst, uint32_t avalue)
 #endif
 
 }
+
+#endif
 
 void THwIntFlash_stm32::Run()
 {
@@ -456,4 +533,3 @@ void THwIntFlash_stm32::Run()
 	}
 }
 
-#endif // defined(HWINTFLASH_IMPL)
