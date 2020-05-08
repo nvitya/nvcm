@@ -50,9 +50,9 @@ bool THwIntFlash_stm32::HwInit()
 
 	bank_count = 1;
 
-#ifdef MCUSF_G4
+	regs->SR = 0xFFFF; // clear all error flags
 
-	regs->SR = (FLASH_SR_PGAERR | FLASH_SR_PGSERR | FLASH_SR_PROGERR | FLASH_SR_MISERR | FLASH_SR_SIZERR | FLASH_SR_OPERR);
+#ifdef MCUSF_G4
 
 	smallest_write = 8;
 
@@ -246,6 +246,23 @@ void THwIntFlash_stm32::Write32(uint32_t * adst, uint32_t avalue)
   }
 
 	*adst = avalue;
+
+	if (!firstword)
+	{
+		while (!CmdFinished())
+		{
+			// wait
+		}
+
+#if 0
+		if (regs->SR & (FLASH_SR_PROGERR | FLASH_SR_PGAERR))
+		{
+			TRACE("FLASH programming error!\r\n");
+		}
+#endif
+	}
+
+	__DSB();
 }
 
 #else
@@ -437,14 +454,10 @@ void THwIntFlash_stm32::Run()
 					uint32_t sv = *sptr++;
 					uint32_t dv = *dptr++;
 
-					if (sv != dv)  match = false;
-#if HWINTFLASH_BIGBLOCKS
-					if ((sv & dv) != sv)  // if the flash content has elsewhere zeroes as the source
-#else
-					if (sv != 0)          // only zeroes can be programmed any time
-#endif
+					if (sv != dv)
 					{
-						erase_required = true;
+						match = false;
+						erase_required = true;  // the overwrite not working in every case
 						break;
 					}
 				}
@@ -454,7 +467,7 @@ void THwIntFlash_stm32::Run()
 					//TRACE("Flash content match at %08X\r\n", address);
 					srcaddr += (ebchunk >> 2); // adjust addresses here, which normally incremented during write
 					dstaddr += (ebchunk >> 2);
-					address += (ebchunk >> 2);
+					address += ebchunk;
 					phase = 10; // block finished
 				}
 				else if (erase_required)

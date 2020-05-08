@@ -293,11 +293,14 @@ void THwIntFlash::Run()
 					uint32_t sv = *sptr++;
 					uint32_t dv = *dptr++;
 
-					if (sv != dv)  match = false;
-					if ((sv & dv) != sv)  // if the flash content has elsewhere zeroes as the source
+					if (sv != dv)  
 					{
-						erase_required = true;
-						break;
+						match = false;
+						if ((sv & dv) != sv)  // if the flash content has elsewhere zeroes as the source
+						{
+							erase_required = true;
+							break;
+						}
 					}
 				}
 
@@ -306,7 +309,7 @@ void THwIntFlash::Run()
 					//TRACE("Flash content match at %08X\r\n", address);
 					srcaddr += (ebchunk >> 2); // adjust addresses here, which normally incremented during write
 					dstaddr += (ebchunk >> 2);
-					address += (ebchunk >> 2);
+					address += ebchunk;
 					phase = 10; // block finished
 				}
 				else if (erase_required)
