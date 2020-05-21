@@ -55,8 +55,6 @@ bool THwUsbEndpoint_atsam_hs::ConfigureHwEp()
 
 	fifo_reg = (volatile uint8_t *)(USBHS_RAM_ADDR + 0x8000 * index);
 
-	return true;
-
 	uint8_t epsize;
 	if      (maxlen <=    8)  epsize = 0;
 	else if (maxlen <=   16)  epsize = 1;
@@ -93,11 +91,11 @@ bool THwUsbEndpoint_atsam_hs::ConfigureHwEp()
 		return false;
 	}
 
-	//usbctrl->regs->USBHS_DEVEPT |= (1 << index); // enable the endpoint
+	usbctrl->regs->USBHS_DEVEPT |= (1 << index); // enable the endpoint
 
 	*idr_reg = 0x7F;
-	*icr_reg = (USBHS_DEVEPTIER_RXSTPES | USBHS_DEVEPTIER_RXOUTES | USBHS_DEVEPTIER_TXINES);
-	*ier_reg = (USBHS_DEVEPTIER_RXSTPES | USBHS_DEVEPTIER_RXOUTES | USBHS_DEVEPTIER_TXINES);
+	*icr_reg = (USBHS_DEVEPTIER_RXSTPES | USBHS_DEVEPTIER_RXOUTES);
+	*ier_reg = (USBHS_DEVEPTIER_RXSTPES | USBHS_DEVEPTIER_RXOUTES);
 
 	usbctrl->irq_mask |= (1 << (12 + index));
 
@@ -121,11 +119,12 @@ int THwUsbEndpoint_atsam_hs::ReadRecvData(void * buf, uint32_t buflen)
 		return USBERR_BUFFER_TOO_SMALL;
 	}
 
+	uint8_t * psrc = (uint8_t *)fifo_reg;
 	uint8_t * pdst = (uint8_t *)buf;
 	uint8_t * pend = pdst + cnt;
 	while (pdst < pend)
 	{
-		*pdst++ = *fifo_reg;
+		*pdst++ = *psrc++;
 	}
 
 	return cnt;
@@ -138,21 +137,20 @@ int THwUsbEndpoint_atsam_hs::StartSendData(void * buf, unsigned len)
 
 	if (iscontrol)
 	{
-#if 0
-		// the DIR bit must be set before the RXSETUP is cleared !
-		udp_ep_csreg_bit_set(csreg, UDP_CSR_DIR);
-		if (*csreg & UDP_CSR_RXSETUP)
+		if (*isr_reg & (USBHS_DEVEPTISR_RXSTPI | USBHS_DEVEPTISR_RXOUTI))  // this must be done before the sending, probably for the direction change
 		{
-			udp_ep_csreg_bit_clear(csreg, UDP_CSR_RXSETUP);
+			*icr_reg = (USBHS_DEVEPTISR_RXSTPI | USBHS_DEVEPTISR_RXOUTI)
+					;
+			__DSB();
 		}
-#endif
 	}
 
 	uint8_t * psrc = (uint8_t *)(buf);
+	uint8_t * pdst = (uint8_t *)fifo_reg;
 	uint8_t * pend = psrc + sendlen;
 	while (psrc < pend)
 	{
-		*fifo_reg = *psrc++;
+		*pdst++ = *psrc++;
 	}
 
 	__DSB();
@@ -162,26 +160,27 @@ int THwUsbEndpoint_atsam_hs::StartSendData(void * buf, unsigned len)
 
 	*ier_reg = USBHS_DEVEPTIER_TXINES; // enable send interrupt
 
+	__DSB();
+
 	return sendlen;
 }
 
 void THwUsbEndpoint_atsam_hs::SendAck()
 {
-#if 0
 	if (iscontrol)
 	{
-		// the DIR bit must be set before the RXSETUP is cleared !
-		udp_ep_csreg_bit_set(csreg, UDP_CSR_DIR);
-		if (*csreg & UDP_CSR_RXSETUP)
+		if (*isr_reg & (USBHS_DEVEPTISR_RXSTPI | USBHS_DEVEPTISR_RXOUTI))  // this must be done before the sending, probably for the direction change
 		{
-			udp_ep_csreg_bit_clear(csreg, UDP_CSR_RXSETUP);
+			*icr_reg = (USBHS_DEVEPTISR_RXSTPI | USBHS_DEVEPTISR_RXOUTI);
+			__DSB();
 		}
 	}
-#endif
 
 	*icr_reg = USBHS_DEVEPTICR_TXINIC; // start sending (empty packet)
 
 	*ier_reg = USBHS_DEVEPTIER_TXINES; // enable send interrupt
+
+	__DSB();
 }
 
 void THwUsbEndpoint_atsam_hs::Nak()
@@ -192,14 +191,6 @@ void THwUsbEndpoint_atsam_hs::EnableRecv()
 {
 	if (iscontrol)
 	{
-#if 0
-		// the DIR bit must be set before the RXSETUP is cleared !
-		if (*csreg & UDP_CSR_DIR)
-		{
-			udp_ep_csreg_bit_clear(csreg, UDP_CSR_DIR);
-		}
-#endif
-
 		if (*isr_reg & USBHS_DEVEPTISR_RXSTPI)
 		{
 			*icr_reg = USBHS_DEVEPTISR_RXSTPI;
@@ -215,6 +206,8 @@ void THwUsbEndpoint_atsam_hs::EnableRecv()
 	{
 		*idr_reg = USBHS_DEVEPTIDR_STALLRQC;
 	}
+
+	__DSB();
 }
 
 void THwUsbEndpoint_atsam_hs::DisableRecv()
@@ -267,6 +260,7 @@ bool THwUsbCtrl_atsam_hs::InitHw()
 	regs->USBHS_CTRL = USBHS_CTRL_UIMOD_DEVICE;
 
 	regs->USBHS_CTRL |= USBHS_CTRL_USBE; // enable the USB
+	regs->USBHS_CTRL |= USBHS_CTRL_VBUSHWC;
 
 	tmp = regs->USBHS_DEVCTRL;
 	tmp &= ~USBHS_DEVCTRL_LS; // clear low speed force
@@ -311,7 +305,7 @@ bool THwUsbCtrl_atsam_hs::InitHw()
 
 	// enable device interrupts (reset only)
 	regs->USBHS_DEVIDR = 0xFFFFF07F;
-	irq_mask = USBHS_DEVIER_EORSTES;
+	irq_mask = USBHS_DEVIER_EORSTES | (1 << 12);
 
 	regs->USBHS_DEVICR = 0xFFFFF07F; // clear pending reset
 	regs->USBHS_DEVIER = irq_mask;
@@ -374,8 +368,11 @@ void THwUsbCtrl_atsam_hs::SetDeviceAddress(uint8_t aaddr)
 	// the ADDEN and the device address can not be written at the same time
 	regs->USBHS_DEVCTRL &= ~USBHS_DEVCTRL_ADDEN;
 	regs->USBHS_DEVCTRL &= ~0x7F;
-	regs->USBHS_DEVCTRL |= (aaddr & 0x7F);
-	regs->USBHS_DEVCTRL |= USBHS_DEVCTRL_ADDEN;
+	if (aaddr)
+	{
+		regs->USBHS_DEVCTRL |= (aaddr & 0x7F);
+		regs->USBHS_DEVCTRL |= USBHS_DEVCTRL_ADDEN;
+	}
 }
 
 void THwUsbCtrl_atsam_hs::HandleIrq()
@@ -384,7 +381,7 @@ void THwUsbCtrl_atsam_hs::HandleIrq()
 
 	if (isr & 0x3FF000)  // some endpoint interrupt ?
 	{
-		TRACE("[EP IRQ, ISR=%08X]\r\n", isr);
+		//TRACE("[EP IRQ, ISR=%08X]\r\n", isr);
 
 		uint32_t rev_epirq = __RBIT((isr >> 12) & 0x3FF);  // prepare for CLZ
 		while (true)
@@ -395,49 +392,84 @@ void THwUsbCtrl_atsam_hs::HandleIrq()
 			volatile uint32_t * pepreg   = &regs->USBHS_DEVEPTISR[epid];
 			volatile uint32_t * pepicreg = &regs->USBHS_DEVEPTICR[epid];
 			uint32_t epreg = *pepreg;
+			uint32_t epint = (epreg & regs->USBHS_DEVEPTIMR[epid]);
 
-#if 1
-			TRACE("[EP(%i)=%08X]\r\n", epid, epreg);
+			TRACE("[EP(%i)=%08X, int=%02X]\r\n", epid, epreg, epint);
 
-			if (epreg & USBHS_DEVEPTISR_RXSTPI)
+			if (epint & USBHS_DEVEPTISR_RXSTPI)
 			{
-				//if (!HandleEpTransferEvent(epid, true))
+				if (!HandleEpTransferEvent(epid, true))
 				{
 					// todo: handle error
 				}
 
-
-				// warning, the RXSETUP bit must be cleared only AFTER setting the DIR bit so the RXSETUP clear
-				// is included in the handler routines !
 				if (*pepreg & USBHS_DEVEPTISR_RXSTPI)
 				{
 					*pepicreg = USBHS_DEVEPTISR_RXSTPI;
 				}
 			}
-			else if (epreg & USBHS_DEVEPTISR_RXOUTI)
+			else if (epint & USBHS_DEVEPTISR_RXOUTI)
 			{
-				//if (!HandleEpTransferEvent(epid, true))
+				if (!HandleEpTransferEvent(epid, true))
 				{
 					// todo: handle error
 				}
 
+				regs->USBHS_DEVEPTIDR[epid] = USBHS_DEVEPTISR_TXINI; // disable TXIN interrupt
+
 				if (*pepreg & USBHS_DEVEPTISR_RXOUTI)
 				{
+					// this flag can not be cleared !!! ???
 					*pepicreg = USBHS_DEVEPTISR_RXOUTI;
+
+					__DSB();
+
+					if (*pepreg & USBHS_DEVEPTISR_RXOUTI)
+					{
+						TRACE("RXOUTI flag stuck !!\r\n");
+#if 0
+						regs->USBHS_DEVEPT |= (1 << (16 + epid)); // reset
+						if (regs->USBHS_DEVEPT) { } // some sync
+						regs->USBHS_DEVEPT &= ~(1 << (16 + epid)); // remove reset
+						if (regs->USBHS_DEVEPT) { } // some sync
+#endif
+					}
 				}
 			}
-			else if (epreg & USBHS_DEVEPTISR_TXINI)
+			else if (epint & USBHS_DEVEPTISR_TXINI)
 			{
-				//if (!HandleEpTransferEvent(epid, false))
+				*pepicreg = USBHS_DEVEPTISR_TXINI;
+				regs->USBHS_DEVEPTIDR[epid] = USBHS_DEVEPTISR_TXINI; // disable TXIN interrupt
+
+				if (!HandleEpTransferEvent(epid, false))
 				{
 					// todo: handle error
 				}
-				if (*pepreg & USBHS_DEVEPTISR_TXINI)
-				{
-					*pepicreg = USBHS_DEVEPTISR_TXINI;
-				}
 			}
-#endif
+			else
+			{
+				TRACE("Unhandled EPINT.\r\n");
+			}
+
+			if (*pepreg & USBHS_DEVEPTISR_NAKINI)
+			{
+				*pepicreg = USBHS_DEVEPTISR_NAKINI;
+			}
+
+			if (*pepreg & USBHS_DEVEPTISR_NAKOUTI)
+			{
+				*pepicreg = USBHS_DEVEPTISR_NAKOUTI;
+			}
+
+			if (*pepreg & USBHS_DEVEPTISR_SHORTPACKET)
+			{
+				*pepicreg = USBHS_DEVEPTISR_SHORTPACKET;
+			}
+
+			__DSB();
+			__DSB();
+
+			TRACE("  EPS=%08X\r\n", *pepreg);
 
 #if 0
 			if (*pepreg & UDP_CSR_STALLSENT)
@@ -454,21 +486,34 @@ void THwUsbCtrl_atsam_hs::HandleIrq()
 
 	if (isr & USBHS_DEVISR_EORST)  // RESET
 	{
-		TRACE("USB RESET, ISR=%04X\r\n", isr);
-
-		// disable address, configured state
-
-		//HandleReset();
+		TRACE("USB RESET, ISR=%08X\r\n", isr);
 
 		regs->USBHS_DEVICR = USBHS_DEVICR_EORSTC;
 
-		SetDeviceAddress(0);  // clear the address
+		SetDeviceAddress(0);
 
-		irq_mask = USBHS_DEVIER_EORSTES | (1 << 12);
-		regs->USBHS_DEVIDR = 0xFFFFF07F;
+		irq_mask = USBHS_DEVIER_EORSTES; // reset the IRQ mask, the EP interrupts will be added later
+
+		HandleReset();
+
+		//regs->USBHS_DEVIDR = 0xFFFFF07F;
 		regs->USBHS_DEVIER = irq_mask;
 	}
 
+	if (isr & USBHS_DEVISR_SUSP)
+	{
+		regs->USBHS_DEVICR = USBHS_DEVICR_SUSPC;
+	}
+
+	if (isr & USBHS_DEVISR_WAKEUP)
+	{
+		regs->USBHS_DEVICR = USBHS_DEVICR_WAKEUPC;
+	}
+
+	if (isr & USBHS_DEVISR_EORSM)
+	{
+		regs->USBHS_DEVICR = USBHS_DEVICR_EORSMC;
+	}
 }
 
 
