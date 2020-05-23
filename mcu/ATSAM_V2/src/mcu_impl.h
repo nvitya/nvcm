@@ -69,3 +69,7 @@
 #ifdef HWQSPI_H_
   #include "hwqspi_atsam_v2.h"
 #endif
+
+#if defined(HWUSBCTRL_H_) 
+  #include "hwusbctrl_atsam_v2.h"
+#endif

@@ -229,6 +229,32 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 			// wait for lock
 		}
 
+  #ifdef USB // prepare the DPPL[1] to 48 MHz for the USB
+
+		cpumul = 48000000 / 2000000; // = 24
+
+		OSCCTRL->Dpll[1].DPLLRATIO.reg = 0
+			| ((cpumul - 1) <<  0)  // LDR(13): loop divider
+			| (0            << 16)  // LDRFRAC(5): fractional
+		;
+
+		OSCCTRL->Dpll[1].DPLLCTRLB.reg = 0
+			| ((refdiv - 1) << 16)  // DIV(11): reference divisor = (2 * (DIV + 1))
+			| (1            << 11)  // LBYPASS: Lock bypass
+			| (0            <<  8)  // LTIME(3): lock time
+			| (2            <<  5)  // REFCLK(3): 2 = XOSC0
+		;
+
+		OSCCTRL->Dpll[1].DPLLCTRLA.reg = (1 << 6) | (1 << 1);  // run in standby, enable
+
+		while (!(OSCCTRL->Dpll[1].DPLLSTATUS.bit.LOCK))
+		{
+			// wait for lock
+		}
+
+  #endif
+
+
 #elif defined(MCUSF_C2X)
 
 		OSCCTRL->DPLLRATIO.reg = 0
@@ -276,6 +302,9 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 	// turn on the slow clock, some peripherals (e.g. SERCOM) require it
 	GCLK->PCHCTRL[3].reg = 0x00000043;
 
+	// set the GCLK4 to 48 MHz (DPLL1)
+	atsam2_gclk_setup(4, 8, 1);
+
 #elif defined(MCUSF_C2X)
 
 	MCLK->CPUDIV.reg = 1;
@@ -284,6 +313,16 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 
 	// use GCLK3 as slow clock from the internal 32k source
 	atsam2_gclk_setup(3, 3, 1);
+
+	// set the GCLK4 to 48 MHz
+	if (48000000 == acpuspeed)  // this is highly probable
+	{
+		atsam2_gclk_setup(4, pllid, 1);
+	}
+	else
+	{
+		atsam2_gclk_setup(4, dfll48id, 1);
+	}
 
 #elif defined(MCUSF_DXX)
 
@@ -301,6 +340,10 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 	// GCLK3: sercom base
 	GCLK->GENCTRL.reg = 0x00010703; // Select DFLL48M
 	GCLK->GENDIV.reg  = 0x00000003; // no division for GCLK3
+
+	// GCLK4: USB 48 MHz
+	GCLK->GENCTRL.reg = 0x00010704; // Select DFLL48M
+	GCLK->GENDIV.reg  = 0x00000004; // no division for GCLK4
 
 #else
   #error "Implement clock settings for this subfamily"
