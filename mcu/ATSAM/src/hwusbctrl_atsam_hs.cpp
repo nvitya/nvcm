@@ -28,7 +28,7 @@
 
 #include "platform.h"
 
-#if defined(USBHS)
+#if defined(USBHS) || defined(UOTGHS)
 
 #include "string.h"
 #include <stdio.h>
@@ -37,7 +37,11 @@
 #include "traces.h"
 #include "clockcnt.h"
 
-#define USBHS_RAM_ADDR  0xA0100000
+#if defined(UOTGHS_RAM_ADDR)
+  #define USBHS_RAM_ADDR  UOTGHS_RAM_ADDR
+#else
+  #define USBHS_RAM_ADDR  0xA0100000
+#endif
 
 bool THwUsbEndpoint_atsam_hs::ConfigureHwEp()
 {
@@ -46,12 +50,12 @@ bool THwUsbEndpoint_atsam_hs::ConfigureHwEp()
 		return false;
 	}
 
-	cfg_reg = &usbctrl->regs->USBHS_DEVEPTCFG[index];
-	isr_reg = &usbctrl->regs->USBHS_DEVEPTISR[index];
-	icr_reg = &usbctrl->regs->USBHS_DEVEPTICR[index];
-	imr_reg = &usbctrl->regs->USBHS_DEVEPTIMR[index];
-	ier_reg = &usbctrl->regs->USBHS_DEVEPTIER[index];
-	idr_reg = &usbctrl->regs->USBHS_DEVEPTIDR[index];
+	cfg_reg = &usbctrl->regs->DEVEPTCFG[index];
+	isr_reg = &usbctrl->regs->DEVEPTISR[index];
+	icr_reg = &usbctrl->regs->DEVEPTICR[index];
+	imr_reg = &usbctrl->regs->DEVEPTIMR[index];
+	ier_reg = &usbctrl->regs->DEVEPTIER[index];
+	idr_reg = &usbctrl->regs->DEVEPTIDR[index];
 
 	fifo_reg = (volatile uint8_t *)(USBHS_RAM_ADDR + 0x8000 * index);
 
@@ -85,17 +89,17 @@ bool THwUsbEndpoint_atsam_hs::ConfigureHwEp()
 
 	*cfg_reg = cfg;
 
-	if (0 == (*isr_reg & USBHS_DEVEPTISR_CFGOK))
+	if (0 == (*isr_reg & HWUSB_DEVEPT_CFGOK))
 	{
 		TRACE("EP(%i) config error\r\n", index);
 		return false;
 	}
 
-	usbctrl->regs->USBHS_DEVEPT |= (1 << index); // enable the endpoint
+	usbctrl->regs->DEVEPT |= (1 << index); // enable the endpoint
 
 	*idr_reg = 0x7F;
-	*icr_reg = (USBHS_DEVEPTIER_RXSTPES | USBHS_DEVEPTIER_RXOUTES);
-	*ier_reg = (USBHS_DEVEPTIER_RXSTPES | USBHS_DEVEPTIER_RXOUTES);
+	*icr_reg = (HWUSB_DEVEPT_RXSTP | HWUSB_DEVEPT_RXOUT);
+	*ier_reg = (HWUSB_DEVEPT_RXSTP | HWUSB_DEVEPT_RXOUT);
 
 	usbctrl->irq_mask |= (1 << (12 + index));
 
@@ -106,7 +110,7 @@ int THwUsbEndpoint_atsam_hs::ReadRecvData(void * buf, uint32_t buflen)
 {
 	uint32_t tmp = *isr_reg;
 
-	if ((tmp & (USBHS_DEVEPTISR_RXOUTI | USBHS_DEVEPTISR_RXSTPI)) == 0)
+	if ((tmp & (HWUSB_DEVEPT_RXOUT | HWUSB_DEVEPT_RXSTP)) == 0)
 	{
 		// no data to receive
 		return 0;
@@ -137,10 +141,9 @@ int THwUsbEndpoint_atsam_hs::StartSendData(void * buf, unsigned len)
 
 	if (iscontrol)
 	{
-		if (*isr_reg & (USBHS_DEVEPTISR_RXSTPI | USBHS_DEVEPTISR_RXOUTI))  // this must be done before the sending, probably for the direction change
+		if (*isr_reg & (HWUSB_DEVEPT_RXSTP | HWUSB_DEVEPT_RXOUT))  // this must be done before the sending, probably for the direction change
 		{
-			*icr_reg = (USBHS_DEVEPTISR_RXSTPI | USBHS_DEVEPTISR_RXOUTI)
-					;
+			*icr_reg = (HWUSB_DEVEPT_RXSTP | HWUSB_DEVEPT_RXOUT);
 			__DSB();
 		}
 	}
@@ -156,9 +159,9 @@ int THwUsbEndpoint_atsam_hs::StartSendData(void * buf, unsigned len)
 	__DSB();
 	__ISB();
 
-	*icr_reg = USBHS_DEVEPTICR_TXINIC; // start sending
+	*icr_reg = HWUSB_DEVEPT_TXIN; // start sending
 
-	*ier_reg = USBHS_DEVEPTIER_TXINES; // enable send interrupt
+	*ier_reg = HWUSB_DEVEPT_TXIN; // enable send interrupt
 
 	__DSB();
 
@@ -169,16 +172,16 @@ void THwUsbEndpoint_atsam_hs::SendAck()
 {
 	if (iscontrol)
 	{
-		if (*isr_reg & (USBHS_DEVEPTISR_RXSTPI | USBHS_DEVEPTISR_RXOUTI))  // this must be done before the sending, probably for the direction change
+		if (*isr_reg & (HWUSB_DEVEPT_RXSTP | HWUSB_DEVEPT_RXOUT))  // this must be done before the sending, probably for the direction change
 		{
-			*icr_reg = (USBHS_DEVEPTISR_RXSTPI | USBHS_DEVEPTISR_RXOUTI);
+			*icr_reg = (HWUSB_DEVEPT_RXSTP | HWUSB_DEVEPT_RXOUT);
 			__DSB();
 		}
 	}
 
-	*icr_reg = USBHS_DEVEPTICR_TXINIC; // start sending (empty packet)
+	*icr_reg = HWUSB_DEVEPT_TXIN; // start sending
 
-	*ier_reg = USBHS_DEVEPTIER_TXINES; // enable send interrupt
+	*ier_reg = HWUSB_DEVEPT_TXIN; // enable send interrupt
 
 	__DSB();
 }
@@ -191,20 +194,20 @@ void THwUsbEndpoint_atsam_hs::EnableRecv()
 {
 	if (iscontrol)
 	{
-		if (*isr_reg & USBHS_DEVEPTISR_RXSTPI)
+		if (*isr_reg & HWUSB_DEVEPT_RXSTP)
 		{
-			*icr_reg = USBHS_DEVEPTISR_RXSTPI;
+			*icr_reg = HWUSB_DEVEPT_RXSTP;
 		}
 	}
 
-	if (*isr_reg & USBHS_DEVEPTISR_RXOUTI)
+	if (*isr_reg & HWUSB_DEVEPT_RXOUT)
 	{
-		*icr_reg = USBHS_DEVEPTISR_RXOUTI;
+		*icr_reg = HWUSB_DEVEPT_RXOUT;
 	}
 
-	if (*imr_reg & USBHS_DEVEPTIMR_STALLRQ)
+	if (*imr_reg & HWUSB_DEVEPT_STALLRQ)
 	{
-		*idr_reg = USBHS_DEVEPTIDR_STALLRQC;
+		*idr_reg = HWUSB_DEVEPT_STALLRQ;
 	}
 
 	__DSB();
@@ -227,7 +230,7 @@ void THwUsbEndpoint_atsam_hs::FinishSend()
 
 void THwUsbEndpoint_atsam_hs::Stall()
 {
-	*ier_reg = USBHS_DEVEPTIER_STALLRQS;
+	*ier_reg = HWUSB_DEVEPT_STALLRQ;
 }
 
 /************************************************************************************************************
@@ -240,7 +243,16 @@ bool THwUsbCtrl_atsam_hs::InitHw()
 
 	regs = nullptr;
 
+#if defined(ID_USBHS)
 	unsigned perid = ID_USBHS;
+	regs = (HwUsbRegs *)USBHS;
+#elif defined(ID_UOTGHS)
+	unsigned perid = ID_UOTGHS;
+	regs = (HwUsbRegs *)UOTGHS;
+#else
+	return false;
+#endif
+
 	if (perid < 32)
 	{
 		PMC->PMC_PCER0 = (1 << perid);
@@ -250,23 +262,29 @@ bool THwUsbCtrl_atsam_hs::InitHw()
 		PMC->PMC_PCER1 = (1 << (perid-32));
 	}
 
-	regs = USBHS;
 
 	// Always authorize asynchrone USB interrupts to exit of sleep mode
 	// For SAM USB wake up device except BACKUP mode
 	PMC->PMC_FSMR |= PMC_FSMR_USBAL;
 
 	// set device mode + reset USB
-	regs->USBHS_CTRL = USBHS_CTRL_UIMOD_DEVICE;
+	regs->CTRL &= HWUSB_CTRL_USBE; // disable / reset the USB
 
-	regs->USBHS_CTRL |= USBHS_CTRL_USBE; // enable the USB
-	regs->USBHS_CTRL |= USBHS_CTRL_VBUSHWC;
+	regs->CTRL |= HWUSB_CTRL_USBE; // enable the USB
+	regs->CTRL |= HWUSB_CTRL_UIMOD_DEVICE;
+	regs->CTRL |= HWUSB_CTRL_VBUSHWC;
 
-	tmp = regs->USBHS_DEVCTRL;
-	tmp &= ~USBHS_DEVCTRL_LS; // clear low speed force
-	//tmp &= ~USBHS_DEVCTRL_SPDCONF_Msk; // normal mode, high speed enabled
-	tmp |= USBHS_DEVCTRL_SPDCONF_Msk; // Force Full-Speed mode, disable high-speed
-	regs->USBHS_DEVCTRL = tmp;
+#if defined(UOTGHS_CTRL_OTGPADE)  // on 3X this is also required
+	regs->CTRL |= UOTGHS_CTRL_OTGPADE;
+#endif
+
+	UOTGHS_RAM_ADDR;
+
+	tmp = regs->DEVCTRL;
+	tmp &= ~HWUSB_DEVCTRL_LS; // clear low speed force
+	//tmp &= ~HWUSB_DEVCTRL_SPDCONF_Msk; // normal mode, high speed enabled
+	tmp |= HWUSB_DEVCTRL_SPDCONF_Msk; // Force Full-Speed mode, disable high-speed
+	regs->DEVCTRL = tmp;
 
 
 	// the reference manual suggest to enable USB clock after
@@ -294,25 +312,27 @@ bool THwUsbCtrl_atsam_hs::InitHw()
 #endif
 
 
-	regs->USBHS_CTRL &= ~USBHS_CTRL_FRZCLK; // un-freeze USB clock
+	regs->CTRL &= ~HWUSB_CTRL_FRZCLK; // un-freeze USB clock
 
 	// Check USB clock
 
-	while (0 == (regs->USBHS_SR & USBHS_SR_CLKUSABLE))
+	while (0 == (regs->SR & HWUSB_SR_CLKUSABLE))
 	{
 		// wait until the clock is usable
 	}
 
 	// enable device interrupts (reset only)
-	regs->USBHS_DEVIDR = 0xFFFFF07F;
-	irq_mask = USBHS_DEVIER_EORSTES | (1 << 12);
+	regs->DEVIDR = 0xFFFFF07F;
+	irq_mask = HWUSB_DEVIRQ_EORST | (1 << 12);
 
-	regs->USBHS_DEVICR = 0xFFFFF07F; // clear pending reset
-	regs->USBHS_DEVIER = irq_mask;
+	regs->DEVICR = 0xFFFFF07F; // clear pending reset
+	regs->DEVIER = irq_mask;
 
 	//DisableIrq();
 
   ResetEndpoints();
+
+  SetDeviceAddress(0);
 
 	return true;
 }
@@ -320,24 +340,24 @@ bool THwUsbCtrl_atsam_hs::InitHw()
 void THwUsbCtrl_atsam_hs::ResetEndpoints()
 {
 	// reset all endpoints
-	regs->USBHS_DEVEPT |= (0x3FF << 16); // reset all endpoints
-	if (regs->USBHS_DEVEPT) { } // some sync
-	if (regs->USBHS_DEVEPT) { } // some sync
-	if (regs->USBHS_DEVEPT) { } // some sync
-	regs->USBHS_DEVEPT &= ~(0x3FF << 16); // remove reset
-	if (regs->USBHS_DEVEPT) { } // some sync
-	if (regs->USBHS_DEVEPT) { } // some sync
-	if (regs->USBHS_DEVEPT) { } // some sync
+	regs->DEVEPT |= (0x3FF << 16); // reset all endpoints
+	if (regs->DEVEPT) { } // some sync
+	if (regs->DEVEPT) { } // some sync
+	if (regs->DEVEPT) { } // some sync
+	regs->DEVEPT &= ~(0x3FF << 16); // remove reset
+	if (regs->DEVEPT) { } // some sync
+	if (regs->DEVEPT) { } // some sync
+	if (regs->DEVEPT) { } // some sync
 
 	// disable all endpoints
-	regs->USBHS_DEVEPT = 0;
-	if (regs->USBHS_DEVEPT) { } // some sync
+	regs->DEVEPT = 0;
+	if (regs->DEVEPT) { } // some sync
 
 	// clear allocations
 	for (int i = 0; i < HWUSB_MAX_ENDPOINTS; ++i)
 	{
-		regs->USBHS_DEVEPTCFG[i] = 0;
-		if (regs->USBHS_DEVEPTCFG[i]) { } // some sync
+		regs->DEVEPTCFG[i] = 0;
+		if (regs->DEVEPTCFG[i]) { } // some sync
 	}
 }
 
@@ -345,11 +365,11 @@ void THwUsbCtrl_atsam_hs::SetPullUp(bool aenable)
 {
 	if (aenable)
 	{
-		regs->USBHS_DEVCTRL &= ~USBHS_DEVCTRL_DETACH;
+		regs->DEVCTRL &= ~HWUSB_DEVCTRL_DETACH;
 	}
 	else
 	{
-		regs->USBHS_DEVCTRL |=  USBHS_DEVCTRL_DETACH;
+		regs->DEVCTRL |=  HWUSB_DEVCTRL_DETACH;
 	}
 }
 
@@ -366,18 +386,18 @@ void THwUsbCtrl_atsam_hs::EnableIrq()
 void THwUsbCtrl_atsam_hs::SetDeviceAddress(uint8_t aaddr)
 {
 	// the ADDEN and the device address can not be written at the same time
-	regs->USBHS_DEVCTRL &= ~USBHS_DEVCTRL_ADDEN;
-	regs->USBHS_DEVCTRL &= ~0x7F;
+	regs->DEVCTRL &= ~HWUSB_DEVCTRL_ADDEN;
+	regs->DEVCTRL &= ~0x7F;
 	if (aaddr)
 	{
-		regs->USBHS_DEVCTRL |= (aaddr & 0x7F);
-		regs->USBHS_DEVCTRL |= USBHS_DEVCTRL_ADDEN;
+		regs->DEVCTRL |= (aaddr & 0x7F);
 	}
+	regs->DEVCTRL |= HWUSB_DEVCTRL_ADDEN;
 }
 
 void THwUsbCtrl_atsam_hs::HandleIrq()
 {
-	uint32_t isr = regs->USBHS_DEVISR;
+	uint32_t isr = regs->DEVISR;
 
 	if (isr & 0x3FF000)  // some endpoint interrupt ?
 	{
@@ -389,42 +409,42 @@ void THwUsbCtrl_atsam_hs::HandleIrq()
 			uint32_t epid = __CLZ(rev_epirq); // returns leading zeros, 32 when the argument = 0
 			if (epid >= HWUSB_MAX_ENDPOINTS)  break; // -->
 
-			volatile uint32_t * pepreg   = &regs->USBHS_DEVEPTISR[epid];
-			volatile uint32_t * pepicreg = &regs->USBHS_DEVEPTICR[epid];
+			volatile uint32_t * pepreg   = &regs->DEVEPTISR[epid];
+			volatile uint32_t * pepicreg = &regs->DEVEPTICR[epid];
 			uint32_t epreg = *pepreg;
-			uint32_t epint = (epreg & regs->USBHS_DEVEPTIMR[epid]);
+			uint32_t epint = (epreg & regs->DEVEPTIMR[epid]);
 
 			TRACE("[EP(%i)=%08X, int=%02X]\r\n", epid, epreg, epint);
 
-			if (epint & USBHS_DEVEPTISR_RXSTPI)
+			if (epint & HWUSB_DEVEPT_RXSTP)
 			{
 				if (!HandleEpTransferEvent(epid, true))
 				{
 					// todo: handle error
 				}
 
-				if (*pepreg & USBHS_DEVEPTISR_RXSTPI)
+				if (*pepreg & HWUSB_DEVEPT_RXSTP)
 				{
-					*pepicreg = USBHS_DEVEPTISR_RXSTPI;
+					*pepicreg = HWUSB_DEVEPT_RXSTP;
 				}
 			}
-			else if (epint & USBHS_DEVEPTISR_RXOUTI)
+			else if (epint & HWUSB_DEVEPT_RXOUT)
 			{
 				if (!HandleEpTransferEvent(epid, true))
 				{
 					// todo: handle error
 				}
 
-				regs->USBHS_DEVEPTIDR[epid] = USBHS_DEVEPTISR_TXINI; // disable TXIN interrupt
+				regs->DEVEPTIDR[epid] = HWUSB_DEVEPT_TXIN; // disable TXIN interrupt
 
-				if (*pepreg & USBHS_DEVEPTISR_RXOUTI)
+				if (*pepreg & HWUSB_DEVEPT_RXOUT)
 				{
 					// this flag can not be cleared !!! ???
-					*pepicreg = USBHS_DEVEPTISR_RXOUTI;
+					*pepicreg = HWUSB_DEVEPT_RXOUT;
 
 					__DSB();
 
-					if (*pepreg & USBHS_DEVEPTISR_RXOUTI)
+					if (*pepreg & HWUSB_DEVEPT_RXOUT)
 					{
 						TRACE("RXOUTI flag stuck !!\r\n");
 #if 0
@@ -436,10 +456,10 @@ void THwUsbCtrl_atsam_hs::HandleIrq()
 					}
 				}
 			}
-			else if (epint & USBHS_DEVEPTISR_TXINI)
+			else if (epint & HWUSB_DEVEPT_TXIN)
 			{
-				*pepicreg = USBHS_DEVEPTISR_TXINI;
-				regs->USBHS_DEVEPTIDR[epid] = USBHS_DEVEPTISR_TXINI; // disable TXIN interrupt
+				*pepicreg = HWUSB_DEVEPT_TXIN;
+				regs->DEVEPTIDR[epid] = HWUSB_DEVEPT_TXIN; // disable TXIN interrupt
 
 				if (!HandleEpTransferEvent(epid, false))
 				{
@@ -451,19 +471,19 @@ void THwUsbCtrl_atsam_hs::HandleIrq()
 				TRACE("Unhandled EPINT.\r\n");
 			}
 
-			if (*pepreg & USBHS_DEVEPTISR_NAKINI)
+			if (*pepreg & HWUSB_DEVEPT_NAKIN)
 			{
-				*pepicreg = USBHS_DEVEPTISR_NAKINI;
+				*pepicreg = HWUSB_DEVEPT_NAKIN;
 			}
 
-			if (*pepreg & USBHS_DEVEPTISR_NAKOUTI)
+			if (*pepreg & HWUSB_DEVEPT_NAKOUT)
 			{
-				*pepicreg = USBHS_DEVEPTISR_NAKOUTI;
+				*pepicreg = HWUSB_DEVEPT_NAKOUT;
 			}
 
-			if (*pepreg & USBHS_DEVEPTISR_SHORTPACKET)
+			if (*pepreg & HWUSB_DEVEPT_SHORTPACKET)
 			{
-				*pepicreg = USBHS_DEVEPTISR_SHORTPACKET;
+				*pepicreg = HWUSB_DEVEPT_SHORTPACKET;
 			}
 
 			__DSB();
@@ -480,39 +500,39 @@ void THwUsbCtrl_atsam_hs::HandleIrq()
 
 			rev_epirq &= ~(1 << (31-epid));
 
-			regs->USBHS_DEVICR = (1 << (12 + epid));
+			regs->DEVICR = (1 << (12 + epid));
 		}
 	}
 
-	if (isr & USBHS_DEVISR_EORST)  // RESET
+	if (isr & HWUSB_DEVIRQ_EORST)  // RESET
 	{
 		TRACE("USB RESET, ISR=%08X\r\n", isr);
 
-		regs->USBHS_DEVICR = USBHS_DEVICR_EORSTC;
+		regs->DEVICR = HWUSB_DEVIRQ_EORST;
 
 		SetDeviceAddress(0);
 
-		irq_mask = USBHS_DEVIER_EORSTES; // reset the IRQ mask, the EP interrupts will be added later
+		irq_mask = HWUSB_DEVIRQ_EORST; // reset the IRQ mask, the EP interrupts will be added later
 
 		HandleReset();
 
 		//regs->USBHS_DEVIDR = 0xFFFFF07F;
-		regs->USBHS_DEVIER = irq_mask;
+		regs->DEVIER = irq_mask;
 	}
 
-	if (isr & USBHS_DEVISR_SUSP)
+	if (isr & HWUSB_DEVIRQ_SUSP)
 	{
-		regs->USBHS_DEVICR = USBHS_DEVICR_SUSPC;
+		regs->DEVICR = HWUSB_DEVIRQ_SUSP;
 	}
 
-	if (isr & USBHS_DEVISR_WAKEUP)
+	if (isr & HWUSB_DEVIRQ_WAKEUP)
 	{
-		regs->USBHS_DEVICR = USBHS_DEVICR_WAKEUPC;
+		regs->DEVICR = HWUSB_DEVIRQ_WAKEUP;
 	}
 
-	if (isr & USBHS_DEVISR_EORSM)
+	if (isr & HWUSB_DEVIRQ_EORSM)
 	{
-		regs->USBHS_DEVICR = USBHS_DEVICR_EORSMC;
+		regs->DEVICR = HWUSB_DEVIRQ_EORSM;
 	}
 }
 
