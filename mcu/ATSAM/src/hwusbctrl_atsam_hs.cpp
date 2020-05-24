@@ -99,7 +99,16 @@ bool THwUsbEndpoint_atsam_hs::ConfigureHwEp()
 
 	*idr_reg = 0x7F;
 	*icr_reg = (HWUSB_DEVEPT_RXSTP | HWUSB_DEVEPT_RXOUT);
-	*ier_reg = (HWUSB_DEVEPT_RXSTP | HWUSB_DEVEPT_RXOUT);
+
+	if (iscontrol)
+	{
+		// the RXOUT flag sometimes can not be cleared therefore do not enable the RXOUT IRQ !
+		*ier_reg = (HWUSB_DEVEPT_RXSTP);
+	}
+	else
+	{
+		*ier_reg = (HWUSB_DEVEPT_RXOUT);
+	}
 
 	usbctrl->irq_mask |= (1 << (12 + index));
 
@@ -131,6 +140,13 @@ int THwUsbEndpoint_atsam_hs::ReadRecvData(void * buf, uint32_t buflen)
 		*pdst++ = *psrc++;
 	}
 
+	*icr_reg = (HWUSB_DEVEPT_RXOUT | HWUSB_DEVEPT_RXSTP);
+
+	if (!iscontrol)
+	{
+		*idr_reg = HWUSB_DEVEPT_FIFOCON;  // FIFO CONTROL clear, switches bank
+	}
+
 	return cnt;
 }
 
@@ -159,6 +175,10 @@ int THwUsbEndpoint_atsam_hs::StartSendData(void * buf, unsigned len)
 	__DSB();
 	__ISB();
 
+	if (!iscontrol)
+	{
+		*idr_reg = HWUSB_DEVEPT_FIFOCON;  // FIFO CONTROL clear, switches bank
+	}
 	*icr_reg = HWUSB_DEVEPT_TXIN; // start sending
 
 	*ier_reg = HWUSB_DEVEPT_TXIN; // enable send interrupt
@@ -277,8 +297,6 @@ bool THwUsbCtrl_atsam_hs::InitHw()
 #if defined(UOTGHS_CTRL_OTGPADE)  // on 3X this is also required
 	regs->CTRL |= UOTGHS_CTRL_OTGPADE;
 #endif
-
-	UOTGHS_RAM_ADDR;
 
 	tmp = regs->DEVCTRL;
 	tmp &= ~HWUSB_DEVCTRL_LS; // clear low speed force
@@ -414,7 +432,12 @@ void THwUsbCtrl_atsam_hs::HandleIrq()
 			uint32_t epreg = *pepreg;
 			uint32_t epint = (epreg & regs->DEVEPTIMR[epid]);
 
-			TRACE("[EP(%i)=%08X, int=%02X]\r\n", epid, epreg, epint);
+			//TRACE("[EP(%i)=%08X, int=%02X]\r\n", epid, epreg, epint);
+
+			if (epreg & (HWUSB_DEVEPT_NAKIN | HWUSB_DEVEPT_NAKOUT | HWUSB_DEVEPT_SHORTPACKET))
+			{
+				*pepicreg = (HWUSB_DEVEPT_NAKIN | HWUSB_DEVEPT_NAKOUT | HWUSB_DEVEPT_SHORTPACKET);
+			}
 
 			if (epint & HWUSB_DEVEPT_RXSTP)
 			{
@@ -423,7 +446,9 @@ void THwUsbCtrl_atsam_hs::HandleIrq()
 					// todo: handle error
 				}
 
-				if (*pepreg & HWUSB_DEVEPT_RXSTP)
+				__DSB();
+
+				if (*pepreg & HWUSB_DEVEPT_RXSTP)  // this sould not be the case
 				{
 					*pepicreg = HWUSB_DEVEPT_RXSTP;
 				}
@@ -437,23 +462,11 @@ void THwUsbCtrl_atsam_hs::HandleIrq()
 
 				regs->DEVEPTIDR[epid] = HWUSB_DEVEPT_TXIN; // disable TXIN interrupt
 
+				__DSB();
+
 				if (*pepreg & HWUSB_DEVEPT_RXOUT)
 				{
-					// this flag can not be cleared !!! ???
-					*pepicreg = HWUSB_DEVEPT_RXOUT;
-
-					__DSB();
-
-					if (*pepreg & HWUSB_DEVEPT_RXOUT)
-					{
-						TRACE("RXOUTI flag stuck !!\r\n");
-#if 0
-						regs->USBHS_DEVEPT |= (1 << (16 + epid)); // reset
-						if (regs->USBHS_DEVEPT) { } // some sync
-						regs->USBHS_DEVEPT &= ~(1 << (16 + epid)); // remove reset
-						if (regs->USBHS_DEVEPT) { } // some sync
-#endif
-					}
+					*pepicreg = HWUSB_DEVEPT_RXOUT;  // this flag sometimes can not be cleared !!!
 				}
 			}
 			else if (epint & HWUSB_DEVEPT_TXIN)
@@ -471,36 +484,11 @@ void THwUsbCtrl_atsam_hs::HandleIrq()
 				TRACE("Unhandled EPINT.\r\n");
 			}
 
-			if (*pepreg & HWUSB_DEVEPT_NAKIN)
-			{
-				*pepicreg = HWUSB_DEVEPT_NAKIN;
-			}
+			///TRACE("  EPS=%08X\r\n", *pepreg);
 
-			if (*pepreg & HWUSB_DEVEPT_NAKOUT)
-			{
-				*pepicreg = HWUSB_DEVEPT_NAKOUT;
-			}
+			regs->DEVICR = (1 << (12 + epid)); // clear EP interrupt flag
 
-			if (*pepreg & HWUSB_DEVEPT_SHORTPACKET)
-			{
-				*pepicreg = HWUSB_DEVEPT_SHORTPACKET;
-			}
-
-			__DSB();
-			__DSB();
-
-			TRACE("  EPS=%08X\r\n", *pepreg);
-
-#if 0
-			if (*pepreg & UDP_CSR_STALLSENT)
-			{
-				udp_ep_csreg_bit_clear(pepreg, UDP_CSR_STALLSENT);
-			}
-#endif
-
-			rev_epirq &= ~(1 << (31-epid));
-
-			regs->DEVICR = (1 << (12 + epid));
+			rev_epirq &= ~(1 << (31-epid));  // going to the next ep with the CLZ
 		}
 	}
 

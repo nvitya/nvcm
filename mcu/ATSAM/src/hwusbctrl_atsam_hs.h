@@ -154,6 +154,7 @@ typedef struct {
 #define HWUSB_DEVEPT_DTSEQ_Msk    (0x3u << HWUSB_DEVEPT_DTSEQ_Pos) /**< \brief (HWUSB_DEVEPT[10]) Data Toggle Sequence */
 #define HWUSB_DEVEPT_NBUSYBK_Pos  12
 #define HWUSB_DEVEPT_NBUSYBK_Msk  (0x3u << HWUSB_DEVEPT_NBUSYBK_Pos) /**< \brief (HWUSB_DEVEPT[10]) Number of Busy Banks */
+#define HWUSB_DEVEPT_FIFOCON      (1 << 14) /**< \brief (UOTGHS_DEVEPTIDR[10]) FIFO Control Clear */
 #define HWUSB_DEVEPT_CURRBK_Pos   14
 #define HWUSB_DEVEPT_CURRBK_Msk   (0x3u << HWUSB_DEVEPT_CURRBK_Pos) /**< \brief (HWUSB_DEVEPT[10]) Current Bank */
 #define HWUSB_DEVEPT_RWALL        (1 << 16) /**< \brief (HWUSB_DEVEPT[10]) Read/Write Allowed */
