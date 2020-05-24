@@ -36,20 +36,51 @@
 
 #if defined(USB)
 
+UsbDeviceDescriptor hwusb_desc_table[USB_MAX_ENDPOINTS]  __attribute__((aligned(32)));
+
+uint8_t hwusb_rx_buffer[USB_RX_BUFFER_SIZE];
+uint8_t hwusb_tx_buffer[USB_TX_BUFFER_SIZE];
+
 bool THwUsbEndpoint_atsam_v2::ConfigureHwEp()
 {
+	uint32_t tmp;
+
 	if (!usbctrl)
 	{
 		return false;
 	}
 
+	regs = &usbctrl->regs->DEVICE.DeviceEndpoint[index];
+	rxdesc = &hwusb_desc_table[index].DeviceDescBank[0];
+	txdesc = &hwusb_desc_table[index].DeviceDescBank[1];
+
+	if ((attr & HWUSB_EP_TYPE_MASK) == HWUSB_EP_TYPE_INTERRUPT)
+	{
+		tmp = 4;
+	}
+	else if ((attr & HWUSB_EP_TYPE_MASK) == HWUSB_EP_TYPE_BULK)
+	{
+		tmp = 3;
+	}
+	else if ((attr & HWUSB_EP_TYPE_MASK) == HWUSB_EP_TYPE_ISO)
+	{
+		tmp = 2;
+	}
+	else
+	{
+		tmp = 0x11;  // both directions are used!
+	}
+	// else control by default
+
+	if (!iscontrol && !dir_htod)
+	{
+		tmp <<= 4;
+	}
+	regs->EPCFG.reg = tmp;
+
+	// TODO: allocate memory
+
 #if 0
-
-	fiforeg = (__IO uint8_t *)&(usbctrl->regs->UDP_FDR[index]);
-	csreg = &(usbctrl->regs->UDP_CSR[index]);
-
-	uint32_t tmp;
-
 	tmp = 0
 	  | (0 <<  0)  // TXCOMP,rwc: 1 = TX Completed, w0: clear
 	  | (0 <<  1)  // RX_DATA_BK0: 1 = RX data received into BK0, w0 = clear
@@ -65,36 +96,9 @@ bool THwUsbEndpoint_atsam_v2::ConfigureHwEp()
 	  | (1 << 15)  // EPEDS: 1 = enable endpoint, 0 = disable
 	  | (0 << 16)  // RXBYTECNT(11),ro:  Number of Bytes Available in the FIFO
 	;
-
-
-	if ((attr & HWUSB_EP_TYPE_MASK) == HWUSB_EP_TYPE_INTERRUPT)
-	{
-		tmp |= (3 << 8);
-	}
-	else if ((attr & HWUSB_EP_TYPE_MASK) == HWUSB_EP_TYPE_BULK)
-	{
-		tmp |= (2 << 8);
-	}
-	else if ((attr & HWUSB_EP_TYPE_MASK) == HWUSB_EP_TYPE_ISO)
-	{
-		tmp |= (1 << 8);
-	}
-	// else control by default
-
-	if (!iscontrol && !dir_htod)
-	{
-		tmp |= (1 << 10);
-	}
-
-	*csreg = tmp;
-
-	//usbctrl->regs->UDP_IER = (1 << index); // enable the usb interrupt
+#endif
 
 	return true;
-
-#else
-	return false;
-#endif
 }
 
 int THwUsbEndpoint_atsam_v2::ReadRecvData(void * buf, uint32_t buflen)
@@ -247,73 +251,112 @@ void THwUsbEndpoint_atsam_v2::Stall()
 
 bool THwUsbCtrl_atsam_v2::InitHw()
 {
-#if 0
-	unsigned perid = ID_UDP;
-	if (perid < 32)
-	{
-		PMC->PMC_PCER0 = (1 << perid);
-	}
-	else
-	{
-		PMC->PMC_PCER1 = (1 << (perid-32));
-	}
-
 	regs = USB;
 
-  // the USB clock (48 MHz) is already prepared in the hwclkctrl
+	// setup peripheral clock
+	GCLK->PCHCTRL[USB_GCLK_ID].reg = ((1 << 6) | (0 << 0));   // select main clock frequency + enable
 
-	// enable USB clock
-#if defined(PMC_SCER_UDP)
-	PMC->PMC_SCER |= PMC_SCER_UDP;
-#elif defined(PMC_SCER_USBCLK)
-	PMC->PMC_SCER |= PMC_SCER_USBCLK;
-#elif defined(PMC_SCER_UOTGCLK)
-	PMC->PMC_SCER |= PMC_SCER_UOTGCLK;
-#endif
+	MCLK->AHBMASK.bit.USB_ = 1;
+	MCLK->APBBMASK.bit.USB_ = 1;
 
-	DisableIrq();
+	// reset
+	if (!regs->DEVICE.SYNCBUSY.bit.SWRST)
+	{
+		if (regs->DEVICE.CTRLA.bit.ENABLE)
+		{
+			regs->DEVICE.CTRLA.bit.ENABLE = 1;
+			while (regs->DEVICE.SYNCBUSY.bit.ENABLE)
+			{
+				// wait
+			}
+		}
+		regs->DEVICE.CTRLA.bit.SWRST = 1;
+	}
 
-	// clear clearable interrupts
-	regs->UDP_ICR = UDP_ISR_RXSUSP | UDP_ISR_RXRSM | UDP_ISR_EXTRSM | UDP_ISR_SOFINT | UDP_ISR_ENDBUSRES | UDP_ISR_WAKEUP;
+	while (regs->DEVICE.SYNCBUSY.bit.SWRST)
+	{
+		// wait for reset end
+	}
 
-	irq_mask = 0xFF | UDP_ISR_ENDBUSRES;
+	LoadCalibration();
 
-  // clear device address:
-  regs->UDP_FADDR = 0;
-  regs->UDP_GLB_STAT = 0; //UDP_GLB_STAT_RMWUPE | UDP_GLB_STAT_ESR;
+	regs->DEVICE.CTRLA.bit.RUNSTDBY = 1;
+	regs->DEVICE.CTRLB.bit.SPDCONF = 0; // 0 = full speed, 1 = low speed
+	regs->DEVICE.CTRLB.bit.DETACH = 1;
 
-  regs->UDP_IER = irq_mask;
+	// reset endpoints
+	regs->DEVICE.DESCADD.reg = (uint32_t)&hwusb_desc_table[0];
 
-#endif
+	ResetEndpoints();
 
-  ResetEndpoints();
+	// enable the IRQs:
+	irq_mask = USB_DEVICE_INTENSET_EORST;
+	  //(USB_DEVICE_INTENSET_SOF | USB_DEVICE_INTENSET_EORST | USB_DEVICE_INTENSET_RAMACER
+	  //| USB_DEVICE_INTFLAG_LPMSUSP | USB_DEVICE_INTFLAG_SUSPEND); // suspend state IRQ flags
+
+	regs->DEVICE.INTENSET.reg = irq_mask;
+
+	// enable the device
+	regs->DEVICE.CTRLA.bit.ENABLE = 1;
 
 	return true;
 }
 
+void THwUsbCtrl_atsam_v2::LoadCalibration()
+{
+  // this code is taken from the ASF library
+
+#define NVM_USB_PAD_TRANSN_POS 32
+#define NVM_USB_PAD_TRANSN_SIZE 5
+#define NVM_USB_PAD_TRANSP_POS 37
+#define NVM_USB_PAD_TRANSP_SIZE 5
+#define NVM_USB_PAD_TRIM_POS 42
+#define NVM_USB_PAD_TRIM_SIZE 3
+	uint32_t pad_transn
+	    = (*((uint32_t *)(NVMCTRL_SW0) + (NVM_USB_PAD_TRANSN_POS / 32)) >> (NVM_USB_PAD_TRANSN_POS % 32))
+	      & ((1 << NVM_USB_PAD_TRANSN_SIZE) - 1);
+	uint32_t pad_transp
+	    = (*((uint32_t *)(NVMCTRL_SW0) + (NVM_USB_PAD_TRANSP_POS / 32)) >> (NVM_USB_PAD_TRANSP_POS % 32))
+	      & ((1 << NVM_USB_PAD_TRANSP_SIZE) - 1);
+	uint32_t pad_trim = (*((uint32_t *)(NVMCTRL_SW0) + (NVM_USB_PAD_TRIM_POS / 32)) >> (NVM_USB_PAD_TRIM_POS % 32))
+	                    & ((1 << NVM_USB_PAD_TRIM_SIZE) - 1);
+	if (pad_transn == 0 || pad_transn == 0x1F)
+	{
+		pad_transn = 9;
+	}
+	if (pad_transp == 0 || pad_transp == 0x1F)
+	{
+		pad_transp = 25;
+	}
+	if (pad_trim == 0 || pad_trim == 0x7)
+	{
+		pad_trim = 6;
+	}
+
+	regs->DEVICE.PADCAL.reg = USB_PADCAL_TRANSN(pad_transn) | USB_PADCAL_TRANSP(pad_transp) | USB_PADCAL_TRIM(pad_trim);
+
+	regs->DEVICE.QOSCTRL.bit.CQOS = 3;
+	regs->DEVICE.QOSCTRL.bit.DQOS = 3;
+}
+
+
 void THwUsbCtrl_atsam_v2::ResetEndpoints()
 {
-#if 0
-	// reset all endpoints
-	regs->UDP_RST_EP = 0xFF;
-	if (regs->UDP_RST_EP) { } // some sync
-	if (regs->UDP_RST_EP) { } // some sync
-	if (regs->UDP_RST_EP) { } // some sync
-	regs->UDP_RST_EP = 0x00;
-	if (regs->UDP_RST_EP) { } // some sync
-	if (regs->UDP_RST_EP) { } // some sync
-	if (regs->UDP_RST_EP) { } // some sync
-#endif
+	memset(&hwusb_desc_table, 0, sizeof(hwusb_desc_table));
+	rx_mem_alloc = 0;
+	tx_mem_alloc = 0;
 }
 
 void THwUsbCtrl_atsam_v2::SetPullUp(bool aenable)
 {
-#if 0
-	regs->UDP_TXVC = 0
-		| (0 << 8)  // 0 = transceiver enabled, 1 = transceived disabled
-		| (1 << 9)  // enable pullup
-	;
-#endif
+	if (aenable)
+	{
+		regs->DEVICE.CTRLB.bit.DETACH = 0;
+	}
+	else
+	{
+		regs->DEVICE.CTRLB.bit.DETACH = 1;
+	}
 }
 
 void THwUsbCtrl_atsam_v2::DisableIrq()
@@ -328,14 +371,7 @@ void THwUsbCtrl_atsam_v2::EnableIrq()
 
 void THwUsbCtrl_atsam_v2::SetDeviceAddress(uint8_t aaddr)
 {
-#if 0
-	regs->UDP_GLB_STAT &= ~UDP_GLB_STAT_FADDEN;
-  regs->UDP_FADDR &= UDP_FADDR_FEN;
-
-  regs->UDP_FADDR = (aaddr & 0x7F);
-  regs->UDP_FADDR |= UDP_FADDR_FEN;
-	regs->UDP_GLB_STAT |= UDP_GLB_STAT_FADDEN;
-#endif
+	regs->DEVICE.DADD.reg = ((aaddr & 0x7F) | USB_DEVICE_DADD_ADDEN);
 }
 
 void THwUsbCtrl_atsam_v2::HandleIrq()
@@ -482,6 +518,5 @@ void THwUsbCtrl_atsam_v2::HandleIrq()
 
 #endif
 }
-
 
 #endif

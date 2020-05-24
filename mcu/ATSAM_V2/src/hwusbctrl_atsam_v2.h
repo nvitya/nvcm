@@ -38,14 +38,15 @@
 
 #define USB_MAX_ENDPOINTS       8
 
-#define PACKET_MEMORY_SIZE    512
+#define USB_RX_BUFFER_SIZE    256
+#define USB_TX_BUFFER_SIZE    256
 
 class THwUsbEndpoint_atsam_v2 : public THwUsbEndpoint_pre
 {
 public:
-
-	__IO uint8_t *       fiforeg;
-	__IO uint32_t *      csreg;
+	UsbDeviceEndpoint *  regs = nullptr;
+	UsbDeviceDescBank *  rxdesc = nullptr;
+	UsbDeviceDescBank *  txdesc = nullptr;
 
 	virtual ~THwUsbEndpoint_atsam_v2() { }
 
@@ -71,6 +72,9 @@ public:
 	Usb *               regs = nullptr;
 	uint32_t            irq_mask = 0;
 
+	uint16_t            rx_mem_alloc = 0;
+	uint16_t            tx_mem_alloc = 0;
+
 	bool InitHw();
 
 	void HandleIrq();
@@ -81,6 +85,9 @@ public:
 	virtual void SetPullUp(bool aenable);
 
 	void ResetEndpoints();
+
+protected:
+	void LoadCalibration(); // ATSAM_V2 speciality
 };
 
 #define HWUSBENDPOINT_IMPL   THwUsbEndpoint_atsam_v2
