@@ -48,6 +48,9 @@ public:
 	UsbDeviceDescBank *  rxdesc = nullptr;
 	UsbDeviceDescBank *  txdesc = nullptr;
 
+	uint8_t *            rxmem = nullptr;
+	uint8_t *            txmem = nullptr;
+
 	virtual ~THwUsbEndpoint_atsam_v2() { }
 
 	bool ConfigureHwEp();
@@ -69,7 +72,7 @@ public:
 class THwUsbCtrl_atsam_v2 : public THwUsbCtrl_pre
 {
 public:
-	Usb *               regs = nullptr;
+	UsbDevice *         regs = nullptr;
 	uint32_t            irq_mask = 0;
 
 	uint16_t            rx_mem_alloc = 0;

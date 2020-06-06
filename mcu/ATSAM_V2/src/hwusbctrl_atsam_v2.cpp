@@ -36,6 +36,14 @@
 
 #if defined(USB)
 
+#define HWUSB_INTFLAG_TRCPT0   (1 << 0)
+#define HWUSB_INTFLAG_TRCPT1   (1 << 1)
+#define HWUSB_INTFLAG_TRFAIL0  (1 << 2)
+#define HWUSB_INTFLAG_TRFAIL1  (1 << 3)
+#define HWUSB_INTFLAG_RXSTP    (1 << 4)
+#define HWUSB_INTFLAG_STALL0   (1 << 5)
+#define HWUSB_INTFLAG_STALL1   (1 << 6)
+
 UsbDeviceDescriptor hwusb_desc_table[USB_MAX_ENDPOINTS]  __attribute__((aligned(32)));
 
 uint8_t hwusb_rx_buffer[USB_RX_BUFFER_SIZE];
@@ -50,9 +58,39 @@ bool THwUsbEndpoint_atsam_v2::ConfigureHwEp()
 		return false;
 	}
 
-	regs = &usbctrl->regs->DEVICE.DeviceEndpoint[index];
+	regs = &usbctrl->regs->DeviceEndpoint[index];
 	rxdesc = &hwusb_desc_table[index].DeviceDescBank[0];
 	txdesc = &hwusb_desc_table[index].DeviceDescBank[1];
+
+	// correct the maxlen
+
+	uint32_t lencode;
+
+	if      (maxlen > 512)  lencode = 7;  // 513 .. 1023
+	else if (maxlen > 256)  lencode = 6;  // 257 ..  512
+	else if (maxlen > 128)  lencode = 5;  // 129 ..  256
+	else if (maxlen >  64)  lencode = 4;  //  65 ..  128
+	else if (maxlen >  32)  lencode = 3;  //  33 ..   64
+	else if (maxlen >  16)  lencode = 2;  //  17 ..   32
+	else if (maxlen >   8)  lencode = 1;  //   9 ..   16
+	else                    lencode = 0;  //   0 ..    8
+
+	maxlen = (8 << lencode);
+
+
+	uint16_t htod_len;
+	uint16_t dtoh_len;
+
+	if (dir_htod)
+	{
+		htod_len = maxlen;
+		dtoh_len = 0;
+	}
+	else
+	{
+		htod_len = 0;
+		dtoh_len = maxlen;
+	}
 
 	if ((attr & HWUSB_EP_TYPE_MASK) == HWUSB_EP_TYPE_INTERRUPT)
 	{
@@ -66,11 +104,12 @@ bool THwUsbEndpoint_atsam_v2::ConfigureHwEp()
 	{
 		tmp = 2;
 	}
-	else
+	else // else control by default
 	{
+		htod_len = maxlen;
+		dtoh_len = maxlen;
 		tmp = 0x11;  // both directions are used!
 	}
-	// else control by default
 
 	if (!iscontrol && !dir_htod)
 	{
@@ -78,25 +117,46 @@ bool THwUsbEndpoint_atsam_v2::ConfigureHwEp()
 	}
 	regs->EPCFG.reg = tmp;
 
-	// TODO: allocate memory
+	// allocate memory
 
-#if 0
-	tmp = 0
-	  | (0 <<  0)  // TXCOMP,rwc: 1 = TX Completed, w0: clear
-	  | (0 <<  1)  // RX_DATA_BK0: 1 = RX data received into BK0, w0 = clear
-	  | (0 <<  2)  // RXSETUP: 1 = Setup packet is received, w0 = clear
-	  | (0 <<  3)  // STALLSENT: 1 = Host has acknowledged the stall
-	  | (0 <<  4)  // TXPKTRDY: w1 = New data is written into the FIFO and ready to send
-	  | (0 <<  5)  // FORCESTALL: w1 = send stall to host
-	  | (0 <<  6)  // RX_DATA_BK1: 1 = RX data received into BK1 (only for ping-pong endpoints)
-	  | (0 <<  7)  // DIR: control ep direction, 1 = Device to Host (dtoh), 0 = Host do Device (htod)
-	  | (0 <<  8)  // EPTYPE(2): 0 = CTRL, 1 = ISOCHRONOUS, 2 = BULK, 3 = INTERRUPT
-	  | (0 << 10)  // EPDIR: 0 = OUT (htod), 1 = IN (dtoh)
-	  | (0 << 11)  // DTGLE,ro: data toggle
-	  | (1 << 15)  // EPEDS: 1 = enable endpoint, 0 = disable
-	  | (0 << 16)  // RXBYTECNT(11),ro:  Number of Bytes Available in the FIFO
-	;
-#endif
+	if (htod_len + usbctrl->rx_mem_alloc > USB_RX_BUFFER_SIZE)
+	{
+		// does not fit into the memory!
+		return false;
+	}
+
+	if (dtoh_len + usbctrl->tx_mem_alloc > USB_TX_BUFFER_SIZE)
+	{
+		// does not fit into the memory!
+		return false;
+	}
+
+	// ok, prepare the descriptors
+	memset(rxdesc, 0, sizeof(UsbDeviceDescBank));
+	memset(txdesc, 0, sizeof(UsbDeviceDescBank));
+	rxmem = nullptr;
+	txmem = nullptr;
+
+	if (htod_len > 0)
+	{
+		rxmem = &hwusb_rx_buffer[usbctrl->rx_mem_alloc];
+		rxdesc->ADDR.reg = (uint32_t)rxmem;
+		rxdesc->PCKSIZE.reg = (lencode << 28) | (maxlen << 14);
+		usbctrl->rx_mem_alloc += htod_len;
+	}
+
+	if (dtoh_len > 0)
+	{
+		txmem = &hwusb_rx_buffer[usbctrl->tx_mem_alloc];
+		txdesc->ADDR.reg = (uint32_t)txmem;
+		txdesc->PCKSIZE.reg = (lencode << 28);
+		usbctrl->tx_mem_alloc += dtoh_len;
+	}
+
+	regs->EPSTATUSCLR.reg = 0xFF;
+
+	regs->EPINTENCLR.reg = 0xFF;
+	regs->EPINTENSET.reg = (HWUSB_INTFLAG_RXSTP | HWUSB_INTFLAG_TRCPT0 | HWUSB_INTFLAG_TRCPT1);
 
 	return true;
 }
@@ -163,6 +223,7 @@ int THwUsbEndpoint_atsam_v2::StartSendData(void * buf, unsigned len)
 
 	return sendlen;
 #else
+	return 0;
 #endif
 }
 
@@ -251,7 +312,7 @@ void THwUsbEndpoint_atsam_v2::Stall()
 
 bool THwUsbCtrl_atsam_v2::InitHw()
 {
-	regs = USB;
+	regs = &USB->DEVICE;
 
 	// setup peripheral clock
 	GCLK->PCHCTRL[USB_GCLK_ID].reg = ((1 << 6) | (0 << 0));   // select main clock frequency + enable
@@ -260,32 +321,32 @@ bool THwUsbCtrl_atsam_v2::InitHw()
 	MCLK->APBBMASK.bit.USB_ = 1;
 
 	// reset
-	if (!regs->DEVICE.SYNCBUSY.bit.SWRST)
+	if (!regs->SYNCBUSY.bit.SWRST)
 	{
-		if (regs->DEVICE.CTRLA.bit.ENABLE)
+		if (regs->CTRLA.bit.ENABLE)
 		{
-			regs->DEVICE.CTRLA.bit.ENABLE = 1;
-			while (regs->DEVICE.SYNCBUSY.bit.ENABLE)
+			regs->CTRLA.bit.ENABLE = 1;
+			while (regs->SYNCBUSY.bit.ENABLE)
 			{
 				// wait
 			}
 		}
-		regs->DEVICE.CTRLA.bit.SWRST = 1;
+		regs->CTRLA.bit.SWRST = 1;
 	}
 
-	while (regs->DEVICE.SYNCBUSY.bit.SWRST)
+	while (regs->SYNCBUSY.bit.SWRST)
 	{
 		// wait for reset end
 	}
 
 	LoadCalibration();
 
-	regs->DEVICE.CTRLA.bit.RUNSTDBY = 1;
-	regs->DEVICE.CTRLB.bit.SPDCONF = 0; // 0 = full speed, 1 = low speed
-	regs->DEVICE.CTRLB.bit.DETACH = 1;
+	regs->CTRLA.bit.RUNSTDBY = 1;
+	regs->CTRLB.bit.SPDCONF = 0; // 0 = full speed, 1 = low speed
+	regs->CTRLB.bit.DETACH = 1;
 
 	// reset endpoints
-	regs->DEVICE.DESCADD.reg = (uint32_t)&hwusb_desc_table[0];
+	regs->DESCADD.reg = (uint32_t)&hwusb_desc_table[0];
 
 	ResetEndpoints();
 
@@ -294,10 +355,10 @@ bool THwUsbCtrl_atsam_v2::InitHw()
 	  //(USB_DEVICE_INTENSET_SOF | USB_DEVICE_INTENSET_EORST | USB_DEVICE_INTENSET_RAMACER
 	  //| USB_DEVICE_INTFLAG_LPMSUSP | USB_DEVICE_INTFLAG_SUSPEND); // suspend state IRQ flags
 
-	regs->DEVICE.INTENSET.reg = irq_mask;
+	regs->INTENSET.reg = irq_mask;
 
 	// enable the device
-	regs->DEVICE.CTRLA.bit.ENABLE = 1;
+	regs->CTRLA.bit.ENABLE = 1;
 
 	return true;
 }
@@ -333,10 +394,10 @@ void THwUsbCtrl_atsam_v2::LoadCalibration()
 		pad_trim = 6;
 	}
 
-	regs->DEVICE.PADCAL.reg = USB_PADCAL_TRANSN(pad_transn) | USB_PADCAL_TRANSP(pad_transp) | USB_PADCAL_TRIM(pad_trim);
+	regs->PADCAL.reg = USB_PADCAL_TRANSN(pad_transn) | USB_PADCAL_TRANSP(pad_transp) | USB_PADCAL_TRIM(pad_trim);
 
-	regs->DEVICE.QOSCTRL.bit.CQOS = 3;
-	regs->DEVICE.QOSCTRL.bit.DQOS = 3;
+	regs->QOSCTRL.bit.CQOS = 3;
+	regs->QOSCTRL.bit.DQOS = 3;
 }
 
 
@@ -351,11 +412,11 @@ void THwUsbCtrl_atsam_v2::SetPullUp(bool aenable)
 {
 	if (aenable)
 	{
-		regs->DEVICE.CTRLB.bit.DETACH = 0;
+		regs->CTRLB.bit.DETACH = 0;
 	}
 	else
 	{
-		regs->DEVICE.CTRLB.bit.DETACH = 1;
+		regs->CTRLB.bit.DETACH = 1;
 	}
 }
 
@@ -371,152 +432,41 @@ void THwUsbCtrl_atsam_v2::EnableIrq()
 
 void THwUsbCtrl_atsam_v2::SetDeviceAddress(uint8_t aaddr)
 {
-	regs->DEVICE.DADD.reg = ((aaddr & 0x7F) | USB_DEVICE_DADD_ADDEN);
+	regs->DADD.reg = ((aaddr & 0x7F) | USB_DEVICE_DADD_ADDEN);
 }
 
 void THwUsbCtrl_atsam_v2::HandleIrq()
 {
-#if 0
-	uint32_t isr = regs->UDP_ISR;
+	uint32_t intflag = regs->INTFLAG.reg;
 
-	if (isr & 0xFF)  // some endpoint interrupt ?
+	if (intflag & USB_DEVICE_INTFLAG_EORST)
 	{
-		//TRACE("[EP IRQ, ISR=%08X]\r\n", isr);
-
-		// Endpoint transfer finished.
-		//PCD_EP_ISR_Handler(hpcd);
-
-		uint32_t rev_epirq = __RBIT(isr & 0xFF);  // prepare for CLZ
-		while (true)
-		{
-			uint32_t epid = __CLZ(rev_epirq); // returns leading zeros, 32 when the argument = 0
-			if (epid > 7)  break; // -->
-
-			volatile uint32_t * pepreg = &regs->UDP_CSR[epid];
-			uint32_t epreg = *pepreg;
-			//TRACE("[EP(%i)=%08X]\r\n", epid, epreg);
-
-			if (epreg & UDP_CSR_RXSETUP)
-			{
-				if (!HandleEpTransferEvent(epid, true))
-				{
-					// todo: handle error
-				}
-
-				// warning, the RXSETUP bit must be cleared only AFTER setting the DIR bit so the RXSETUP clear
-				// is included in the handler routines !
-				if (*pepreg & UDP_CSR_RXSETUP)
-				{
-					udp_ep_csreg_bit_clear(pepreg, UDP_CSR_RXSETUP);
-				}
-			}
-			else if (epreg & UDP_CSR_RX_DATA_BK0)
-			{
-				if (!HandleEpTransferEvent(epid, true))
-				{
-					// todo: handle error
-				}
-
-				if (*pepreg & UDP_CSR_RX_DATA_BK0)
-				{
-					udp_ep_csreg_bit_clear(pepreg, UDP_CSR_RX_DATA_BK0);
-				}
-			}
-			else if (epreg & UDP_CSR_RX_DATA_BK1)
-			{
-				if (!HandleEpTransferEvent(epid, true))
-				{
-					// todo: handle error
-				}
-
-				if (*pepreg & UDP_CSR_RX_DATA_BK1)
-				{
-					udp_ep_csreg_bit_clear(pepreg, UDP_CSR_RX_DATA_BK1);
-				}
-			}
-			else if (epreg & UDP_CSR_TXCOMP)
-			{
-				if (!HandleEpTransferEvent(epid, false))
-				{
-					// todo: handle error
-				}
-				if (*pepreg & UDP_CSR_TXCOMP)
-				{
-				  udp_ep_csreg_bit_clear(pepreg, UDP_CSR_TXCOMP);
-				}
-			}
-
-			if (*pepreg & UDP_CSR_STALLSENT)
-			{
-				udp_ep_csreg_bit_clear(pepreg, UDP_CSR_STALLSENT);
-			}
-
-			rev_epirq &= ~(1 << (31-epid));
-		}
-	}
-
-	if (regs->UDP_ISR & UDP_ISR_ENDBUSRES)  // RESET
-	{
-		TRACE("USB RESET, ISR=%04X\r\n", regs->UDP_ISR);
+		TRACE("USB RESET, INTFLAG=%04X\r\n", intflag);
 
 		// disable address, configured state
+		SetDeviceAddress(0);
 
 		HandleReset();
 
-		regs->UDP_ICR = UDP_ISR_ENDBUSRES;
+		regs->INTFLAG.reg = USB_DEVICE_INTFLAG_EORST; // ack reset
 
-		// clear the address
-		//regs->UDP_FADDR = UDP_FADDR_FEN | (0 << 0);  // enable address, set address to 0
-	  regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_FADDEN);
-	  regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_CONFG);
-
-	  regs->UDP_IER = irq_mask;
 	}
 
-#if 0
-
-	if (regs->UDP_ISR & UDP_ISR_WAKEUP)
+	uint32_t rev_epirq = __RBIT(regs->EPINTSMRY.reg);
+	while (true)
 	{
-		TRACE("USB WKUP, ISR=%04X\r\n", regs->UDP_ISR);
-		regs->UDP_ICR = (UDP_ISR_RXRSM | UDP_ISR_EXTRSM | UDP_ISR_WAKEUP);
-		if (regs->UDP_ISR) { }
-		if (regs->UDP_ISR) { }
-		if (regs->UDP_ISR) { }
-		regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_RMWUPE);
-		regs->UDP_GLB_STAT |=  (UDP_GLB_STAT_ESR);
-		regs->UDP_ICR = UDP_ISR_RXSUSP;
+		uint32_t epid = __CLZ(rev_epirq); // returns leading zeros, 32 when the argument = 0
+		if (epid >= USB_MAX_ENDPOINTS)  break; // -->
+
+		UsbDeviceEndpoint * pep = &regs->DeviceEndpoint[epid];
+
+		uint8_t epreg = pep->EPINTFLAG.reg;
+		TRACE("[EP(%i)=%02X]\r\n", epid, epreg);
+
+		__BKPT();
+
+		rev_epirq &= ~(1 << (31-epid));
 	}
-
-	if (regs->UDP_ISR & UDP_ISR_RXRSM)
-	{
-		TRACE("USB RESUME, ISTR=%04X\r\n", regs->UDP_ISR);
-		regs->UDP_ICR = (UDP_ISR_RXRSM | UDP_ISR_EXTRSM | UDP_ISR_WAKEUP);
-		regs->UDP_GLB_STAT &= ~(UDP_GLB_STAT_ESR);
-	  regs->UDP_IER = ((0x3F << 8) | 0xFF); // enable all special interrupts + endpoint interrupts
-		regs->UDP_ICR = UDP_ISR_RXSUSP;
-	}
-
-
-	if (regs->UDP_ISR & UDP_ISR_RXSUSP)
-	{
-		TRACE("USB SUSP, ISTR=%04X\r\n", regs->UDP_ISR);
-		//regs->UDP_ICR = (UDP_ISR_RXRSM | UDP_ISR_EXTRSM | UDP_ISR_WAKEUP);
-		regs->UDP_GLB_STAT |= (UDP_GLB_STAT_RMWUPE);
-		regs->UDP_ICR = UDP_ISR_RXSUSP;
-	}
-
-
-	if (regs->UDP_ISR & UDP_ISR_SOFINT)
-	{
-		//TRACE("USB SOF, ISTR=%04X\r\n", regs->UDP_ISR);
-		regs->UDP_ICR = UDP_ISR_SOFINT;
-	}
-
-#endif
-
-	regs->UDP_ICR = 0xFF00;
-
-#endif
 }
 
 #endif
