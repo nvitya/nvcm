@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <hwusbctrl.h>
+#include "atsam_v2_utils.h"
 #include "traces.h"
 
 #if defined(USB)
@@ -149,14 +150,20 @@ bool THwUsbEndpoint_atsam_v2::ConfigureHwEp()
 	{
 		txmem = &hwusb_rx_buffer[usbctrl->tx_mem_alloc];
 		txdesc->ADDR.reg = (uint32_t)txmem;
-		txdesc->PCKSIZE.reg = (lencode << 28);
+		txdesc->PCKSIZE.reg = (lencode << 28) | (maxlen << 0); // why is it necessary to write the count field ?
 		usbctrl->tx_mem_alloc += dtoh_len;
 	}
 
 	regs->EPSTATUSCLR.reg = 0xFF;
 
-	regs->EPINTENCLR.reg = 0xFF;
-	regs->EPINTENSET.reg = (HWUSB_INTFLAG_RXSTP | HWUSB_INTFLAG_TRCPT0 | HWUSB_INTFLAG_TRCPT1);
+	uint8_t intenmask = (HWUSB_INTFLAG_RXSTP | HWUSB_INTFLAG_TRCPT0 | HWUSB_INTFLAG_TRCPT1);
+	regs->EPINTENCLR.reg = ~intenmask;
+	regs->EPINTENSET.reg = intenmask;
+
+	if (htod_len > 0)
+	{
+	  regs->EPSTATUSSET.bit.BK0RDY = 1;
+	}
 
 	return true;
 }
@@ -255,6 +262,8 @@ void THwUsbEndpoint_atsam_v2::Nak()
 
 void THwUsbEndpoint_atsam_v2::EnableRecv()
 {
+	//regs->EPSTATUSSET.bit.BK0RDY
+
 #if 0
 	if (iscontrol)
 	{
@@ -314,11 +323,12 @@ bool THwUsbCtrl_atsam_v2::InitHw()
 {
 	regs = &USB->DEVICE;
 
-	// setup peripheral clock
-	GCLK->PCHCTRL[USB_GCLK_ID].reg = ((1 << 6) | (0 << 0));   // select main clock frequency + enable
-
+	// enable USB AHB clock (for the peripheral access)
 	MCLK->AHBMASK.bit.USB_ = 1;
 	MCLK->APBBMASK.bit.USB_ = 1;
+
+	// setup 48 MHz clock
+	atsam2_set_periph_gclk(USB_GCLK_ID, 4); // the GCLK 4 is prepared in the hwclkctrl.cpp to 48 MHz
 
 	// reset
 	if (!regs->SYNCBUSY.bit.SWRST)
@@ -403,6 +413,11 @@ void THwUsbCtrl_atsam_v2::LoadCalibration()
 
 void THwUsbCtrl_atsam_v2::ResetEndpoints()
 {
+	for (int i = 0; i < USB_MAX_ENDPOINTS; ++i)
+	{
+		regs->DeviceEndpoint[i].EPCFG.reg = 0;
+	}
+
 	memset(&hwusb_desc_table, 0, sizeof(hwusb_desc_table));
 	rx_mem_alloc = 0;
 	tx_mem_alloc = 0;
@@ -432,24 +447,51 @@ void THwUsbCtrl_atsam_v2::EnableIrq()
 
 void THwUsbCtrl_atsam_v2::SetDeviceAddress(uint8_t aaddr)
 {
-	regs->DADD.reg = ((aaddr & 0x7F) | USB_DEVICE_DADD_ADDEN);
+	regs->DADD.reg = (aaddr & 0x7F);
+
+	if (aaddr)  regs->DADD.bit.ADDEN = 1;
 }
 
 void THwUsbCtrl_atsam_v2::HandleIrq()
 {
+
+	UsbDeviceEndpoint * pep0 = &regs->DeviceEndpoint[0];
+	if (pep0->EPINTFLAG.reg)
+	{
+		TRACE("EP0 INTFLAG = %04X\r\n", pep0->EPINTFLAG.reg);
+	}
+
+
 	uint32_t intflag = regs->INTFLAG.reg;
 
-	if (intflag & USB_DEVICE_INTFLAG_EORST)
+	if (intflag)
 	{
-		TRACE("USB RESET, INTFLAG=%04X\r\n", intflag);
+		//TRACE("INTFLAG=%04X\r\n", intflag);
 
-		// disable address, configured state
-		SetDeviceAddress(0);
+		if (intflag & USB_DEVICE_INTFLAG_EORST)
+		{
+			TRACE("USB RESET %04X\r\n", intflag);
 
-		HandleReset();
+			// disable address, configured state
+			SetDeviceAddress(0);
 
-		regs->INTFLAG.reg = USB_DEVICE_INTFLAG_EORST; // ack reset
+			HandleReset();
 
+			regs->INTFLAG.reg = USB_DEVICE_INTFLAG_EORST; // ack reset
+
+			__NOP(); // for brakepoint
+			__NOP(); // for brakepoint
+		}
+		else if (intflag & USB_DEVICE_INTFLAG_SUSPEND)
+		{
+			// suspend
+			regs->INTFLAG.reg = USB_DEVICE_INTFLAG_SUSPEND;
+		}
+		else if (intflag & (USB_DEVICE_INTFLAG_UPRSM | USB_DEVICE_INTFLAG_EORSM | USB_DEVICE_INTFLAG_WAKEUP))
+		{
+			// wakeup
+			regs->INTFLAG.reg = (USB_DEVICE_INTFLAG_UPRSM | USB_DEVICE_INTFLAG_EORSM | USB_DEVICE_INTFLAG_WAKEUP);
+		}
 	}
 
 	uint32_t rev_epirq = __RBIT(regs->EPINTSMRY.reg);
@@ -462,8 +504,6 @@ void THwUsbCtrl_atsam_v2::HandleIrq()
 
 		uint8_t epreg = pep->EPINTFLAG.reg;
 		TRACE("[EP(%i)=%02X]\r\n", epid, epreg);
-
-		__BKPT();
 
 		rev_epirq &= ~(1 << (31-epid));
 	}
