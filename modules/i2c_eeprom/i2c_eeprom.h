@@ -52,8 +52,8 @@ public:
 
 	bool           Init(THwI2c * ai2c, uint8_t aaddr, uint32_t abytesize);
 
-	int 					 StartReadMem(unsigned aaddr, void * adstptr, unsigned alen);
-	int 					 StartWriteMem(unsigned aaddr, void * asrcptr, unsigned alen);
+	bool 					 StartReadMem(unsigned aaddr, void * adstptr, unsigned alen);
+	bool 					 StartWriteMem(unsigned aaddr, void * asrcptr, unsigned alen);
 
 	void           Run();
 	int            WaitComplete();
