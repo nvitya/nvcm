@@ -69,7 +69,7 @@ bool TI2cEeprom::Init(THwI2c * ai2c, uint8_t aaddr, uint32_t abytesize)
 	return true;
 }
 
-int TI2cEeprom::StartReadMem(unsigned aaddr, void * adstptr, unsigned alen)
+bool TI2cEeprom::StartReadMem(unsigned aaddr, void * adstptr, unsigned alen)
 {
 	if (!initialized)
 	{
@@ -105,25 +105,25 @@ int TI2cEeprom::StartReadMem(unsigned aaddr, void * adstptr, unsigned alen)
 	return (errorcode == 0);
 }
 
-int TI2cEeprom::StartWriteMem(unsigned aaddr, void * asrcptr, unsigned alen)
+bool TI2cEeprom::StartWriteMem(unsigned aaddr, void * asrcptr, unsigned alen)
 {
 	if (!initialized)
 	{
 		errorcode = ERROR_NOTINIT;
 		completed = true;
-		return errorcode;
+		return false;
 	}
 
 	if (!completed)
 	{
 		errorcode = ERROR_BUSY;  // this might be overwriten later
-		return errorcode;
+		return false;
 	}
 
 	if (aaddr + alen > bytesize)
 	{
 		errorcode = ERROR_WRITE;
-		return errorcode;
+		return false;
 	}
 
 	dataptr = (uint8_t *)asrcptr;
@@ -138,7 +138,7 @@ int TI2cEeprom::StartWriteMem(unsigned aaddr, void * asrcptr, unsigned alen)
 
 	Run();
 
-	return errorcode;
+	return (errorcode == 0);
 }
 
 void TI2cEeprom::Run()
