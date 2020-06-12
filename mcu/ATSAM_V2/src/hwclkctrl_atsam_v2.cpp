@@ -163,11 +163,24 @@ void THwClkCtrl_atsam_v2::PrepareHiSpeed(unsigned acpuspeed)
 
 }
 
+#if defined(MCUSF_DXX) || defined(MCUSF_C2X)
+
+#define HWPLL_OSC_MIN_FREQ  48000000
+#define HWPLL_OSC_MAX_FREQ  96000000
+
+#elif defined(MCUSF_E5X)
+
+#define HWPLL_OSC_MIN_FREQ  96000000
+#define HWPLL_OSC_MAX_FREQ 200000000
+
+#endif
+
 // GCLK allocation:
 //   GCLK0: CPU Clock and Main Peripheral clock (DFPLL / DPLL)
 //   GCLK1: reserved for low frequencies (only this GCLK has 16 bit divider), and this can be used as source for other GCLK
 //   GCLK2: 48 MHz from the internal DFLL48M (the I2C requires that)
 //   GCLK3: 32 kHz Slow Clock
+//   GCLK4: 48 MHz, used by the USB
 
 bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed)
 {
@@ -180,6 +193,8 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 #endif
 
 	uint32_t xoscid = 0;
+
+	uint32_t cpu_gclk_div = 1;
 
 	// might be called repeatedly (bootloader + application) so we have to set a safe main clock first
 	// select the DFLL48 for the main clock with 4x division (12 MHz)
@@ -195,23 +210,33 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 		if (division < 1)  division = 1;
 
 		atsam2_gclk_setup(0, dfll48id, division);  // use the DFLL48M directly as main clock (GCLK0)
+
+		atsam2_gclk_setup(4, dfll48id, 1); // DFFL48M
 	}
 	else
 	{
 		// The DPLLs have the maximum reference input clock frequency of 2 MHz (3.2 MHz on E5X)
-		// so we have to divide the XOSC clock to 2 MHz, a fix /2 is included
+		// so we divide the XOSC clock to 1 MHz, a fix /2 is included
 
-		unsigned refdiv = abasespeed / (2 * 2000000);  // divisor for 2 MHz
+		unsigned refdiv = abasespeed / (2 * 1000000);  // divisor for 1 MHz
 		if (refdiv < 1)  refdiv = 1;
 
-		uint32_t cpumul = acpuspeed / 2000000;
+		uint32_t pllmul = acpuspeed / 1000000;
+
+		// do not go out of the frequency range of the PLL DSO, the upper limit is not checked.
+		while (pllmul * 1000000 < HWPLL_OSC_MIN_FREQ)
+		{
+			pllmul <<= 1;
+			cpu_gclk_div <<= 1;
+		}
 
 		// the fractional divider won't be used because it makes jitter
 
 #if defined(MCUSF_E5X)
 
+
 		OSCCTRL->Dpll[0].DPLLRATIO.reg = 0
-			| ((cpumul - 1) <<  0)  // LDR(13): loop divider
+			| ((pllmul - 1) <<  0)  // LDR(13): loop divider
 			| (0            << 16)  // LDRFRAC(5): fractional
 		;
 
@@ -231,10 +256,18 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 
   #ifdef USB // prepare the DPPL[1] to 48 MHz for the USB
 
-		cpumul = 48000000 / 2000000; // = 24
+		pllmul = 48000000 / 1000000; // = 48
+		uint32_t usb_gclk_div = 1;
+
+		// do not go out of the frequency range of the PLL DSO, the upper limit is not checked.
+		while (pllmul * 1000000 < HWPLL_OSC_MIN_FREQ)
+		{
+			pllmul <<= 1;
+			usb_gclk_div <<= 1;
+		}
 
 		OSCCTRL->Dpll[1].DPLLRATIO.reg = 0
-			| ((cpumul - 1) <<  0)  // LDR(13): loop divider
+			| ((pllmul - 1) <<  0)  // LDR(13): loop divider
 			| (0            << 16)  // LDRFRAC(5): fractional
 		;
 
@@ -252,13 +285,17 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 			// wait for lock
 		}
 
+		// set the GCLK4 to 48 MHz
+		atsam2_gclk_setup(4, 8, usb_gclk_div); // DPLL1
+		//atsam2_gclk_setup(4, 6, 1); // DFFL48M
+
   #endif
 
 
 #elif defined(MCUSF_C2X)
 
 		OSCCTRL->DPLLRATIO.reg = 0
-			| ((cpumul - 1) <<  0)  // LDR(13): loop divider
+			| ((pllmul - 1) <<  0)  // LDR(13): loop divider
 			| (0            << 16)  // LDRFRAC(5): fractional
 		;
 
@@ -276,13 +313,16 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 			// wait for lock
 		}
 
+		// set the GCLK4 to 48 MHz
+		atsam2_gclk_setup(4, dfll48id, 1); // DFFL48M
+
 #else
 
 	  return false; // PLL is not implemented for this family
 
 #endif
 
-		atsam2_gclk_setup(0, pllid, 1);  // use the PLL as main clock (GCLK0)
+		atsam2_gclk_setup(0, pllid, cpu_gclk_div);  // use the PLL as main clock (GCLK0)
 	}
 
 	// Other setups
@@ -302,8 +342,6 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 	// turn on the slow clock, some peripherals (e.g. SERCOM) require it
 	GCLK->PCHCTRL[3].reg = 0x00000043;
 
-	// set the GCLK4 to 48 MHz (DPLL1)
-	atsam2_gclk_setup(4, 8, 1);
 
 #elif defined(MCUSF_C2X)
 

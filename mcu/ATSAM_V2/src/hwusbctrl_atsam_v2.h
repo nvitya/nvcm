@@ -91,6 +91,8 @@ public:
 
 protected:
 	void LoadCalibration(); // ATSAM_V2 speciality
+
+	void test_enable_ep0();
 };
 
 #define HWUSBENDPOINT_IMPL   THwUsbEndpoint_atsam_v2

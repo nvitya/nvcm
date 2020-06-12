@@ -34,6 +34,7 @@
 #include <hwusbctrl.h>
 #include "atsam_v2_utils.h"
 #include "traces.h"
+#include "clockcnt.h"
 
 #if defined(USB)
 
@@ -319,6 +320,9 @@ void THwUsbEndpoint_atsam_v2::Stall()
  * THwUsbCtrl_atsam_v2
  ************************************************************************************************************/
 
+#define USB_WAKEUP_INT_FLAGS    (USB_DEVICE_INTFLAG_UPRSM | USB_DEVICE_INTFLAG_EORSM | USB_DEVICE_INTFLAG_WAKEUP)
+#define USB_SUSPEND_INT_FLAGS   (USB_DEVICE_INTFLAG_SUSPEND)
+
 bool THwUsbCtrl_atsam_v2::InitHw()
 {
 	regs = &USB->DEVICE;
@@ -361,14 +365,19 @@ bool THwUsbCtrl_atsam_v2::InitHw()
 	ResetEndpoints();
 
 	// enable the IRQs:
-	irq_mask = USB_DEVICE_INTENSET_EORST;
-	  //(USB_DEVICE_INTENSET_SOF | USB_DEVICE_INTENSET_EORST | USB_DEVICE_INTENSET_RAMACER
-	  //| USB_DEVICE_INTFLAG_LPMSUSP | USB_DEVICE_INTFLAG_SUSPEND); // suspend state IRQ flags
+	irq_mask = USB_DEVICE_INTENSET_EORST | USB_WAKEUP_INT_FLAGS | USB_SUSPEND_INT_FLAGS;
+	//  | USB_DEVICE_INTENSET_SOF | USB_DEVICE_INTENSET_RAMACER
+	//  | USB_DEVICE_INTFLAG_LPMSUSP | USB_DEVICE_INTFLAG_SUSPEND // suspend state IRQ flags
+	;
 
 	regs->INTENSET.reg = irq_mask;
 
 	// enable the device
 	regs->CTRLA.bit.ENABLE = 1;
+	while (regs->SYNCBUSY.bit.ENABLE)
+	{
+		// wait
+	}
 
 	return true;
 }
@@ -452,60 +461,124 @@ void THwUsbCtrl_atsam_v2::SetDeviceAddress(uint8_t aaddr)
 	if (aaddr)  regs->DADD.bit.ADDEN = 1;
 }
 
+THwUsbEndpoint_atsam_v2 g_ep0;
+
+void THwUsbCtrl_atsam_v2::test_enable_ep0()
+{
+	UsbDeviceDescBank *   bank;
+	uint32_t epsize = 64;
+	uint32_t eplencode = 3;
+
+	UsbDeviceEndpoint *  epregs = &USB->DEVICE.DeviceEndpoint[0];
+
+	bank = &hwusb_desc_table[0].DeviceDescBank[0];
+	//bank = &prvt_inst.desc_table[epn].DeviceDescBank[0];
+
+	bank[0].PCKSIZE.reg = USB_DEVICE_PCKSIZE_MULTI_PACKET_SIZE(epsize)
+												| USB_DEVICE_PCKSIZE_SIZE(eplencode);
+	bank[1].PCKSIZE.reg	= USB_DEVICE_PCKSIZE_BYTE_COUNT(epsize)
+			                  | USB_DEVICE_PCKSIZE_SIZE(eplencode);
+
+	/* By default, control endpoint accept SETUP and NAK all other token. */
+
+	bank[0].STATUS_BK.reg     = 0;
+	bank[1].STATUS_BK.reg     = 0;
+
+	//bank[0].ADDR.reg          = (uint32_t)&my_ep_buf[0];
+	bank[0].ADDR.reg          = (uint32_t)&hwusb_rx_buffer[0];
+
+	bank[0].PCKSIZE.bit.MULTI_PACKET_SIZE = epsize;
+	bank[0].PCKSIZE.bit.BYTE_COUNT = 0;
+
+	__DSB();
+
+	epregs->EPCFG.reg = 0x11;
+
+	epregs->EPSTATUSSET.bit.BK0RDY = 1;
+	epregs->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUS_STALLRQ(0x3) | USB_DEVICE_EPSTATUS_BK1RDY;
+
+	epregs->EPINTENSET.reg = USB_DEVICE_EPINTFLAG_RXSTP;
+
+	__DSB();
+}
+
 void THwUsbCtrl_atsam_v2::HandleIrq()
 {
-
-	UsbDeviceEndpoint * pep0 = &regs->DeviceEndpoint[0];
-	if (pep0->EPINTFLAG.reg)
+	uint32_t epintsum = regs->EPINTSMRY.reg;
+	if (epintsum)
 	{
-		TRACE("EP0 INTFLAG = %04X\r\n", pep0->EPINTFLAG.reg);
+		TRACE("EPINTSUM=%04X\r\n", epintsum);
+		TRACE_FLUSH();
+		__BKPT();
+#if 0
+		uint32_t rev_epirq = __RBIT(epintsum);
+		while (true)
+		{
+			uint32_t epid = __CLZ(rev_epirq); // returns leading zeros, 32 when the argument = 0
+			if (epid >= USB_MAX_ENDPOINTS)  break; // -->
+
+			UsbDeviceEndpoint * pep = &regs->DeviceEndpoint[epid];
+
+			uint8_t epreg = pep->EPINTFLAG.reg;
+			TRACE("[EP(%i)=%02X]\r\n", epid, epreg);
+
+			rev_epirq &= ~(1 << (31-epid));
+		}
+#endif
 	}
 
-
-	uint32_t intflag = regs->INTFLAG.reg;
-
-	if (intflag)
+	uint32_t intflag = (regs->INTFLAG.reg & regs->INTENSET.reg);
+	if (intflag & USB_DEVICE_INTFLAG_EORST)
 	{
-		//TRACE("INTFLAG=%04X\r\n", intflag);
+		TRACE("USB RESET %04X\r\n", intflag);
 
-		if (intflag & USB_DEVICE_INTFLAG_EORST)
-		{
-			TRACE("USB RESET %04X\r\n", intflag);
+		regs->DeviceEndpoint[0].EPCFG.reg = 0; // disable endpoint 0
 
-			// disable address, configured state
-			SetDeviceAddress(0);
+		regs->INTFLAG.reg = USB_DEVICE_INTFLAG_EORST; // ack reset
+		regs->INTENCLR.reg = USB_WAKEUP_INT_FLAGS;
+		regs->INTENSET.reg = USB_SUSPEND_INT_FLAGS;
 
-			HandleReset();
+		// disable address, configured state
+		//SetDeviceAddress(0);
 
-			regs->INTFLAG.reg = USB_DEVICE_INTFLAG_EORST; // ack reset
+		//HandleReset();
 
-			__NOP(); // for brakepoint
-			__NOP(); // for brakepoint
-		}
-		else if (intflag & USB_DEVICE_INTFLAG_SUSPEND)
-		{
-			// suspend
-			regs->INTFLAG.reg = USB_DEVICE_INTFLAG_SUSPEND;
-		}
-		else if (intflag & (USB_DEVICE_INTFLAG_UPRSM | USB_DEVICE_INTFLAG_EORSM | USB_DEVICE_INTFLAG_WAKEUP))
-		{
-			// wakeup
-			regs->INTFLAG.reg = (USB_DEVICE_INTFLAG_UPRSM | USB_DEVICE_INTFLAG_EORSM | USB_DEVICE_INTFLAG_WAKEUP);
-		}
+		delay_us(10);
+
+		memset(&hwusb_desc_table, 0, sizeof(hwusb_desc_table));
+
+		test_enable_ep0();
+
+#if 0
+		rx_mem_alloc = 0;
+		tx_mem_alloc = 0;
+
+		g_ep0.attr = HWUSB_EP_TYPE_CONTROL;
+		g_ep0.dir_htod = false;
+		g_ep0.index = 0;
+		g_ep0.maxlen = 64;  // this must be always the first endpoint (id = 0)
+
+		g_ep0.ConfigureHwEp();
+#endif
+
+		__NOP(); // for brakepoint
+		__NOP(); // for brakepoint
 	}
-
-	uint32_t rev_epirq = __RBIT(regs->EPINTSMRY.reg);
-	while (true)
+	else if (intflag & USB_WAKEUP_INT_FLAGS)
 	{
-		uint32_t epid = __CLZ(rev_epirq); // returns leading zeros, 32 when the argument = 0
-		if (epid >= USB_MAX_ENDPOINTS)  break; // -->
-
-		UsbDeviceEndpoint * pep = &regs->DeviceEndpoint[epid];
-
-		uint8_t epreg = pep->EPINTFLAG.reg;
-		TRACE("[EP(%i)=%02X]\r\n", epid, epreg);
-
-		rev_epirq &= ~(1 << (31-epid));
+		TRACE("USB wakeup\r\n");
+		// wakeup
+		regs->INTFLAG.reg = USB_WAKEUP_INT_FLAGS;
+		regs->INTENCLR.reg = USB_WAKEUP_INT_FLAGS;
+		regs->INTENSET.reg = USB_SUSPEND_INT_FLAGS;
+	}
+	else if (intflag & USB_SUSPEND_INT_FLAGS)
+	{
+		TRACE("USB suspend\r\n");
+		// suspend
+		regs->INTFLAG.reg = USB_SUSPEND_INT_FLAGS;
+		regs->INTENCLR.reg = USB_SUSPEND_INT_FLAGS;
+		regs->INTENSET.reg = USB_WAKEUP_INT_FLAGS;
 	}
 }
 

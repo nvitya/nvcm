@@ -83,12 +83,13 @@ void atsam2_gclk_setup(uint8_t genid, uint8_t reference, uint32_t division)
 		| (reference <<  8)  // SRC(5)
 		| (1         << 16)  // GENEN
 		| (1         << 17)  // IDC
+		| (0         << 20)  // DIVSEL
 		| (1         << 21)  // RUNSTDBY
 	;
 
 	GCLK->GENDIV.reg  = 0
     | (genid     <<  0)  // ID(4)
-		| ((division - 1)  <<  8)  // DIV(16)
+		| (division  <<  8)  // DIV(16)
 	;
 
 	while (GCLK->STATUS.bit.SYNCBUSY)
@@ -105,7 +106,7 @@ void atsam2_gclk_setup(uint8_t genid, uint8_t reference, uint32_t division)
 		| (0        << 11) // OE: output enable
 		| (0        << 12) // DIVSEL: 0 = normal division, 1 = 2^DIVSEL division
 		| (1        << 13) // RUNSTDBY: 1 = run in standby
-		| ((division - 1) << 16) // DIV(16)
+		| (division << 16) // DIV(16)
 	;
 
 	#ifdef GCLK_SYNCBUSY_GENCTRL0_Pos
