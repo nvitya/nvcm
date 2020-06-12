@@ -171,90 +171,77 @@ bool THwUsbEndpoint_atsam_v2::ConfigureHwEp()
 
 int THwUsbEndpoint_atsam_v2::ReadRecvData(void * buf, uint32_t buflen)
 {
-#if 0
-	uint32_t tmp = *csreg;
-
-	if ((tmp & (UDP_CSR_RX_DATA_BK0 | UDP_CSR_RX_DATA_BK1 | UDP_CSR_RXSETUP)) == 0)
+	uint32_t cnt = rxdesc->PCKSIZE.bit.BYTE_COUNT;
+	if (cnt)
 	{
-		// no data to receive
-		return 0;
-	}
+		if (buflen < cnt)
+		{
+			return USBERR_BUFFER_TOO_SMALL;
+		}
 
-	uint32_t cnt = ((tmp >> 16) & 0x7FF);
+		// optimized copy
 
-	if (buflen < cnt)
-	{
-		return USBERR_BUFFER_TOO_SMALL;
-	}
+		uint32_t dwcnt = (cnt >> 2);
+		uint32_t * pdwsrc = (uint32_t *)rxmem;
+		uint32_t * pdwdst = (uint32_t *)buf;
+		uint32_t * pdwend = pdwdst + dwcnt;
+		while (pdwdst < pdwend)
+		{
+			*pdwdst++ = *pdwsrc++;
+		}
 
-	uint8_t * pdst = (uint8_t *)buf;
-	for (unsigned i = 0; i < cnt; ++i)
-	{
-		*pdst++ = *fiforeg;
+		uint32_t bcnt = cnt & 3;
+		uint8_t * pbsrc = (uint8_t *)pdwsrc;
+		uint8_t * pbdst = (uint8_t *)pdwdst;
+		uint8_t * pbend = pbdst + bcnt;
+		while (pbdst < pbend)
+		{
+			*pbdst++ = *pbsrc++;
+		}
 	}
 
 	return cnt;
-#else
-	return 0;
-#endif
 }
 
 int THwUsbEndpoint_atsam_v2::StartSendData(void * buf, unsigned len)
 {
-#if 0
 	int sendlen = len;
 	if (sendlen > maxlen)  sendlen = maxlen;
 
-	if (iscontrol)
+	// optimized copy
+
+	uint32_t dwcnt = (sendlen >> 2);
+	uint32_t * pdwsrc = (uint32_t *)buf;
+	uint32_t * pdwdst = (uint32_t *)txmem;
+	uint32_t * pdwend = pdwdst + dwcnt;
+	while (pdwdst < pdwend)
 	{
-		// the DIR bit must be set before the RXSETUP is cleared !
-		udp_ep_csreg_bit_set(csreg, UDP_CSR_DIR);
-		if (*csreg & UDP_CSR_RXSETUP)
-		{
-			udp_ep_csreg_bit_clear(csreg, UDP_CSR_RXSETUP);
-		}
+		*pdwdst++ = *pdwsrc++;
 	}
 
-	uint8_t * psrc = (uint8_t *)(buf);
-
-	for (uint32_t n = 0; n < sendlen; ++n)
+	uint32_t bcnt = sendlen & 3;
+	uint8_t * pbsrc = (uint8_t *)pdwsrc;
+	uint8_t * pbdst = (uint8_t *)pdwdst;
+	uint8_t * pbend = pbdst + bcnt;
+	while (pbdst < pbend)
 	{
-		*fiforeg = *psrc++;
+		*pbdst++ = *pbsrc++;
 	}
 
-	udp_ep_csreg_bit_set(csreg, UDP_CSR_TXPKTRDY);
+	txdesc->PCKSIZE.bit.SIZE = sendlen;
+	txdesc->PCKSIZE.bit.BYTE_COUNT = 0;
 
-	if (*csreg & UDP_CSR_TXCOMP)
-	{
-		udp_ep_csreg_bit_clear(csreg, UDP_CSR_TXCOMP);
-	}
+	regs->EPSTATUS.bit.BK1RDY = 1;
 
 	return sendlen;
-#else
-	return 0;
-#endif
 }
 
 void THwUsbEndpoint_atsam_v2::SendAck()
 {
-#if 0
-	if (iscontrol)
-	{
-		// the DIR bit must be set before the RXSETUP is cleared !
-		udp_ep_csreg_bit_set(csreg, UDP_CSR_DIR);
-		if (*csreg & UDP_CSR_RXSETUP)
-		{
-			udp_ep_csreg_bit_clear(csreg, UDP_CSR_RXSETUP);
-		}
-	}
+	txdesc->PCKSIZE.bit.SIZE = 0;
+	txdesc->PCKSIZE.bit.BYTE_COUNT = 0;
 
-	udp_ep_csreg_bit_set(csreg, UDP_CSR_TXPKTRDY);
-
-	if (*csreg & UDP_CSR_TXCOMP)
-	{
-		udp_ep_csreg_bit_clear(csreg, UDP_CSR_TXCOMP);
-	}
-#endif
+	regs->EPSTATUS.bit.BK1RDY = 1;
 }
 
 void THwUsbEndpoint_atsam_v2::Nak()
@@ -507,10 +494,6 @@ void THwUsbCtrl_atsam_v2::HandleIrq()
 	uint32_t epintsum = regs->EPINTSMRY.reg;
 	if (epintsum)
 	{
-		TRACE("EPINTSUM=%04X\r\n", epintsum);
-		TRACE_FLUSH();
-		__BKPT();
-#if 0
 		uint32_t rev_epirq = __RBIT(epintsum);
 		while (true)
 		{
@@ -522,9 +505,40 @@ void THwUsbCtrl_atsam_v2::HandleIrq()
 			uint8_t epreg = pep->EPINTFLAG.reg;
 			TRACE("[EP(%i)=%02X]\r\n", epid, epreg);
 
+			if (epreg & HWUSB_INTFLAG_RXSTP)
+			{
+				if (!HandleEpTransferEvent(epid, true))
+				{
+					// todo: handle error
+				}
+
+				pep->EPINTFLAG.bit.RXSTP = 1;
+			}
+			else if (epreg & HWUSB_INTFLAG_TRCPT0)
+			{
+				if (!HandleEpTransferEvent(epid, true))
+				{
+					// todo: handle error
+				}
+
+				pep->EPINTFLAG.bit.TRCPT0 = 1;
+			}
+			else if (epreg & HWUSB_INTFLAG_TRCPT0)
+			{
+				if (!HandleEpTransferEvent(epid, false))
+				{
+					// todo: handle error
+				}
+
+				pep->EPINTFLAG.bit.TRCPT1 = 0;
+			}
+			else
+			{
+				TRACE("Unhandled EPINT.\r\n");
+			}
+
 			rev_epirq &= ~(1 << (31-epid));
 		}
-#endif
 	}
 
 	uint32_t intflag = (regs->INTFLAG.reg & regs->INTENSET.reg);
@@ -541,28 +555,7 @@ void THwUsbCtrl_atsam_v2::HandleIrq()
 		// disable address, configured state
 		//SetDeviceAddress(0);
 
-		//HandleReset();
-
-		delay_us(10);
-
-		memset(&hwusb_desc_table, 0, sizeof(hwusb_desc_table));
-
-		test_enable_ep0();
-
-#if 0
-		rx_mem_alloc = 0;
-		tx_mem_alloc = 0;
-
-		g_ep0.attr = HWUSB_EP_TYPE_CONTROL;
-		g_ep0.dir_htod = false;
-		g_ep0.index = 0;
-		g_ep0.maxlen = 64;  // this must be always the first endpoint (id = 0)
-
-		g_ep0.ConfigureHwEp();
-#endif
-
-		__NOP(); // for brakepoint
-		__NOP(); // for brakepoint
+		HandleReset();
 	}
 	else if (intflag & USB_WAKEUP_INT_FLAGS)
 	{

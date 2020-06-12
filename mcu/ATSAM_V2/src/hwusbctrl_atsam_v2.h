@@ -61,7 +61,7 @@ public:
   void Stall();
   void Nak();
 
-  inline bool IsSetupRequest()  { return false; } //{ return (*csreg & UDP_CSR_RXSETUP); }
+  inline bool IsSetupRequest()  { return (regs->EPINTFLAG.bit.RXSTP != 0); }
 
   void EnableRecv();
   void DisableRecv();
