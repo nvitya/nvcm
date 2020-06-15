@@ -286,8 +286,8 @@ bool THwClkCtrl_atsam_v2::SetupPlls(bool aextosc, unsigned abasespeed, unsigned 
 		}
 
 		// set the GCLK4 to 48 MHz
-		atsam2_gclk_setup(4, 8, usb_gclk_div); // DPLL1
-		//atsam2_gclk_setup(4, 6, 1); // DFFL48M
+		atsam2_gclk_setup(4, 8, usb_gclk_div); // 8 = DPLL1
+		//atsam2_gclk_setup(4, dfll48id, 1); // use DFLL48MHZ
 
   #endif
 

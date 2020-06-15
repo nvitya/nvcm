@@ -38,6 +38,8 @@
 
 #if defined(USB)
 
+// Warning: inverse bank-ready logic at Bank0 and Bank1 !
+
 #define HWUSB_INTFLAG_TRCPT0   (1 << 0)
 #define HWUSB_INTFLAG_TRCPT1   (1 << 1)
 #define HWUSB_INTFLAG_TRFAIL0  (1 << 2)
@@ -48,8 +50,8 @@
 
 UsbDeviceDescriptor hwusb_desc_table[USB_MAX_ENDPOINTS]  __attribute__((aligned(32)));
 
-uint8_t hwusb_rx_buffer[USB_RX_BUFFER_SIZE];
-uint8_t hwusb_tx_buffer[USB_TX_BUFFER_SIZE];
+uint8_t hwusb_rx_buffer[USB_RX_BUFFER_SIZE]  __attribute__((aligned(4)));
+uint8_t hwusb_tx_buffer[USB_TX_BUFFER_SIZE]  __attribute__((aligned(4)));
 
 bool THwUsbEndpoint_atsam_v2::ConfigureHwEp()
 {
@@ -60,9 +62,9 @@ bool THwUsbEndpoint_atsam_v2::ConfigureHwEp()
 		return false;
 	}
 
-	regs = &usbctrl->regs->DeviceEndpoint[index];
-	rxdesc = &hwusb_desc_table[index].DeviceDescBank[0];
-	txdesc = &hwusb_desc_table[index].DeviceDescBank[1];
+	regs = &(usbctrl->regs->DeviceEndpoint[index]);
+	rxdesc = &(hwusb_desc_table[index].DeviceDescBank[0]);
+	txdesc = &(hwusb_desc_table[index].DeviceDescBank[1]);
 
 	// correct the maxlen
 
@@ -139,38 +141,39 @@ bool THwUsbEndpoint_atsam_v2::ConfigureHwEp()
 	rxmem = nullptr;
 	txmem = nullptr;
 
+	regs->EPSTATUSCLR.reg = 0xFF;
+
 	if (htod_len > 0)
 	{
 		rxmem = &hwusb_rx_buffer[usbctrl->rx_mem_alloc];
 		rxdesc->ADDR.reg = (uint32_t)rxmem;
-		rxdesc->PCKSIZE.reg = (lencode << 28) | (maxlen << 14);
+		rxdesc->PCKSIZE.reg = 0;
+		rxdesc->PCKSIZE.bit.SIZE = lencode;
+		rxdesc->PCKSIZE.bit.MULTI_PACKET_SIZE = (maxlen << 14);
 		usbctrl->rx_mem_alloc += htod_len;
 	}
 
 	if (dtoh_len > 0)
 	{
-		txmem = &hwusb_rx_buffer[usbctrl->tx_mem_alloc];
+		txmem = &hwusb_tx_buffer[usbctrl->tx_mem_alloc];
 		txdesc->ADDR.reg = (uint32_t)txmem;
-		txdesc->PCKSIZE.reg = (lencode << 28) | (maxlen << 0); // why is it necessary to write the count field ?
+		txdesc->PCKSIZE.reg = 0;
+		txdesc->PCKSIZE.bit.SIZE = lencode;
 		usbctrl->tx_mem_alloc += dtoh_len;
 	}
 
-	regs->EPSTATUSCLR.reg = 0xFF;
 
 	uint8_t intenmask = (HWUSB_INTFLAG_RXSTP | HWUSB_INTFLAG_TRCPT0 | HWUSB_INTFLAG_TRCPT1);
 	regs->EPINTENCLR.reg = ~intenmask;
 	regs->EPINTENSET.reg = intenmask;
-
-	if (htod_len > 0)
-	{
-	  regs->EPSTATUSSET.bit.BK0RDY = 1;
-	}
 
 	return true;
 }
 
 int THwUsbEndpoint_atsam_v2::ReadRecvData(void * buf, uint32_t buflen)
 {
+	regs->EPINTFLAG.reg = (HWUSB_INTFLAG_RXSTP | HWUSB_INTFLAG_TRCPT0);
+
 	uint32_t cnt = rxdesc->PCKSIZE.bit.BYTE_COUNT;
 	if (cnt)
 	{
@@ -181,67 +184,88 @@ int THwUsbEndpoint_atsam_v2::ReadRecvData(void * buf, uint32_t buflen)
 
 		// optimized copy
 
-		uint32_t dwcnt = (cnt >> 2);
-		uint32_t * pdwsrc = (uint32_t *)rxmem;
-		uint32_t * pdwdst = (uint32_t *)buf;
-		uint32_t * pdwend = pdwdst + dwcnt;
-		while (pdwdst < pdwend)
+		uint32_t cnt32 = (cnt >> 2);
+		uint32_t * psrc32 = (uint32_t *)rxmem;
+		uint32_t * pdst32 = (uint32_t *)buf;
+		uint32_t * pend32 = pdst32 + cnt32;
+		while (pdst32 < pend32)
 		{
-			*pdwdst++ = *pdwsrc++;
+			*pdst32++ = *psrc32++;
 		}
 
-		uint32_t bcnt = cnt & 3;
-		uint8_t * pbsrc = (uint8_t *)pdwsrc;
-		uint8_t * pbdst = (uint8_t *)pdwdst;
-		uint8_t * pbend = pbdst + bcnt;
-		while (pbdst < pbend)
+		uint32_t cnt8 = cnt & 3;
+		uint8_t * psrc8 = (uint8_t *)psrc32;
+		uint8_t * pdst8 = (uint8_t *)pdst32;
+		uint8_t * pend8 = pdst8 + cnt8;
+		while (pdst8 < pend8)
 		{
-			*pbdst++ = *pbsrc++;
+			*pdst8++ = *psrc8++;
 		}
 	}
+
+	rxdesc->STATUS_BK.reg = 0;
+	rxdesc->ADDR.reg = (uint32_t)rxmem;
+	rxdesc->PCKSIZE.bit.BYTE_COUNT = 0;
+	rxdesc->PCKSIZE.bit.MULTI_PACKET_SIZE = maxlen;
+
+	// BK0RDY = 0: ready to receive
+	regs->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUS_BK0RDY | USB_DEVICE_EPSTATUS_STALLRQ(0x3);
 
 	return cnt;
 }
 
+// the answer of the device descriptor
+
 int THwUsbEndpoint_atsam_v2::StartSendData(void * buf, unsigned len)
 {
+	regs->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUS_BK1RDY;
+	regs->EPINTFLAG.reg = (HWUSB_INTFLAG_TRCPT1 | HWUSB_INTFLAG_TRFAIL1);
+
+	txdesc->STATUS_BK.reg = 0;
+
 	int sendlen = len;
 	if (sendlen > maxlen)  sendlen = maxlen;
 
 	// optimized copy
 
-	uint32_t dwcnt = (sendlen >> 2);
-	uint32_t * pdwsrc = (uint32_t *)buf;
-	uint32_t * pdwdst = (uint32_t *)txmem;
-	uint32_t * pdwend = pdwdst + dwcnt;
-	while (pdwdst < pdwend)
+	uint32_t cnt32 = (sendlen >> 2);
+	uint32_t * psrc32 = (uint32_t *)buf;
+	uint32_t * pdst32 = (uint32_t *)txmem;
+	uint32_t * pend32 = pdst32 + cnt32;
+	while (pdst32 < pend32)
 	{
-		*pdwdst++ = *pdwsrc++;
+		*pdst32++ = *psrc32++;
 	}
 
-	uint32_t bcnt = sendlen & 3;
-	uint8_t * pbsrc = (uint8_t *)pdwsrc;
-	uint8_t * pbdst = (uint8_t *)pdwdst;
-	uint8_t * pbend = pbdst + bcnt;
-	while (pbdst < pbend)
+	uint32_t cnt8 = sendlen & 3;
+	uint8_t * psrc8 = (uint8_t *)psrc32;
+	uint8_t * pdst8 = (uint8_t *)pdst32;
+	uint8_t * pend8 = pdst8 + cnt8;
+	while (pdst8 < pend8)
 	{
-		*pbdst++ = *pbsrc++;
+		*pdst8++ = *psrc8++;
 	}
 
-	txdesc->PCKSIZE.bit.SIZE = sendlen;
-	txdesc->PCKSIZE.bit.BYTE_COUNT = 0;
+	txdesc->ADDR.reg = (uint32_t)txmem;
 
-	regs->EPSTATUS.bit.BK1RDY = 1;
+	txdesc->PCKSIZE.bit.BYTE_COUNT = sendlen;
+	txdesc->PCKSIZE.bit.MULTI_PACKET_SIZE = 0;
+
+	regs->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUS_STALLRQ(0x3);
+
+	// BK1RDY = 1: send prepared data
+	regs->EPSTATUSSET.reg = USB_DEVICE_EPSTATUS_BK1RDY;
 
 	return sendlen;
 }
 
 void THwUsbEndpoint_atsam_v2::SendAck()
 {
-	txdesc->PCKSIZE.bit.SIZE = 0;
+	txdesc->PCKSIZE.bit.MULTI_PACKET_SIZE = 0;
 	txdesc->PCKSIZE.bit.BYTE_COUNT = 0;
 
-	regs->EPSTATUS.bit.BK1RDY = 1;
+	regs->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUS_STALLRQ(0x3);
+	regs->EPSTATUSSET.reg = USB_DEVICE_EPSTATUS_BK1RDY;
 }
 
 void THwUsbEndpoint_atsam_v2::Nak()
@@ -250,42 +274,16 @@ void THwUsbEndpoint_atsam_v2::Nak()
 
 void THwUsbEndpoint_atsam_v2::EnableRecv()
 {
-	//regs->EPSTATUSSET.bit.BK0RDY
+	rxdesc->ADDR.reg = (uint32_t)rxmem;
+	rxdesc->PCKSIZE.bit.BYTE_COUNT = 0;
+	rxdesc->PCKSIZE.bit.MULTI_PACKET_SIZE = maxlen;
 
-#if 0
-	if (iscontrol)
-	{
-#if 0
-		// the DIR bit must be set before the RXSETUP is cleared !
-		if (*csreg & UDP_CSR_DIR)
-		{
-			udp_ep_csreg_bit_clear(csreg, UDP_CSR_DIR);
-		}
-#endif
-
-		if (*csreg & UDP_CSR_RXSETUP)
-		{
-			udp_ep_csreg_bit_clear(csreg, UDP_CSR_RXSETUP);
-		}
-	}
-
-#if 0
-	if (*csreg & UDP_CSR_TXCOMP)
-	{
-		udp_ep_csreg_bit_clear(csreg, UDP_CSR_TXCOMP);
-	}
-#endif
-
-	if (*csreg & (UDP_CSR_FORCESTALL | UDP_CSR_STALLSENT))
-	{
-		udp_ep_csreg_bit_clear(csreg, UDP_CSR_FORCESTALL | UDP_CSR_STALLSENT);
-	}
-#endif
+	regs->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUS_BK0RDY | USB_DEVICE_EPSTATUS_STALLRQ(0x3);
 }
 
 void THwUsbEndpoint_atsam_v2::DisableRecv()
 {
-	//udp_ep_csreg_bit_set(csreg, UDP_CSR_FORCESTALL);
+	regs->EPSTATUSSET.reg = USB_DEVICE_EPSTATUS_BK0RDY;
 }
 
 void THwUsbEndpoint_atsam_v2::StopSend()
@@ -295,12 +293,12 @@ void THwUsbEndpoint_atsam_v2::StopSend()
 
 void THwUsbEndpoint_atsam_v2::FinishSend()
 {
-	//udp_ep_csreg_bit_clear(csreg, UDP_CSR_TXCOMP);
+	regs->EPINTFLAG.bit.TRCPT1 = 1;
 }
 
 void THwUsbEndpoint_atsam_v2::Stall()
 {
-	//udp_ep_csreg_bit_set(csreg, UDP_CSR_FORCESTALL);
+	regs->EPSTATUSSET.reg = USB_DEVICE_EPSTATUS_BK0RDY | USB_DEVICE_EPSTATUS_STALLRQ(1);
 }
 
 /************************************************************************************************************
@@ -443,50 +441,11 @@ void THwUsbCtrl_atsam_v2::EnableIrq()
 
 void THwUsbCtrl_atsam_v2::SetDeviceAddress(uint8_t aaddr)
 {
+	regs->DADD.bit.ADDEN = 0;
 	regs->DADD.reg = (aaddr & 0x7F);
 
-	if (aaddr)  regs->DADD.bit.ADDEN = 1;
-}
-
-THwUsbEndpoint_atsam_v2 g_ep0;
-
-void THwUsbCtrl_atsam_v2::test_enable_ep0()
-{
-	UsbDeviceDescBank *   bank;
-	uint32_t epsize = 64;
-	uint32_t eplencode = 3;
-
-	UsbDeviceEndpoint *  epregs = &USB->DEVICE.DeviceEndpoint[0];
-
-	bank = &hwusb_desc_table[0].DeviceDescBank[0];
-	//bank = &prvt_inst.desc_table[epn].DeviceDescBank[0];
-
-	bank[0].PCKSIZE.reg = USB_DEVICE_PCKSIZE_MULTI_PACKET_SIZE(epsize)
-												| USB_DEVICE_PCKSIZE_SIZE(eplencode);
-	bank[1].PCKSIZE.reg	= USB_DEVICE_PCKSIZE_BYTE_COUNT(epsize)
-			                  | USB_DEVICE_PCKSIZE_SIZE(eplencode);
-
-	/* By default, control endpoint accept SETUP and NAK all other token. */
-
-	bank[0].STATUS_BK.reg     = 0;
-	bank[1].STATUS_BK.reg     = 0;
-
-	//bank[0].ADDR.reg          = (uint32_t)&my_ep_buf[0];
-	bank[0].ADDR.reg          = (uint32_t)&hwusb_rx_buffer[0];
-
-	bank[0].PCKSIZE.bit.MULTI_PACKET_SIZE = epsize;
-	bank[0].PCKSIZE.bit.BYTE_COUNT = 0;
-
-	__DSB();
-
-	epregs->EPCFG.reg = 0x11;
-
-	epregs->EPSTATUSSET.bit.BK0RDY = 1;
-	epregs->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUS_STALLRQ(0x3) | USB_DEVICE_EPSTATUS_BK1RDY;
-
-	epregs->EPINTENSET.reg = USB_DEVICE_EPINTFLAG_RXSTP;
-
-	__DSB();
+	//if (aaddr)  regs->DADD.bit.ADDEN = 1;
+	regs->DADD.bit.ADDEN = 1;
 }
 
 void THwUsbCtrl_atsam_v2::HandleIrq()
@@ -503,38 +462,38 @@ void THwUsbCtrl_atsam_v2::HandleIrq()
 			UsbDeviceEndpoint * pep = &regs->DeviceEndpoint[epid];
 
 			uint8_t epreg = pep->EPINTFLAG.reg;
-			TRACE("[EP(%i)=%02X]\r\n", epid, epreg);
+			//TRACE("[EP(%i)=%02X, EPS=%02X, USB=%04X]\r\n", epid, epreg, pep->EPSTATUS.reg, regs->INTFLAG.reg);
 
-			if (epreg & HWUSB_INTFLAG_RXSTP)
-			{
-				if (!HandleEpTransferEvent(epid, true))
-				{
-					// todo: handle error
-				}
-
-				pep->EPINTFLAG.bit.RXSTP = 1;
-			}
-			else if (epreg & HWUSB_INTFLAG_TRCPT0)
-			{
-				if (!HandleEpTransferEvent(epid, true))
-				{
-					// todo: handle error
-				}
-
-				pep->EPINTFLAG.bit.TRCPT0 = 1;
-			}
-			else if (epreg & HWUSB_INTFLAG_TRCPT0)
+			// the transfer complete must be served for the case it comes togeter with SETUP
+			if (epreg & HWUSB_INTFLAG_TRCPT1)
 			{
 				if (!HandleEpTransferEvent(epid, false))
 				{
 					// todo: handle error
 				}
 
-				pep->EPINTFLAG.bit.TRCPT1 = 0;
+				if (pep->EPINTFLAG.bit.TRCPT1)		pep->EPINTFLAG.bit.TRCPT1 = 1;
 			}
-			else
+
+			if (epreg & HWUSB_INTFLAG_RXSTP)
 			{
-				TRACE("Unhandled EPINT.\r\n");
+				//test_send_desc();
+
+				if (!HandleEpTransferEvent(epid, true))
+				{
+					// todo: handle error
+				}
+
+				if (pep->EPINTFLAG.bit.RXSTP)		pep->EPINTFLAG.bit.RXSTP = 1;
+			}
+			else if (epreg & HWUSB_INTFLAG_TRCPT0)
+			{
+				if (!HandleEpTransferEvent(epid, true))
+				{
+					// todo: handle error
+				}
+
+				if (pep->EPINTFLAG.bit.TRCPT0)		pep->EPINTFLAG.bit.TRCPT0 = 1;
 			}
 
 			rev_epirq &= ~(1 << (31-epid));
@@ -544,7 +503,7 @@ void THwUsbCtrl_atsam_v2::HandleIrq()
 	uint32_t intflag = (regs->INTFLAG.reg & regs->INTENSET.reg);
 	if (intflag & USB_DEVICE_INTFLAG_EORST)
 	{
-		TRACE("USB RESET %04X\r\n", intflag);
+		TRACE("USB RESET %04X\r\n", regs->INTFLAG.reg);
 
 		regs->DeviceEndpoint[0].EPCFG.reg = 0; // disable endpoint 0
 
@@ -553,7 +512,7 @@ void THwUsbCtrl_atsam_v2::HandleIrq()
 		regs->INTENSET.reg = USB_SUSPEND_INT_FLAGS;
 
 		// disable address, configured state
-		//SetDeviceAddress(0);
+	  SetDeviceAddress(0);
 
 		HandleReset();
 	}

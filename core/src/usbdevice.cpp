@@ -501,10 +501,12 @@ void TUsbDevice::StartSendControlData() // txlen + ctrlbuf must be prepared
 	}
 	ctrl_datastage_remaining = cdlen - r;
 	ctrlstage = USBCTRL_STAGE_DATAIN;
+/*
 	if (ctrl_datastage_remaining <= 0)
 	{
 		ctrlstage = USBCTRL_STAGE_STATUS;
 	}
+*/
 }
 
 void TUsbDevice::StartSendControlData(void * asrc, unsigned alen)
@@ -592,6 +594,7 @@ void TUsbDevice::HandleControlEndpoint(bool htod)
 
 			if (r == 0) // ACK from the host
 			{
+				//LTRACE("CTRL ACK received.\r\n");
 				// there should be only an empty packet
 				ctrlstage = USBCTRL_STAGE_SETUP;
 				ep_ctrl.EnableRecv();
@@ -622,12 +625,13 @@ void TUsbDevice::HandleControlEndpoint(bool htod)
 			HandleControlData();
 			return;
 		}
-		else  // dtoh = data in
+		else  // dtoh = host data in
 		{
 			// device to host send completed
 
 			if (USBCTRL_STAGE_STATUS == ctrlstage) // ACK sent
 			{
+				//LTRACE("CTRL ack sent.\r\n");
 				if (set_devaddr_on_ack)
 				{
 					LTRACE("device address is set to %i\r\n", devaddr);
