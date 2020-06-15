@@ -298,7 +298,14 @@ void THwUsbEndpoint_atsam_v2::FinishSend()
 
 void THwUsbEndpoint_atsam_v2::Stall()
 {
-	regs->EPSTATUSSET.reg = USB_DEVICE_EPSTATUS_BK0RDY | USB_DEVICE_EPSTATUS_STALLRQ(1);
+	if (iscontrol || !dir_htod)
+	{
+		regs->EPSTATUSSET.reg = USB_DEVICE_EPSTATUS_STALLRQ(2);
+	}
+	else
+	{
+		regs->EPSTATUSSET.reg = USB_DEVICE_EPSTATUS_STALLRQ(1);
+	}
 }
 
 /************************************************************************************************************
