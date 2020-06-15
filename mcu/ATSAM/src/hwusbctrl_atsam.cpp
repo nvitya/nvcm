@@ -253,6 +253,16 @@ void THwUsbEndpoint_atsam::FinishSend()
 
 void THwUsbEndpoint_atsam::Stall()
 {
+	if (iscontrol)
+	{
+		// the DIR bit must be set before the RXSETUP is cleared !
+		udp_ep_csreg_bit_set(csreg, UDP_CSR_DIR);
+		if (*csreg & UDP_CSR_RXSETUP)
+		{
+			udp_ep_csreg_bit_clear(csreg, UDP_CSR_RXSETUP);
+		}
+	}
+
 	udp_ep_csreg_bit_set(csreg, UDP_CSR_FORCESTALL);
 }
 
@@ -369,6 +379,18 @@ void THwUsbCtrl_atsam::HandleIrq()
 			uint32_t epreg = *pepreg;
 			//TRACE("[EP(%i)=%08X]\r\n", epid, epreg);
 
+			if (epreg & UDP_CSR_TXCOMP)
+			{
+				if (!HandleEpTransferEvent(epid, false))
+				{
+					// todo: handle error
+				}
+				if (*pepreg & UDP_CSR_TXCOMP)
+				{
+				  udp_ep_csreg_bit_clear(pepreg, UDP_CSR_TXCOMP);
+				}
+			}
+
 			if (epreg & UDP_CSR_RXSETUP)
 			{
 				if (!HandleEpTransferEvent(epid, true))
@@ -407,17 +429,7 @@ void THwUsbCtrl_atsam::HandleIrq()
 					udp_ep_csreg_bit_clear(pepreg, UDP_CSR_RX_DATA_BK1);
 				}
 			}
-			else if (epreg & UDP_CSR_TXCOMP)
-			{
-				if (!HandleEpTransferEvent(epid, false))
-				{
-					// todo: handle error
-				}
-				if (*pepreg & UDP_CSR_TXCOMP)
-				{
-				  udp_ep_csreg_bit_clear(pepreg, UDP_CSR_TXCOMP);
-				}
-			}
+
 
 			if (*pepreg & UDP_CSR_STALLSENT)
 			{
