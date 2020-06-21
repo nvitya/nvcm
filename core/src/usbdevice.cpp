@@ -301,6 +301,11 @@ bool TUsbInterface::HandleSetupRequest(TUsbSetupRequest * psrq)
 	}
 }
 
+bool TUsbInterface::HandleSetupData(TUsbSetupRequest * psrq, void * adata, unsigned adatalen)
+{
+	return false;
+}
+
 bool TUsbInterface::HandleTransferEvent(TUsbEndpoint * aep, bool htod) // should be overridden
 {
 	return false;
@@ -622,7 +627,29 @@ void TUsbDevice::HandleControlEndpoint(bool htod)
 
 			// end of the data stage
 
-			HandleControlData();
+			if (HandleSpecialSetupData())
+			{
+				return;
+			}
+
+			int i;
+			if ((setuprq.rqtype & 0x1F) == 1) // interface requests
+			{
+				i = setuprq.index;
+				if (i < interface_count)
+				{
+					if (interfaces[i]->HandleSetupData(&setuprq, &ctrlbuf[0], cdlen))
+					{
+						return;
+					}
+				}
+				LTRACE("Unhandled interface setup data!\r\n");
+				SendControlStatus(false);
+				return;
+			}
+
+			LTRACE("Unhandled setup data !\r\n");
+			SendControlStatus(false);
 			return;
 		}
 		else  // dtoh = host data in
@@ -844,18 +871,6 @@ void TUsbDevice::ProcessSetupRequest()
 	}
 }
 
-void TUsbDevice::HandleControlData() // htod data in ctrlbuf[0..rxlen-1]
-{
-	if (HandleSpecialControlData())
-	{
-		return;
-	}
-
-	// there is no std handling here, just ACK
-
-	SendControlStatus(true);
-}
-
 void TUsbDevice::SetConfiguration(uint8_t aconfig)
 {
 	LTRACE("Set configuration: %u\r\n", aconfig);
@@ -888,7 +903,14 @@ void TUsbDevice::MakeDeviceConfig()
 		}
 
 		cdlen += len;
+		ind += len;
 	}
+}
+
+void TUsbDevice::StartSetupData()
+{
+	ctrlstage = USBCTRL_STAGE_DATAOUT;
+	ep_ctrl.EnableRecv();
 }
 
 void TUsbDevice::SendControlAck()

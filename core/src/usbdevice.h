@@ -236,6 +236,7 @@ public:
 
 	virtual bool         HandleTransferEvent(TUsbEndpoint * aep, bool htod);
 	virtual bool         HandleSetupRequest(TUsbSetupRequest * psrq);
+	virtual bool         HandleSetupData(TUsbSetupRequest * psrq, void * adata, unsigned adatalen);
 
 	virtual void         OnConfigured();
 
@@ -330,6 +331,7 @@ public:
 
 	void                  ProcessSetupRequest();
 	void                  SendControlAck();
+	void                  StartSetupData();  // starts the receiving of the setup data
 
 	void                  SendControlStatus(bool asuccess);
 
@@ -337,7 +339,6 @@ public:
 	void                  StartSendControlData(void * asrc, unsigned alen); // starts the dtoh data stage
 
 	void                  StartReceiveControlData(unsigned alen); // starts the htod data stage
-	void                  HandleControlData();
 
   void                  AddInterface(TUsbInterface * aintf);
   uint8_t               AddString(const char * astr); // returned string index + 1 as id
@@ -352,7 +353,7 @@ public: // virtual methods
 	virtual void          HandleReset();
 
 	virtual bool          HandleSpecialSetupRequest() { return false; }  // returns true when handled
-	virtual bool          HandleSpecialControlData()  { return false; }  // returns true when handled
+	virtual bool          HandleSpecialSetupData()    { return false; }  // returns true when handled
 
 protected:
 
