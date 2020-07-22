@@ -271,12 +271,16 @@ void THwCan_atsam_v2::HandleTx()
 		txmb->DATAL = *(uint32_t *)&msg.data[0]; // must be aligned
 		txmb->DATAH = *(uint32_t *)&msg.data[4];
 		txmb->DLC = (msg.len << 16);
-		txmb->IDFL = (msg.cobid << 18);
+		uint32_t idfl = ((msg.cobid & 0x7FF) << 18);
+		if (msg.cobid & HWCAN_RTR_FLAG)  idfl |= (1 << 29);
+		txmb->IDFL = idfl;
 
 		regs->TXBAR.reg = (1 << tpi); // add the transmit request
 
 		++tx_msg_counter;
 	}
+
+	bus_error_count += regs->ECR.bit.CEL;  // reading this clears the CEL (bits16..23) !
 }
 
 void THwCan_atsam_v2::HandleRx()

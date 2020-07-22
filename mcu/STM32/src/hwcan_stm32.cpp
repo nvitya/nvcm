@@ -176,10 +176,13 @@ void THwCan_stm32::HandleTx()
 			txmb->TDLR = *(uint32_t *)&msg.data[0];
 			txmb->TDHR = *(uint32_t *)&msg.data[4];
 			txmb->TDTR = msg.len;
-			txmb->TIR = 0
-				| (msg.cobid << 21)
+
+			uint32_t tir = 0
+				| ((msg.cobid & 0x7FF) << 21)
 				| (1 << 0) // request to start
 			;
+			if (msg.cobid & HWCAN_RTR_FLAG)  tir |= (1 << 1);
+			txmb->TIR = tir;
 
 		  ++tx_msg_counter;
 		}

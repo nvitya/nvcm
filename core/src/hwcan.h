@@ -35,6 +35,8 @@
 
 #define HWCAN_MAX_INSTANCE  4  // for instance pointer storage (irq handling helper)
 
+#define HWCAN_RTR_FLAG  0x8000  // or-ed to the COBID field
+
 typedef struct TCanMsg
 {
 	uint16_t   cobid;
@@ -58,6 +60,9 @@ public:	// settings
 	bool        loopback_mode = false;
 
 	unsigned    canbitcpuclocks = 0;
+
+	unsigned    bus_error_count = 0;
+
 
 public: // software queues
 	TCanMsg *   rxmsgbuf = nullptr;

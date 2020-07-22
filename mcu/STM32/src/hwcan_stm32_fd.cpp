@@ -284,12 +284,18 @@ void THwCan_stm32::HandleTx() // warning it can be called from multiple contexts
 		txmb->DATAL = *(uint32_t *)&msg.data[0]; // must be aligned
 		txmb->DATAH = *(uint32_t *)&msg.data[4];
 		txmb->DLC = (msg.len << 16);
-		txmb->IDFL = (msg.cobid << 18);
+		uint32_t idfl = ((msg.cobid & 0x7FF) << 18);
+		if (msg.cobid & HWCAN_RTR_FLAG)  idfl |= (1 << 29);
+		txmb->IDFL = idfl;
 
 		regs->TXBAR = (1 << tpi); // add the transmit request
 
 		++tx_msg_counter;
 	}
+
+	// update the error counter here, because the HandleTx() called always regularly
+	uint32_t ecnt_reg = regs->ECR; // reading this clears the CEL (bits16..23) !
+	bus_error_count += ((ecnt_reg >> 16) & 0xFF);
 
  	__set_PRIMASK(pm); // restore interrupt disable status
 }
