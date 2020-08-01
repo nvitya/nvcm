@@ -236,14 +236,20 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 		| (0  <<  0)        // EN: keep not enabled
 	;
 
-	regs->CPAR = (uint32_t)periphaddr;
 
-	if (istx)
+	if (axfer->flags & DMATR_MEM_TO_MEM)
 	{
+		regs->CPAR = (uint32_t)axfer->srcaddr;
+		regs->CMAR = (uint32_t)axfer->dstaddr;
+	}
+	else if (istx)
+	{
+		regs->CPAR = (uint32_t)periphaddr;
 		regs->CMAR = (uint32_t)axfer->srcaddr;
 	}
 	else
 	{
+		regs->CPAR = (uint32_t)periphaddr;
 		regs->CMAR = (uint32_t)axfer->dstaddr;
 	}
 

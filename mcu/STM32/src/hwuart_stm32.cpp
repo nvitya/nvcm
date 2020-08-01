@@ -210,6 +210,31 @@ bool THwUart_stm32::TrySendChar(char ach)
 	return true;
 }
 
+bool THwUart_stm32::TryRecvChar(char * ach)
+{
+#if defined(USART_ISR_RXNE)
+	if (regs->ISR & USART_ISR_RXNE)
+	{
+		*ach = regs->RDR;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+#else
+	if (regs->SR & USART_SR_RXNE)
+	{
+		*ach = regs->DR;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+#endif
+}
+
 bool THwUart_stm32::SendFinished()
 {
 #if defined(USART_ISR_TXE)
