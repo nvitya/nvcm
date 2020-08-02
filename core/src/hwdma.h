@@ -93,6 +93,8 @@ public: // mandatory
 
 	void PrepareTransfer(THwDmaTransfer * axfer)  { }
 	void StartPreparedTransfer()  { }
+
+	unsigned Remaining() { return 0; }
 };
 
 #define HWDMACHANNEL_IMPL THwDmaChannel_noimpl

@@ -31,6 +31,8 @@
 
 #include "hwdma.h"
 
+#warning "DMA remaining is not implemented."
+
 #if defined(HW_DMA_ALT_REGS)
 
 bool THwDmaChannel_atsam::InitPeriphDma(bool aistx, void * aregs, void * aaltregs)  // special function for Atmel PDMA

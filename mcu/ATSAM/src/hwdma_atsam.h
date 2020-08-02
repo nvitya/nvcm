@@ -61,6 +61,8 @@ public:
 
 	void PrepareTransfer(THwDmaTransfer * axfer);
 	inline void StartPreparedTransfer() { Enable(); }
+
+	unsigned Remaining() { return 0; } // todo: implement
 };
 
 #define HWDMACHANNEL_IMPL  THwDmaChannel_atsam
