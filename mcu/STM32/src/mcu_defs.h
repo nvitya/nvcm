@@ -59,7 +59,7 @@
 #elif	defined(MCUSF_G4)
 
   #if !defined(MAX_CLOCK_SPEED)
-    #define MAX_CLOCK_SPEED  168000000  // better divisible than the allowed 170 MHz, for USB 144 MHz required
+    #define MAX_CLOCK_SPEED  170000000  // better divisible than the allowed 170 MHz, for USB 144 MHz required
   #endif
 
   #define MCU_INTRC_SPEED     16000000

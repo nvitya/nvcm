@@ -258,16 +258,21 @@ void THwUart_stm32::DmaAssign(bool istx, THwDmaChannel * admach)
 	if (istx)
 	{
 		txdma = admach;
+		#ifdef USART_TDR_TDR
+			admach->Prepare(istx, (void *)&regs->TDR, 0);
+		#else
+			admach->Prepare(istx, (void *)&regs->DR, 0);
+		#endif
 	}
 	else
 	{
 		rxdma = admach;
+		#ifdef USART_RDR_RDR
+			admach->Prepare(istx, (void *)&regs->RDR, 0);
+		#else
+			admach->Prepare(istx, (void *)&regs->DR, 0);
+		#endif
 	}
-#ifdef USART_TDR_TDR
-	admach->Prepare(istx, (void *)&regs->TDR, 0);
-#else
-	admach->Prepare(istx, (void *)&regs->DR, 0);
-#endif
 }
 
 bool THwUart_stm32::DmaStartSend(THwDmaTransfer * axfer)
