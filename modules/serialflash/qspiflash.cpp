@@ -318,7 +318,7 @@ void TQspiFlash::Run()
 				txbuf[2] = ((address >>  0) & 0xFF);
 				txbuf[3] = 0;
 
-				if (has4kerase && ((address & 0xFFFF) || (datalen < 0x10000)))
+				if (has4kerase && ((address & 0xFFFF) || (remaining < 0x10000)))
 				{
 					// 4k sector erase
 					chunksize = 0x01000;
