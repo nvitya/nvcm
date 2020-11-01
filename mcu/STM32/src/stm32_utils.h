@@ -33,6 +33,8 @@
 
 #if defined(MCUSF_G4)
   #define APB1ENR_REGISTER  RCC->APB1ENR1
+#elif defined(MCUSF_H7)
+  #define APB1ENR_REGISTER  RCC->APB1LENR
 #else
   #define APB1ENR_REGISTER  RCC->APB1ENR
 #endif

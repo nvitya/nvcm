@@ -29,7 +29,7 @@
 #include "platform.h"
 #include "hwextirq.h"
 
-#if defined(EXTI_PR1_PIF0)
+#if defined(EXTI_PR1_PIF0) || defined(EXTI_PR1_PR0)
   #define REG_EXTI_PR    (EXTI->PR1)
   #define REG_EXTI_FTSR  (EXTI->FTSR1)
   #define REG_EXTI_RTSR  (EXTI->RTSR1)

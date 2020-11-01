@@ -131,6 +131,12 @@
   #define BOARD_NAME "STM32F429 Discovery"
   #define MCU_STM32F429ZI
   #define MCU_INPUT_FREQ   8000000
+  
+#elif defined(BOARD_NUCLEO_H743)
+
+  #define BOARD_NAME "STM32H743 Nucleo-144"
+  #define MCU_STM32H743ZI
+  #define MCU_INPUT_FREQ   8000000  
 
 #else
 

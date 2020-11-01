@@ -648,3 +648,142 @@ bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acp
 
 #endif
 
+#if defined(MCUSF_H7)
+
+void THwClkCtrl_stm32::PrepareHiSpeed(unsigned acpuspeed)
+{
+#if defined(SYSCFG_PWRCR_ODEN) /* STM32H74xxx and STM32H75xxx lines */
+
+  uint32_t tmp;
+  tmp = PWR->D3CR;
+  tmp &= PWR_D3CR_VOS_Msk;
+  tmp |= PWR_D3CR_VOS_0; // VOS0 (=Scale 3) required for maximal speed
+	PWR->D3CR = tmp;
+	while (0 == (PWR->D3CR & PWR_D3CR_VOSRDY))
+	{
+		// wait until ready
+	}
+
+	// Enable the PWR overdrive for the maximal speed
+	SYSCFG->PWRCR |= SYSCFG_PWRCR_ODEN;
+	if (SYSCFG->PWRCR) { } // some delay
+	if (SYSCFG->PWRCR) { } // some delay
+	if (SYSCFG->PWRCR) { } // some delay
+
+	while (0 == (PWR->D3CR & PWR_D3CR_VOSRDY))
+	{
+		// wait until ready
+	}
+
+#else
+  #error "implement H7_v2"
+#endif
+
+  // set Flash latency
+	tmp = FLASH->ACR;
+	tmp &= ~(FLASH_ACR_LATENCY | FLASH_ACR_WRHIGHFREQ);
+	tmp |= FLASH_ACR_LATENCY_4WS;
+	tmp |= FLASH_ACR_WRHIGHFREQ_1;
+	FLASH->ACR = tmp;
+
+	//FLASH->ACR |= FLASH_ACR_ARTEN | FLASH_ACR_PRFTEN;  // turn on the ART accelerator
+}
+
+bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpuspeed)
+{
+	// select the HSI as clock source
+	uint32_t tmp = RCC->CFGR;
+	tmp &= ~RCC_CFGR_SW_Msk;
+  tmp |= RCC_CFGR_SW_HSI;
+	RCC->CFGR = tmp;
+  while (((RCC->CFGR >> 2) & 3) != RCC_CFGR_SW_HSI) // wait until it is set
+  {
+  }
+
+	RCC->CR &= ~RCC_CR_PLLON;  // disable the PLL1
+
+  /* Wait till PLL is not ready */
+  while ((RCC->CR & RCC_CR_PLLRDY) != 0)
+  {
+  }
+
+  unsigned vcospeed = acpuspeed * 2;
+	unsigned pllp = 2; // divide by 2 to get the final CPU speed
+	unsigned pllm = abasespeed / 2000000;   // generate 2 MHz VCO input
+	unsigned plln = vcospeed / 2000000;     // the vco multiplier
+	unsigned pllq = vcospeed / 48000000;    // usb speed
+	unsigned pllr = 2;
+
+	tmp = RCC->PLLCKSELR;
+	tmp &= ~(RCC_PLLCKSELR_PLLSRC | RCC_PLLCKSELR_DIVM1);
+	tmp |= RCC_PLLCKSELR_PLLSRC_HSE; // select the HSE as PLL1 source
+	tmp |= (pllm << RCC_PLLCKSELR_DIVM1_Pos);
+	RCC->PLLCKSELR = tmp;
+
+	// configure PLL1 dividers:
+	RCC->PLL1DIVR = (0
+		| (plln <<  0)
+		| (pllp <<  8)
+		| (pllq << 16)
+		| (pllr << 24)
+	);
+
+	tmp = RCC->PLLCFGR;
+	tmp &= ~((0xF << 0) | (7 << 16)); // clear PLL1 configuration
+	tmp |= (0
+		| (7 << 16) // enable all outputs (P, Q, R)
+		| (0 <<  2) // PLLRGE(2): 0 = 1-2 MHz PLL1 input clock range
+		| (0 <<  1) // PLL1VCOSEL: 0 = wide range (192-836 MHz), 1 = medium range (150 - 420 MHz)
+    | (0 <<  0) // PLL1FRACEN: 0 = disable fractional divider
+	);
+	RCC->PLLCFGR = tmp;
+
+	RCC->CR |= RCC_CR_PLLON;  // enable the PLL
+
+  /* Wait till PLL is ready */
+  while((RCC->CR & RCC_CR_PLLRDY) == 0)
+  {
+  }
+
+  // set CPU divider to 1, and all bus dividers to 2:
+
+  unsigned ahbdiv = 8;
+  unsigned apbdiv = 0;  // 0 = same as the AHB bus speed
+  if (acpuspeed < MAX_CLOCK_SPEED / 2)
+  {
+  	// no bus speed division required.
+  	ahbdiv = 0;
+  }
+
+  RCC->D1CFGR = (0
+  	| (0       <<  8)  // D1CPRE(4): CPU clock division, 0 = not divided
+  	| (apbdiv  <<  4)  // D1PPRE(3): APB3 division, 4 = divided by 2
+  	| (ahbdiv  <<  0)  // HPRE(4):   AHB division, 8 = divided by 2
+  );
+
+  RCC->D2CFGR = (0
+  	| (apbdiv <<  8)  // D2PPRE2(3): APB2 division, 4 = divided by 2
+  	| (apbdiv <<  4)  // D2PPRE1(3): APB1 division, 4 = divided by 2
+  );
+
+  RCC->D3CFGR = (0
+  	| (apbdiv <<  4)  // D2PPRE1(3): APB4 division, 4 = divided by 2
+  );
+
+  // Select PLL as system clock source
+
+  tmp = RCC->CFGR;
+  tmp &= ~RCC_CFGR_SW;
+  tmp |= RCC_CFGR_SW_PLL1;
+  RCC->CFGR = tmp;
+  while (((RCC->CFGR & RCC_CFGR_SWS_Msk) >> RCC_CFGR_SWS_Pos) != RCC_CFGR_SW_PLL1) // wait until it is set
+  {
+  }
+
+  // USB !
+	//RCC->DCKCFGR2 &= ~(RCC_DCKCFGR2_CK48MSEL); // select the 48 MHz from the PLL
+
+	return true;
+}
+
+#endif

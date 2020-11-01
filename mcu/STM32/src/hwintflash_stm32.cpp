@@ -38,6 +38,8 @@
 
 #include "traces.h"
 
+#if !defined(MCUSF_H7)
+
 bool THwIntFlash_stm32::HwInit()
 {
 	hwclkctrl.StartIntHSOsc();  // required for Flash Writes
@@ -546,3 +548,4 @@ void THwIntFlash_stm32::Run()
 	}
 }
 
+#endif

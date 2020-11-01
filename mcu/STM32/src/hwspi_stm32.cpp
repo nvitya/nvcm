@@ -33,6 +33,9 @@
 
 #ifdef RCC_APB1ENR1_SPI2EN
   #define RCC_APB1ENR_SPI2EN   RCC_APB1ENR1_SPI2EN
+#elif defined(RCC_APB1LENR_SPI2EN)
+  #define RCC_APB1ENR_SPI2EN   RCC_APB1LENR_SPI2EN
+  #define RCC_APB1ENR_SPI3EN   RCC_APB1LENR_SPI3EN
 #endif
 
 bool THwSpi_stm32::Init(int adevnum)
@@ -89,7 +92,11 @@ bool THwSpi_stm32::Init(int adevnum)
 	else if (6 == devnum)
 	{
 		regs = (HW_SPI_REGS *)SPI6_BASE;
+#if defined(RCC_APB4ENR_SPI6EN)
+		RCC->APB4ENR |= RCC_APB4ENR_SPI6EN;
+#else
 		RCC->APB2ENR |= RCC_APB2ENR_SPI6EN;
+#endif
 	}
 #endif
 
@@ -140,6 +147,114 @@ bool THwSpi_stm32::Init(int adevnum)
 	return true;
 }
 
+bool THwSpi_stm32::DmaStartSend(THwDmaTransfer * axfer)
+{
+	if (!txdma)
+	{
+		return false;
+	}
+
+	//regs->CR2 &= ~(1 << 1); // disable the TX DMA
+	regs->CR2 |= (1 << 1); // enable the TX DMA
+
+	txdma->StartTransfer(axfer);
+
+	return true;
+}
+
+bool THwSpi_stm32::DmaStartRecv(THwDmaTransfer * axfer)
+{
+	if (!rxdma)
+	{
+		return false;
+	}
+
+	//regs->CR2 &= ~(1 << 0); // disable the RX DMA
+	regs->CR2 |= (1 << 0); // enable the RX DMA
+
+	rxdma->StartTransfer(axfer);
+
+	return true;
+}
+
+bool THwSpi_stm32::DmaSendCompleted()
+{
+	if (txdma && txdma->Active())
+	{
+		// Send DMA is still active
+		return false;
+	}
+
+	return SendFinished();
+}
+
+bool THwSpi_stm32::DmaRecvCompleted()
+{
+	if (rxdma && rxdma->Active())
+	{
+		// Send DMA is still active
+		return false;
+	}
+
+	return true;
+}
+
+#if defined(MCUSF_H7)  // SPI v2
+
+bool THwSpi_stm32::TrySendData(unsigned short adata)
+{
+	if (regs->SR & SPI_SR_TXP)
+	{
+		*(__IO uint8_t *)(&(regs->TXDR)) = (adata & 0xff);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool THwSpi_stm32::TryRecvData(unsigned short * dstptr)
+{
+	if (regs->SR & SPI_SR_RXP)
+	{
+		*dstptr = *(__IO uint8_t *)(&regs->RXDR);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void THwSpi_stm32::DmaAssign(bool istx, THwDmaChannel * admach)
+{
+	if (istx)
+	{
+		txdma = admach;
+	}
+	else
+	{
+		rxdma = admach;
+	}
+
+	admach->Prepare(istx, (void *)&regs->RXDR, 0);
+}
+
+bool THwSpi_stm32::SendFinished()
+{
+	if (regs->SR & SPI_SR_TXC)
+	{
+		return false;
+	}
+	else
+	{
+		return true;
+	}
+}
+
+#else
+
 bool THwSpi_stm32::TrySendData(unsigned short adata)
 {
 	if (regs->SR & SPI_SR_TXE)
@@ -180,36 +295,6 @@ void THwSpi_stm32::DmaAssign(bool istx, THwDmaChannel * admach)
 	admach->Prepare(istx, (void *)&regs->DR, 0);
 }
 
-bool THwSpi_stm32::DmaStartSend(THwDmaTransfer * axfer)
-{
-	if (!txdma)
-	{
-		return false;
-	}
-
-	//regs->CR2 &= ~(1 << 1); // disable the TX DMA
-	regs->CR2 |= (1 << 1); // enable the TX DMA
-
-	txdma->StartTransfer(axfer);
-
-	return true;
-}
-
-bool THwSpi_stm32::DmaStartRecv(THwDmaTransfer * axfer)
-{
-	if (!rxdma)
-	{
-		return false;
-	}
-
-	//regs->CR2 &= ~(1 << 0); // disable the RX DMA
-	regs->CR2 |= (1 << 0); // enable the RX DMA
-
-	rxdma->StartTransfer(axfer);
-
-	return true;
-}
-
 bool THwSpi_stm32::SendFinished()
 {
 	if (regs->SR & SPI_SR_BSY)
@@ -222,24 +307,4 @@ bool THwSpi_stm32::SendFinished()
 	}
 }
 
-bool THwSpi_stm32::DmaSendCompleted()
-{
-	if (txdma && txdma->Active())
-	{
-		// Send DMA is still active
-		return false;
-	}
-
-	return SendFinished();
-}
-
-bool THwSpi_stm32::DmaRecvCompleted()
-{
-	if (rxdma && rxdma->Active())
-	{
-		// Send DMA is still active
-		return false;
-	}
-
-	return true;
-}
+#endif

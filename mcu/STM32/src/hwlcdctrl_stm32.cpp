@@ -31,7 +31,7 @@
 
 #include "hwlcdctrl.h"
 
-#if defined(LTDC_SRCR_IMR)
+#if defined(LTDC_SRCR_IMR) && !defined(MCUSF_H7)
 
 bool THwLcdCtrl_stm32::Init(uint16_t awidth, uint16_t aheight, void * aframebuffer)
 {

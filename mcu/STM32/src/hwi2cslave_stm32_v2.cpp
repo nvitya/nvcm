@@ -36,10 +36,14 @@
 
 #if I2C_HW_VER != 1
 
-#ifdef RCC_APB1ENR1_I2C1EN
+#ifdef RCC_APB1ENR1_I2C1EN  // G4
   #define RCC_APB1ENR_I2C1EN     RCC_APB1ENR1_I2C1EN
   #define RCC_APB1ENR_I2C2EN     RCC_APB1ENR1_I2C2EN
   #define RCC_APB1ENR_I2C3EN     RCC_APB1ENR1_I2C3EN
+#elif defined(RCC_APB1LENR_I2C1EN) // H7
+  #define RCC_APB1ENR_I2C1EN     RCC_APB1LENR_I2C1EN
+  #define RCC_APB1ENR_I2C2EN     RCC_APB1LENR_I2C2EN
+  #define RCC_APB1ENR_I2C3EN     RCC_APB1LENR_I2C3EN
 #endif
 
 // v2: F0, F3, F7 etc.
@@ -87,11 +91,13 @@ bool THwI2cSlave_stm32::InitHw(int adevnum)
 	else if (4 == devnum)
 	{
 		regs = I2C4;
-    #ifdef RCC_APB1ENR2_I2C4EN
-		  RCC->APB1ENR2 |= RCC_APB1ENR2_I2C4EN;
-    #else
-  		RCC->APB1ENR |= RCC_APB1ENR_I2C4EN;
-    #endif
+		#ifdef RCC_APB1ENR2_I2C4EN
+			RCC->APB1ENR2 |= RCC_APB1ENR2_I2C4EN;
+		#elif defined RCC_APB4ENR_I2C4EN
+			RCC->APB4ENR |= RCC_APB4ENR_I2C4EN;
+		#else
+			RCC->APB1ENR |= RCC_APB1ENR_I2C4EN;
+		#endif
 	}
 #endif
 	if (!regs)

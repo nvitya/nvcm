@@ -28,6 +28,33 @@
 
 #include "stm32_utils.h"
 
+#if defined(MCUSF_H7)
+
+// high speed devices
+
+uint32_t stm32_bus_speed(uint8_t abusid)
+{
+	uint32_t tmp;
+	uint32_t clockshr;  // clock shift right = division
+
+	// check AHB division
+	tmp = (RCC->D1CFGR & RCC_D1CFGR_HPRE);
+	if (tmp & 8)
+	{
+		clockshr = 1; // if AHB divided, then surely only with 2
+	}
+	else
+	{
+		clockshr = 0;
+	}
+
+	return (SystemCoreClock >> clockshr);
+}
+
+#else
+
+// classic
+
 uint32_t stm32_bus_speed(uint8_t abusid)
 {
 	uint32_t tmp;
@@ -72,5 +99,5 @@ uint32_t stm32_bus_speed(uint8_t abusid)
 	return (SystemCoreClock >> clockshr);
 }
 
-
+#endif
 

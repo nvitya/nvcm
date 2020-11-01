@@ -119,8 +119,8 @@ void TKeyMatrix::Run()
 					if (fcnt[i] == filter_count)
 					{
 						// this is stable, update it
-						uint32_t key_bit = (1 << (i + scanrow * columns));
-						uint32_t tmp = keys;
+						uint64_t key_bit = (uint64_t(1) << (i + scanrow * columns));
+						uint64_t tmp = keys;
 						if (col_keys & col_bit)
 						{
 							tmp |= key_bit;

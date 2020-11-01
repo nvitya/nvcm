@@ -17,7 +17,7 @@ __KINETIS__  | [K20, KL03, KV30](https://github.com/nvitya/nvcm/blob/master/mcu/
 __LPC__      | [LPC43xx](https://github.com/nvitya/nvcm/blob/master/mcu/LPC/src/mcu_builtin.h)
 __LPC_V2__   | [LPC8xx](https://github.com/nvitya/nvcm/blob/master/mcu/LPC_V2/src/mcu_builtin.h)
 __LPC_V3__   | [LPC546xx](https://github.com/nvitya/nvcm/blob/master/mcu/LPC_V3/src/mcu_builtin.h)
-__STM32__    | [F0, L0, F1, F3, F4, F7](https://github.com/nvitya/nvcm/blob/master/mcu/STM32/src/mcu_builtin.h)
+__STM32__    | [F0, L0, F1, F3, F4, F7, H7](https://github.com/nvitya/nvcm/blob/master/mcu/STM32/src/mcu_builtin.h)
 __XMC__      | [XMC1xxx, XMC4xxx](https://github.com/nvitya/nvcm/blob/master/mcu/XMC/src/mcu_builtin.h)
 
 

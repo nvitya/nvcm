@@ -146,6 +146,24 @@
 
   #include "stm32f746xx.h"
 
+// STM32H7: Cortex-M7 (400 MHz +)
+
+#elif defined(MCU_STM32H743ZI)
+
+  #define MCUF_STM32
+  #define MCUSF_H7
+  #define MAX_CLOCK_SPEED  400000000
+
+  #include "stm32h743xx.h"
+
+#elif defined(MCU_STM32H750VB)
+
+  #define MCUF_STM32
+  #define MCUSF_H7
+  #define MAX_CLOCK_SPEED  400000000
+
+  #include "stm32h750xx.h"
+
 #else
 
   #error "Unknown MCU"

@@ -38,6 +38,11 @@
   #define RCC_APB1ENR_USART3EN   RCC_APB1ENR1_USART3EN
   #define RCC_APB1ENR_UART4EN    RCC_APB1ENR1_UART4EN
   #define RCC_APB1ENR_UART5EN    RCC_APB1ENR1_UART5EN
+#elif defined(RCC_APB1LENR_USART2EN)
+  #define RCC_APB1ENR_USART2EN   RCC_APB1LENR_USART2EN
+  #define RCC_APB1ENR_USART3EN   RCC_APB1LENR_USART3EN
+  #define RCC_APB1ENR_UART4EN    RCC_APB1LENR_UART4EN
+  #define RCC_APB1ENR_UART5EN    RCC_APB1LENR_UART5EN
 #endif
 
 bool THwUart_stm32::Init(int adevnum)
@@ -63,7 +68,11 @@ bool THwUart_stm32::Init(int adevnum)
 			#ifdef RCC_APB1ENR2_LPUART1EN
 				RCC->APB1ENR2 |= RCC_APB1ENR2_LPUART1EN;
 			#else
-				RCC->APB1ENR |= RCC_APB1ENR_LPUART1EN;
+        #if defined(RCC_APB4ENR_LPUART1EN)
+				  RCC->APB4ENR |= RCC_APB4ENR_LPUART1EN;
+        #else
+				  RCC->APB1ENR |= RCC_APB1ENR_LPUART1EN;
+        #endif
 			#endif
 			//lpuart = true;
 		#endif
@@ -165,6 +174,10 @@ bool THwUart_stm32::Init(int adevnum)
 	regs->CR3 &= ~(USART_CR3_RTSE | USART_CR3_CTSE | USART_CR3_HDSEL);
 #endif
 
+#if defined(USART_PRESC_PRESCALER)
+	regs->PRESC = 0; // do not divide the input clock
+#endif
+
 	unsigned periphclock = stm32_bus_speed(busid);
 	unsigned baseclock = periphclock / 16;
 	unsigned divider = ((baseclock << 4) + 8) / baudrate;
@@ -198,6 +211,13 @@ bool THwUart_stm32::TrySendChar(char ach)
 	}
 
 	regs->TDR = ach;
+#elif defined(USART_ISR_TXE_TXFNF)
+	if ((regs->ISR & USART_ISR_TXE_TXFNF) == 0)
+	{
+		return false;
+	}
+
+	regs->TDR = ach;
 #else
 	if (((regs->SR & USART_SR_TC) == 0) && ((regs->SR & USART_SR_TXE) == 0))
 	{
@@ -222,6 +242,16 @@ bool THwUart_stm32::TryRecvChar(char * ach)
 	{
 		return false;
 	}
+#elif defined(USART_ISR_RXNE_RXFNE)
+	if (regs->ISR & USART_ISR_RXNE_RXFNE)
+	{
+		*ach = regs->RDR;
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 #else
 	if (regs->SR & USART_SR_RXNE)
 	{
@@ -237,7 +267,7 @@ bool THwUart_stm32::TryRecvChar(char * ach)
 
 bool THwUart_stm32::SendFinished()
 {
-#if defined(USART_ISR_TXE)
+#if defined(USART_ISR_IDLE)
 	if (regs->ISR & USART_ISR_IDLE)
 #else
 	if (regs->SR & USART_SR_IDLE)

@@ -33,7 +33,7 @@
 #include "hwi2cslave.h"
 
 #ifdef I2C_CR2_NBYTES
-  #define I2C_HW_VER 2  // advanced HW on F0, L0, F7
+  #define I2C_HW_VER 2  // advanced HW on F0, L0, F7, G4, H7
 #else
   #define I2C_HW_VER 1  // old HW on F1, F4
 #endif

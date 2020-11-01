@@ -329,18 +329,31 @@ bool THwUsbCtrl_stm32_otg::InitHw()
 {
 	periph_address = 0;
 
-#if defined(USB_OTG_HS)
-	if (1 == devnum)
-	{
-		periph_address = USB_OTG_HS_PERIPH_BASE;
-		RCC->AHB1ENR |= RCC_AHB1ENR_OTGHSEN;
-	}
-	else
-#endif
-	{
-		periph_address = USB_OTG_FS_PERIPH_BASE;
-		RCC->AHB2ENR |= RCC_AHB2ENR_OTGFSEN;
-	}
+	#if defined (RCC_AHB1ENR_USB1OTGHSEN) // H7
+		if ((1 == devnum) || (0 == devnum))
+		{
+			periph_address = USB1_OTG_HS_PERIPH_BASE;
+			RCC->AHB1ENR |= RCC_AHB1ENR_USB1OTGHSEN;
+		}
+		else // 2 = devnum
+		{
+			periph_address = USB2_OTG_FS_PERIPH_BASE;
+			RCC->AHB1ENR |= RCC_AHB1ENR_USB2OTGHSEN;
+		}
+	#else
+		#if defined(USB_OTG_HS)
+			if (1 == devnum)
+			{
+				periph_address = USB_OTG_HS_PERIPH_BASE;
+				RCC->AHB1ENR |= RCC_AHB1ENR_OTGHSEN;
+			}
+			else
+		#endif
+			{
+				periph_address = USB_OTG_FS_PERIPH_BASE;
+				RCC->AHB2ENR |= RCC_AHB2ENR_OTGFSEN;
+			}
+	#endif
 
 	if (!periph_address)
 	{

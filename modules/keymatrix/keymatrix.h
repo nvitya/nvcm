@@ -31,8 +31,8 @@
 
 #include "hwpins.h"
 
-#define KEYMATRIX_MAX_COLS  6
-#define KEYMATRIX_MAX_ROWS  6
+#define KEYMATRIX_MAX_COLS  8
+#define KEYMATRIX_MAX_ROWS  8
 
 class TKeyMatrix
 {
@@ -48,7 +48,7 @@ public:
 	uint8_t     filter_count = 3; // so much consecutive levels are taken into account only
 
 	bool 			  initialized = false;
-	uint32_t    keys = 0; // bitmap of the pressed keys
+	uint64_t    keys = 0; // bitmap of the pressed keys
 
 	bool Init(uint8_t arows, uint8_t acolumns);
 

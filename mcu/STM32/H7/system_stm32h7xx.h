@@ -1,0 +1,5 @@
+#ifndef SYSTEM_STM32H7XX_H
+#define SYSTEM_STM32H7XX_H
+
+#endif /* SYSTEM_STM32H7XX_H */
+

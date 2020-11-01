@@ -31,7 +31,7 @@
 
 #include "platform.h"
 
-#if defined(MCAN0CAN1_BASE) || defined(CAN_BASE) || defined(CAN1_BASE) || defined(FDCAN1_BASE)
+#if !defined(MCUSF_H7) && (defined(MCAN0CAN1_BASE) || defined(CAN_BASE) || defined(CAN1_BASE) || defined(FDCAN1_BASE))
 
 #define HWCAN_PRE_ONLY
 #include "hwcan.h"
