@@ -51,7 +51,7 @@ bool THwPwmChannel_stm32::Init(int atimernum, int achnum, int aoutnum) // outnum
 	initialized = false;
 
 	devnum = atimernum;
-	chnum = (achnum & 3);
+	chnum = achnum;
 	outnum = (aoutnum & 1);
 
 	regs = nullptr;
@@ -145,19 +145,19 @@ bool THwPwmChannel_stm32::Init(int atimernum, int achnum, int aoutnum) // outnum
 
 	if (1 == chnum)
 	{
-		valreg = (volatile uint16_t *)&(regs->CCR1);
+		valreg = (volatile uint32_t *)&(regs->CCR1);
 	}
 	else if (2 == chnum)
 	{
-		valreg = (volatile uint16_t *)&(regs->CCR2);
+		valreg = (volatile uint32_t *)&(regs->CCR2);
 	}
 	else if (3 == chnum)
 	{
-		valreg = (volatile uint16_t *)&(regs->CCR3);
+		valreg = (volatile uint32_t *)&(regs->CCR3);
 	}
 	else if (4 == chnum)
 	{
-		valreg = (volatile uint16_t *)&(regs->CCR4);
+		valreg = (volatile uint32_t *)&(regs->CCR4);
 	}
 	else
 	{
@@ -185,14 +185,14 @@ bool THwPwmChannel_stm32::Init(int atimernum, int achnum, int aoutnum) // outnum
 
 	uint32_t vshift = 8 * (chpos & 1);
 
-	volatile uint16_t * ccmr;
+	volatile uint32_t * ccmr;
 	if (chnum >= 3)
 	{
-		ccmr = (volatile uint16_t *)&regs->CCMR2;
+		ccmr = (volatile uint32_t *)&regs->CCMR2;
 	}
 	else
 	{
-		ccmr = (volatile uint16_t *)&regs->CCMR1;
+		ccmr = (volatile uint32_t *)&regs->CCMR1;
 	}
 
 	*ccmr &= ~(0xFF << vshift);

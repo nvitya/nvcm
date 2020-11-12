@@ -48,9 +48,9 @@ public:
 public:
 	TIM_TypeDef *           regs = nullptr;
 
-	uint16_t                chpos = 0;     // = chnum - 1
-	uint16_t						    outenbit = 0;
-	volatile uint16_t *     valreg = nullptr;
+	uint32_t                chpos = 0;     // = chnum - 1
+	uint32_t						    outenbit = 0;
+	volatile uint32_t *     valreg = nullptr;
 };
 
 #define HWPWM_IMPL THwPwmChannel_stm32
