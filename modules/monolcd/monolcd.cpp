@@ -42,6 +42,11 @@ void TMonoLcd::WriteCmd(uint8_t adata)
 	// should be overridden
 }
 
+void TMonoLcd::WriteData(uint8_t adata)
+{
+	// should be overridden
+}
+
 void TMonoLcd::SetAddrWindow(uint16_t x0, uint16_t y0, uint16_t w, uint16_t h)
 {
 	aw_x0 = x0;
@@ -157,6 +162,90 @@ void TMonoLcd::InitPanel()
 
     // set contrast:
 	  WriteCmd(0x80 | (contrast & 31));
+	}
+	else if (MLCD_CTRL_ST75256 == ctrltype)
+	{
+
+#if 1
+
+	  WriteCmd(0x30);				/* select 00 commands */
+	  WriteCmd(0x94);				/* sleep out */
+
+	  WriteCmd(0xae);				/* display off */
+
+	  WriteCmd(0x31);				/* select 01 commands */
+	  WriteCmd(0xd7);  WriteData(0x9f);		/* disable auto read */
+
+	  //WriteCmd(0x31);				/* select 01 commands */
+	  WriteCmd(0x32);				/* analog circuit set */
+	  WriteData(0x00);				/* code example: OSC Frequency adjustment */
+	  WriteData(0x01);				/* Frequency on booster capacitors 1 = 6KHz? */
+	  WriteData(0x00);				/* Bias: 1: 1/13, 2: 1/12, 3: 1/11, 4:1/10, 5:1/9 */
+
+#if 0
+	  //WriteCmd(0x31);				/* select 01 commands */
+	  WriteCmd(0x20);				/* gray levels */
+	  WriteData(0x01);
+	  WriteData(0x03);
+	  WriteData(0x05);
+	  WriteData(0x07);
+	  WriteData(0x09);
+	  WriteData(0x0b);
+	  WriteData(0x0d);
+	  WriteData(0x10);
+	  WriteData(0x11);
+	  WriteData(0x13);
+	  WriteData(0x15);
+	  WriteData(0x17);
+	  WriteData(0x19);
+	  WriteData(0x1b);
+	  WriteData(0x1d);
+	  WriteData(0x1f);
+#endif
+
+
+	  WriteCmd(0x30);				/* select 00 commands */
+	  WriteCmd(0x75);  WriteData(0);  WriteData(0x28);		/* row range */
+	  WriteCmd(0x15);  WriteData(0);  WriteData(0xFF);		/* col range */
+
+	  //WriteCmd(0x30);				/* select 00 commands */
+	  WriteCmd(0xbc);  WriteData(0x00);			/* data scan dir */
+	  //WriteData(0xa6);				/* ??? */
+
+	  //WriteCmd(0x30);				/* select 00 commands */
+	  WriteCmd(0x0c);				/* data format LSB top */
+
+	  //WriteCmd(0x30);				/* select 00 commands */
+	  WriteCmd(0xca);				/* display control, 3 args follow  */
+	  WriteData(0x00);				/* 0x00: no clock division, 0x04: devide clock */
+	  WriteData(hwheight-1);				/* 1/160 duty value from the DS example code */
+	  WriteData(0x20);				/* nline off */
+
+	  //WriteCmd(0x30);				/* select 00 commands */
+	  WriteCmd(0xf0);  WriteData(0x10);		/* monochrome mode  = 0x010*/
+	  //WriteCmd(0xf0);  WriteData(0x11);		/* 0x11 = grayscale */
+
+	    //WriteCmd(0x30);				/* select 00 commands */
+
+// contrast
+
+	  //WriteCmd(0x81);  WriteData(0x18);  WriteData(0x05);	/* Volume control */
+
+	  uint16_t vop = 0x170;
+	  WriteCmd(0x81);  WriteData(vop & 0x3F);  WriteData((vop >> 6) & 7);	/* Volume control */
+
+	    //WriteCmd(0x30);				/* select 00 commands */
+	  WriteCmd(0x20);  WriteData(0x0b);		/* Power control: Regulator, follower & booster on */
+
+	  //U8X8_DLY(100),
+	  delay_us(100);
+
+	  WriteCmd(0xaf);				/* display on */
+
+
+
+#endif
+
 	}
 
   SetRotation(rotation);

@@ -33,6 +33,7 @@
 bool TKeyMatrix::Init(uint8_t arows, uint8_t acolumns)
 {
 	int i;
+	initialized = false;
 	rows = arows;
 	columns = acolumns;
 	if (rows > KEYMATRIX_MAX_ROWS)  rows = KEYMATRIX_MAX_ROWS;
@@ -60,7 +61,9 @@ bool TKeyMatrix::Init(uint8_t arows, uint8_t acolumns)
 
 	memset(&fcnt[0], 0, sizeof(fcnt));
 
-	scan_clocks = scan_speed_us * SystemCoreClock / 1000000;
+	scan_clocks = scan_speed_us * (SystemCoreClock / 1000000);
+
+	initialized = true;
 
 	return true;
 }
@@ -68,6 +71,11 @@ bool TKeyMatrix::Init(uint8_t arows, uint8_t acolumns)
 void TKeyMatrix::Run()
 {
 	int i;
+
+	if (!initialized)
+	{
+		return;
+	}
 
 	switch (state)
 	{
@@ -120,7 +128,7 @@ void TKeyMatrix::Run()
 					{
 						// this is stable, update it
 						uint64_t key_bit = (uint64_t(1) << (i + scanrow * columns));
-						uint64_t tmp = keys;
+						uint64_t tmp = keys64;
 						if (col_keys & col_bit)
 						{
 							tmp |= key_bit;
@@ -129,7 +137,7 @@ void TKeyMatrix::Run()
 						{
 							tmp &= ~key_bit;
 						}
-						keys = tmp;
+						keys64 = tmp;
 					}
 				}
 			}

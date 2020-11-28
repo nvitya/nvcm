@@ -11,7 +11,8 @@ typedef enum
 	MLCD_CTRL_UNKNOWN = 0,
 	MLCD_CTRL_UC1701,
 	MLCD_CTRL_PCD8544, // = Nokia 5110
-	MLCD_CTRL_HX1230
+	MLCD_CTRL_HX1230,
+	MLCD_CTRL_ST75256
 //
 } TMonoLcdCtrlType;
 
@@ -49,6 +50,7 @@ public:
 	//virtual void ResetPanel();
 
 	virtual void WriteCmd(uint8_t adata);
+	virtual void WriteData(uint8_t adata);
 
 public:
 	// interface independent functions

@@ -25,6 +25,7 @@ public:
 	virtual bool InitInterface();
 
 	virtual void WriteCmd(uint8_t adata);
+	virtual void WriteData(uint8_t adata);
 
 	//virtual void WriteData8(uint8_t adata);
 	//virtual void WriteData16(uint16_t adata);

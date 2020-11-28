@@ -48,7 +48,14 @@ public:
 	uint8_t     filter_count = 3; // so much consecutive levels are taken into account only
 
 	bool 			  initialized = false;
-	uint64_t    keys = 0; // bitmap of the pressed keys
+
+	// bitmap of the pressed keys
+	union
+	{
+	  uint64_t    keys64 = 0;
+		uint8_t     keys8[8];
+		uint32_t    keys32[2];
+	};
 
 	bool Init(uint8_t arows, uint8_t acolumns);
 

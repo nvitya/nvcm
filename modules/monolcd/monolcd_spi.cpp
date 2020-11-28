@@ -37,6 +37,15 @@ void TMonoLcd_spi::WriteCmd(uint8_t adata)
 	pin_cs.Set1();
 }
 
+void TMonoLcd_spi::WriteData(uint8_t adata)
+{
+	pin_cd.Set1();
+	pin_cs.Set0();
+	spi.SendData(adata);
+	spi.WaitSendFinish();
+	pin_cs.Set1();
+}
+
 void TMonoLcd_spi::Run()
 {
 	switch (updatestate)
@@ -55,6 +64,24 @@ void TMonoLcd_spi::Run()
 		// no break !
 
 	case 2: // send commands
+
+		if (MLCD_CTRL_ST75256 == ctrltype) // quite different commanding
+		{
+			// now the not optimized version
+			WriteCmd(0x75); // set page (y) address
+			WriteData(0x00); // starting address
+			WriteData((hwheight - 1) >> 3);
+
+			WriteCmd(0x15); // set page (y) address
+			WriteData(0x00); // starting address
+			WriteData(hwwidth - 1);
+
+			WriteCmd(0x5C); // start writing data
+
+			updatestate = 4; // continue with sending data
+			break;
+		}
+
 		pin_cd.Set0(); // set to command
 		if (MLCD_CTRL_PCD8544 == ctrltype)
 		{
@@ -127,7 +154,16 @@ void TMonoLcd_spi::Run()
 		++current_page;
 		if (current_page < (hwheight >> 3))
 		{
-			updatestate = 2; Run(); return;
+			if (MLCD_CTRL_ST75256 == ctrltype) // quite different commanding
+			{
+				updatestate = 4; // do not set the address
+			}
+			else
+			{
+				updatestate = 2;
+			}
+
+			Run(); return;
 		}
 		else
 		{

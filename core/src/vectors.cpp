@@ -30,6 +30,7 @@
 */
 
 #include "platform.h"
+//#include "builtins.h"
 
 extern "C" // these functions are with C naming defined
 {
@@ -538,14 +539,20 @@ pHandler __isr_vectors[] =
 // When in DEBUG, trigger a debug exception to clearly notify
 // the user of the exception and help identify the cause.
 
-extern void Default_Handler(void)
+void __attribute__ ((section(".after_vectors"),weak))
+Default_Handler(void)
 {
-	#if defined(DEBUG)
-	__DEBUG_BKPT();
-	#endif
-	while (1)
+#ifdef CoreDebug
+	if (CoreDebug->DHCSR & 1)
+#endif
 	{
+		__BKPT();
 	}
+
+  while (1)
+  {
+  	__NOP();
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -556,72 +563,136 @@ extern void Default_Handler(void)
 void __attribute__ ((section(".after_vectors"),weak))
 NMI_Handler (void)
 {
-	__DEBUG_BKPT();
+	mcu_disable_interrupts();
+#ifdef CoreDebug
+	if (CoreDebug->DHCSR & 1)
+#endif
+	{
+		__BKPT();
+	}
+
   while (1)
   {
+  	__NOP();
   }
 }
 
 void __attribute__ ((section(".after_vectors"),weak,naked))
 HardFault_Handler (void)
 {
-	__DEBUG_BKPT();
+	mcu_disable_interrupts();
+#ifdef CoreDebug
+	if (CoreDebug->DHCSR & 1)
+#endif
+	{
+		__BKPT();
+	}
+
   while (1)
   {
+  	__NOP();
   }
 }
 
 void __attribute__ ((section(".after_vectors"),weak,naked))
 BusFault_Handler (void)
 {
-	__DEBUG_BKPT();
+	mcu_disable_interrupts();
+#ifdef CoreDebug
+	if (CoreDebug->DHCSR & 1)
+#endif
+	{
+		__BKPT();
+	}
+
   while (1)
   {
+  	__NOP();
   }
 }
 
 void __attribute__ ((section(".after_vectors"),weak,naked))
 UsageFault_Handler (void)
 {
-	__DEBUG_BKPT();
+	mcu_disable_interrupts();
+#ifdef CoreDebug
+	if (CoreDebug->DHCSR & 1)
+#endif
+	{
+		__BKPT();
+	}
+
   while (1)
   {
+  	__NOP();
   }
 }
 
 void __attribute__ ((section(".after_vectors"),weak))
 SVC_Handler (void)
 {
-	__DEBUG_BKPT();
+	mcu_disable_interrupts();
+#ifdef CoreDebug
+	if (CoreDebug->DHCSR & 1)
+#endif
+	{
+		__BKPT();
+	}
+
   while (1)
   {
+  	__NOP();
   }
 }
 
 void __attribute__ ((section(".after_vectors"),weak))
 PendSV_Handler (void)
 {
-	__DEBUG_BKPT();
+	mcu_disable_interrupts();
+#ifdef CoreDebug
+	if (CoreDebug->DHCSR & 1)
+#endif
+	{
+		__BKPT();
+	}
+
   while (1)
   {
+  	__NOP();
   }
 }
 
 void __attribute__ ((section(".after_vectors"),weak))
 MemManage_Handler (void)
 {
-	__DEBUG_BKPT();
+	mcu_disable_interrupts();
+#ifdef CoreDebug
+	if (CoreDebug->DHCSR & 1)
+#endif
+	{
+		__BKPT();
+	}
+
   while (1)
   {
+  	__NOP();
   }
 }
 
 void __attribute__ ((section(".after_vectors"),weak))
 DebugMon_Handler (void)
 {
-	__DEBUG_BKPT();
+	mcu_disable_interrupts();
+#ifdef CoreDebug
+	if (CoreDebug->DHCSR & 1)
+#endif
+	{
+		__BKPT();
+	}
+
   while (1)
   {
+  	__NOP();
   }
 }
 
