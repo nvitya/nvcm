@@ -46,6 +46,8 @@ if some regions missing they must be presented as alias like:
 
 */
 
+OUTPUT_FORMAT("elf32-littlearm", "elf32-littlearm", "elf32-littlearm")
+OUTPUT_ARCH(arm)
 INCLUDE nvcm_stack_predef.ld
 
 ENTRY(_start)
@@ -89,8 +91,6 @@ SECTIONS
 
     __bss_regions_array_end = .;
 
-    INCLUDE nvcm_cppinit.ld
-
   } > FLASH
 
   .startup      : ALIGN(4)  {  KEEP(*(.startup))  } > FLASH
@@ -100,17 +100,33 @@ SECTIONS
   .text_RAM2    : ALIGN(4)  { *(.text_RAM2) }   > RAM2    AT > FLASH
   .text : ALIGN(4)
   {
-    *(.text .text.*)
-    *(.rodata .rodata.* .constdata .constdata.*)
+    /* the CPP init must be included into .text section for Atmel Studio compatibility */
+    INCLUDE nvcm_cppinit.ld
+
+    *(.text .text.* .gnu.linkonce.t.*)
+    *(.rodata .rodata.* .constdata .constdata.* .gnu.linkonce.r.*)
+    *(.ARM.extab* .gnu.linkonce.armextab.*)
     *(vtable)
 
     KEEP(*(.eh_frame*))
 
-    *(.glue_7)
-    *(.glue_7t)
+    *(.glue_7) *(.glue_7t)
+
+    . = ALIGN(4);
+    KEEP (*crtbegin.o(.ctors))
+    KEEP (*(EXCLUDE_FILE (*crtend.o) .ctors))
+    KEEP (*(SORT(.ctors.*)))
+    KEEP (*crtend.o(.ctors))
 
   } > TEXT
 
+  /* .ARM.exidx is sorted, so has to go in its own output section.  */
+  PROVIDE_HIDDEN (__exidx_start = .);
+  .ARM.exidx :
+  {
+    *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+  } > TEXT
+  PROVIDE_HIDDEN (__exidx_end = .);
   . = ALIGN(4);
   _etext = .;
   __etext = .;
