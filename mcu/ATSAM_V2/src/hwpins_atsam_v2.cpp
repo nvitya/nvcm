@@ -31,6 +31,8 @@
 
 #define MAX_PORT_NUMBER   PORT_GROUPS
 
+uint32_t atsam_port_pull_dir[MAX_PORT_NUMBER];
+
 HW_GPIO_REGS * THwPinCtrl_atsam_v2::GetGpioRegs(int aportnum)
 {
 	if ((aportnum < 0) || (aportnum >= MAX_PORT_NUMBER))
@@ -104,14 +106,16 @@ bool THwPinCtrl_atsam_v2::PinSetup(int aportnum, int apinnum, unsigned flags)
 
   if (flags & PINCFG_PULLUP)
   {
-  	regs->PINCFG[apinnum].reg |= (1 << 2);
-  	regs->OUTSET.reg = (1 < apinnum);
+  	regs->PINCFG[apinnum].reg |= (1 << 2); // pull enable, unfortunately the direction comes from the output reg
+  	regs->OUTSET.reg = (1 << apinnum);
+  	atsam_port_pull_dir[aportnum] |= (1 << apinnum); // save for later
   }
 
   if (flags & PINCFG_PULLDOWN)
   {
   	regs->PINCFG[apinnum].reg |= (1 << 2);
-  	regs->OUTCLR.reg = (1 < apinnum);
+  	regs->OUTCLR.reg = (1 << apinnum);
+  	atsam_port_pull_dir[aportnum] &= ~(1 << apinnum);  // save for later
   }
 
   return true;
@@ -210,5 +214,16 @@ void TGpioPin_atsam_v2::SwitchDirection(int adirection)
 	else
 	{
 		regs->DIRCLR.reg = setbitvalue;
+		if (regs->PINCFG[pinnum].bit.PULLEN)
+		{
+			if (atsam_port_pull_dir[portnum] & setbitvalue)
+			{
+				regs->OUTSET.reg = setbitvalue;  // pull up
+			}
+			else
+			{
+				regs->OUTCLR.reg = setbitvalue;  // pull down
+			}
+		}
 	}
 }
