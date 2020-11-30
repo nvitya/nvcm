@@ -31,6 +31,12 @@ public: // textscreen mandatory
 	virtual void    DrawChar(unsigned acol, unsigned arow, char ach);
 	virtual void    SetCursor();
 
+protected:
+	uint16_t        cursor_prev_x = 0;
+	uint16_t        cursor_prev_y = 0;
+	uint16_t        cursor_prev_on = 0;
+	bool            cursor_blink_on = false;
+
 };
 
 #endif /* GFXTEXTSCREEN_H_ */

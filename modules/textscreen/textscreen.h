@@ -44,6 +44,8 @@ public:
 
 	virtual void    Run();
 
+	inline unsigned AddrFromColRow(unsigned acol, unsigned arow)  { return (arow * cols) + acol; }
+
 public: // implemented in the child
 
 	virtual void    DrawChar(unsigned acol, unsigned arow, char ach);

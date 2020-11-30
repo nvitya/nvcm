@@ -50,14 +50,41 @@ void TGfxTextScreen::InitTextGfx(TGfxBase * adisp, uint16_t x, uint16_t y, uint1
 
 void TGfxTextScreen::DrawChar(unsigned acol, unsigned arow, char ach)
 {
-	unsigned saddr = arow * cols + acol;
+	unsigned saddr = AddrFromColRow(acol, arow);
 	disp->SetCursor(disp_x + acol * charwidth, disp_y + lineheight * arow);
 	TGfxGlyph * glyph = font->GetGlyph(screenbuf[saddr]);
 	if (!glyph)  glyph = font->GetGlyph('.');  // replace non-existing characters with dot
+
+	uint16_t orig_bgcolor = disp->bgcolor;
+	uint16_t orig_color = disp->color;
+
+	if (cursor_on && (acol == cursor_x) && (arow == cursor_y))
+	{
+		disp->bgcolor = orig_color;
+		disp->color   = orig_bgcolor;
+	}
+
 	disp->DrawGlyph(font, glyph);
+
+	disp->color   = orig_color;
+	disp->bgcolor = orig_bgcolor;
 }
 
 void TGfxTextScreen::SetCursor()
 {
-	// not implemented yet
+	if ((cursor_x != cursor_prev_x) || (cursor_y != cursor_prev_y))
+	{
+		unsigned addr;
+
+		addr = AddrFromColRow(cursor_prev_x, cursor_prev_y);
+		changemap[addr >> 5] |= (1 << (addr & 31));
+
+		addr = AddrFromColRow(cursor_x, cursor_y);
+		changemap[addr >> 5] |= (1 << (addr & 31));
+
+		screenchanged = true;
+
+		cursor_prev_x = cursor_x;
+		cursor_prev_y = cursor_y;
+	}
 }
