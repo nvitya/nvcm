@@ -158,6 +158,8 @@ void TKeyMatrix::Run()
 
 bool TKeyMatrix::AnyKeyPressed(unsigned test_us)
 {
+	state = 0; // reset the state if it is used parallel with the run
+
 	int i;
 	for (i = 0; i < rows; ++i)
 	{
