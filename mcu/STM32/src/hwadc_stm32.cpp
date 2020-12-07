@@ -28,6 +28,7 @@
 
 #include "hwadc_stm32.h"
 #include "clockcnt.h"
+#include "stm32_utils.h"
 
 #if defined(MCUSF_F1)
 
@@ -314,7 +315,7 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 	return true;
 }
 
-#elif defined(MCUSF_G4)
+#elif defined(MCUSF_G4) || defined(MCUSF_H7)
 
 bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 {
@@ -330,29 +331,47 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 	regs = nullptr;
 	if      (1 == devnum)
 	{
+		#if defined(RCC_AHB1ENR_ADC12EN) // H7
+	  	RCC->AHB1ENR |= RCC_AHB1ENR_ADC12EN;
+			dmamux = 9;
+		#else
+		  RCC->AHB2ENR |= RCC_AHB2ENR_ADC12EN;
+			dmamux = 5;
+    #endif
+
 		regs = ADC1;
 		commonregs = ADC12_COMMON;
-		RCC->AHB2ENR |= RCC_AHB2ENR_ADC12EN;
-		dmamux = 5;
 		defaultdma = 0x201;
 	}
 #ifdef ADC2
 	else if (2 == devnum)
 	{
+		#if defined(RCC_AHB1ENR_ADC12EN) // H7
+			RCC->AHB1ENR |= RCC_AHB1ENR_ADC12EN;
+			dmamux = 10;
+		#else
+			RCC->AHB2ENR |= RCC_AHB2ENR_ADC12EN;
+			dmamux = 36;
+		#endif
 		regs = ADC2;
 		commonregs = ADC12_COMMON;
-		RCC->AHB2ENR |= RCC_AHB2ENR_ADC12EN;
-		dmamux = 36;
 		defaultdma = 0x202;
 	}
 #endif
 #ifdef ADC3
 	else if (3 == devnum)
 	{
+		#if defined(RCC_AHB4ENR_ADC3EN)  // H7
+		  RCC->AHB4ENR |= RCC_AHB4ENR_ADC3EN;
+			commonregs = ADC3_COMMON;
+			dmamux = 115;
+		#else
+  		RCC->AHB2ENR |= RCC_AHB2ENR_ADC345EN;
+			commonregs = ADC345_COMMON;
+			dmamux = 37;
+    #endif
+
 		regs = ADC3;
-		commonregs = ADC345_COMMON;
-		RCC->AHB2ENR |= RCC_AHB2ENR_ADC345EN;
-		dmamux = 37;
 		defaultdma = 0x203;
 	}
 #endif
@@ -388,7 +407,7 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 
 	// current setup: ADC clock = System Clock (AHB clock) / 4
 	// this gives at 168 MHz CPU speed the maximal 42 MHz ADC clock (for single ended mode)
-	adc_clock = SystemCoreClock / 4;
+	adc_clock = stm32_bus_speed(0) / 4;
 
 	// ADC Common register
 	commonregs->CCR = 0
@@ -475,9 +494,18 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 	;
 
 	// disable ADC Watchdogs
-	regs->TR1 = 0;
-	regs->TR2 = 0;
-	regs->TR3 = 0;
+  #if defined(ADC_LTR_LT)
+	  regs->LTR1 = 0;
+	  regs->HTR1 = 0;
+	  regs->LTR2 = 0;
+	  regs->HTR2 = 0;
+	  regs->LTR3 = 0;
+	  regs->HTR3 = 0;
+  #else
+		regs->TR1 = 0;
+		regs->TR2 = 0;
+		regs->TR3 = 0;
+  #endif
 
 	regs->AWD2CR = 0;
 	regs->AWD3CR = 0;
@@ -649,7 +677,7 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 
 // Shared functions
 
-#if defined(MCUSF_G4) || defined(MCUSF_F3)
+#if defined(MCUSF_G4) || defined(MCUSF_H7) || defined(MCUSF_F3)
   #define HWADC_SQREG_SHIFT  6
   #define STM32_FASTADC
 #else

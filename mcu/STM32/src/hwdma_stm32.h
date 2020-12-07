@@ -51,7 +51,11 @@ public:
 #ifdef DMASTREAMS
   uint8_t            streamnum;
 
-	bool Init(int admanum, int astream, int achannel);
+ #ifdef DMAMUX1
+    bool Init(int admanum, int astream, int arequest); // H7
+ #else
+    bool Init(int admanum, int astream, int achannel); // F4, F7
+ #endif
 #else
 	bool Init(int admanum, int achannel, int arequest);
 #endif

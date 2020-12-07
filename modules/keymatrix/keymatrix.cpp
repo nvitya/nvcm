@@ -156,3 +156,24 @@ void TKeyMatrix::Run()
 	}
 }
 
+bool TKeyMatrix::AnyKeyPressed(unsigned test_us)
+{
+	int i;
+	for (i = 0; i < rows; ++i)
+	{
+		rowpin[i].Set0();
+		rowpin[i].SwitchDirection(1);
+	}
+
+	delay_us(test_us);
+
+	for (i = 0; i < columns; ++i)
+	{
+		if (colpin[i].Value() == 0)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}

@@ -61,6 +61,8 @@ public:
 
 	void Run();  // state maschine for the scanning
 
+	bool AnyKeyPressed(unsigned test_us); // useful for wakeup test, must not be used parallel with Run()
+
 public:
 	int         state = 0;
 	int         scanrow = 0;

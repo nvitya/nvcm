@@ -117,9 +117,74 @@ bool THwDmaChannel_stm32::Init(int admanum, int achannel, int arequest)  // adma
 
 #else
 
-#define DMASTREAMS
+#define DMASTREAMS  // is this required ?
 
 const unsigned char stm32_dma_irq_status_shifts[8] = {0, 6, 16, 22, 0, 6, 16, 22};
+
+#ifdef DMAMUX1
+
+bool THwDmaChannel_stm32::Init(int admanum, int astream, int arequest)
+{
+	initialized = false;
+
+	int dma = (admanum & 0x03);
+	int st  = (astream  & 0x07);
+
+	if (st > 7)  return false;
+	if (1 == dma)
+	{
+		RCC->AHB1ENR |= RCC_AHB1ENR_DMA1EN;
+		regs = (HW_DMA_REGS * )(DMA1_Stream0_BASE + st * (DMA1_Stream1_BASE - DMA1_Stream0_BASE));
+	}
+	else if (2 == dma)
+	{
+		RCC->AHB1ENR |= RCC_AHB1ENR_DMA2EN;
+		regs = (HW_DMA_REGS * )(DMA2_Stream0_BASE + st * (DMA2_Stream1_BASE - DMA2_Stream0_BASE));
+	}
+	else
+	{
+		return false;
+	}
+
+	dmanum = dma;
+	streamnum = st;
+	chnum = 0;
+	crreg = (__IO unsigned *)&regs->CR;
+
+	DMA_TypeDef * dmaptr = (2 == dma ? DMA2 : DMA1);
+	if (st > 3)
+	{
+		irqstreg = (unsigned *)&dmaptr->HISR;
+		irqstclrreg = (unsigned *)&dmaptr->HIFCR;
+	}
+	else
+	{
+		irqstreg = (unsigned *)&dmaptr->LISR;
+		irqstclrreg = (unsigned *)&dmaptr->LIFCR;
+	}
+
+	irqstshift = stm32_dma_irq_status_shifts[st];
+
+  //RCC->AHB1ENR |= RCC_AHB1ENR_DMAMUX1EN;
+  int muxch = (2 == dmanum ? 8 : 0) + streamnum;
+  DMAMUX1[muxch].CCR = 0
+    | ((arequest & 0x7F) <<  0)  // DMAREQ_ID(7): DMA request identification
+    | (0 <<  8)  // SOIE: Synchronization overrun interrupt enable
+    | (0 <<  9)  // EGE: Event generation enable
+    | (0 << 16)  // SE: Synchronization enable
+    | (0 << 17)  // SPOL(2): Synchronization polarity
+    | (0 << 19)  // NBREQ(4): Number of DMA requests minus 1 to forward
+    | (0 << 24)  // SYNC_ID(5): Synchronization identification
+  ;
+
+	Prepare(true, nullptr, 0); // set some defaults
+
+	initialized = true;
+
+	return true;
+}
+
+#else // DMAMUX1
 
 bool THwDmaChannel_stm32::Init(int admanum, int astream, int achannel)
 {
@@ -171,7 +236,9 @@ bool THwDmaChannel_stm32::Init(int admanum, int astream, int achannel)
 	return true;
 }
 
-#endif
+#endif // F7, F4
+
+#endif // DMASTREAMS
 
 void THwDmaChannel_stm32::Prepare(bool aistx, void * aperiphaddr, unsigned aflags)
 {
