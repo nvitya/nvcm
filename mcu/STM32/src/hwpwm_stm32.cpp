@@ -49,6 +49,7 @@
 bool THwPwmChannel_stm32::Init(int atimernum, int achnum, int aoutnum) // outnum: 0 = A, 1 = B
 {
 	initialized = false;
+	advanced_timer = false;
 
 	devnum = atimernum;
 	chnum = achnum;
@@ -65,6 +66,7 @@ bool THwPwmChannel_stm32::Init(int atimernum, int achnum, int aoutnum) // outnum
 	{
 		regs = TIM1;
 		RCC->APB2ENR |= RCC_APB2ENR_TIM1EN;
+		advanced_timer = true;
 	}
 #endif
 #ifdef TIM2
@@ -114,6 +116,7 @@ bool THwPwmChannel_stm32::Init(int atimernum, int achnum, int aoutnum) // outnum
 	{
 		regs = TIM8;
 		RCC->APB2ENR |= RCC_APB2ENR_TIM8EN;
+		advanced_timer = true;
 	}
 #endif
 #ifdef TIM9
@@ -200,7 +203,28 @@ bool THwPwmChannel_stm32::Init(int atimernum, int achnum, int aoutnum) // outnum
 
 	outenbit = (1 << (chpos << 2));
 
-	regs->CCER &= ~(0xF << (chpos << 2)); // set normal polarity, disable output
+
+	uint32_t ccer =	regs->CCER;
+	ccer &= ~(0xF << (chpos << 2)); // set normal polarity, disable output
+	if (inverted)
+	{
+		ccer |= (2 << (chpos << 2));  // set inverted polarity
+	}
+	regs->CCER = ccer;
+
+	regs->DCR = 0;
+	regs->AF1 = 0;
+	regs->AF2 = 0;
+	regs->DIER = 0;
+
+	if (advanced_timer)
+	{
+		regs->BDTR = (0
+		  | (1 << 15)  // MOE: main output enable
+		  | (1 << 14)  // AOE: automatic output enable
+		  | (0 << 12)  // BKE: 0 = no brake handling
+		);
+	}
 
 	regs->CR1 = 0
 	  | (0 <<  8)  // CKD(2): clock division
@@ -243,7 +267,7 @@ void THwPwmChannel_stm32::SetFrequency(uint32_t afrequency)
 void THwPwmChannel_stm32::SetOnClocks(uint16_t aclocks)
 {
 	*valreg = aclocks;
-	regs->EGR = 1;
+	regs->EGR = (1 << 0);  // UG
 }
 
 void THwPwmChannel_stm32::Enable()

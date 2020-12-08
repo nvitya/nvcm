@@ -47,6 +47,7 @@ public:
 
 public:
 	TIM_TypeDef *           regs = nullptr;
+	bool                    advanced_timer = false;
 
 	uint32_t                chpos = 0;     // = chnum - 1
 	uint32_t						    outenbit = 0;

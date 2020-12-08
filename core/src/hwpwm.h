@@ -36,6 +36,7 @@ class THwPwmChannel_pre
 public: // parameters
 
 	uint32_t      frequency = 10000;
+	bool          inverted = false;
 
 public:
 

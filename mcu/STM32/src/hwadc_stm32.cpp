@@ -416,6 +416,7 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 		| (1 << 22)  // VREFEN: 1 = Vrefint channel enable
 		| (0 << 18)  // PRESC(4): ADC prescaler, 0 = do not divide
 		| (3 << 16)  // CLKMODE(2): ADC clock mode, 3 = AHB clock / 4 (synchronous clock mode)
+//		| (0 << 16)  // CLKMODE(2): ADC clock mode, 3 = AHB clock / 4 (synchronous clock mode)
 		| (0 << 14)  // MDMA(2): Direct memory access mode for dual ADC mode, 0 = disabled
 		| (0 << 13)  // DMACFG: Dual mode DMA config, 0 = one shot, 1 = circular
 		| (0 <<  8)  // DELAY(4): Delay between 2 sampling phases (for dual / triple mode)
@@ -438,6 +439,7 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 	  | (0 << 30)  // ADCALDIF: Differential mode for calibration
 	  | (0 << 29)  // DEEPPWD: Deep-power-down enable
 	  | (1 << 28)  // ADVREGEN: ADC voltage regulator enable
+	  | (0 <<  8)  // BOOST(3): 3 = boost on (H7 required for ADC clocks > 20 MHz)
 	  | (0 <<  5)  // JADSTP: ADC stop of injected conversion command
 	  | (0 <<  4)  // ADSTP: ADC stop of regular conversion command
 	  | (0 <<  3)  // JADSTART: ADC start of injected conversion
@@ -475,7 +477,11 @@ bool THwAdc_stm32::Init(int adevnum, uint32_t achannel_map)
 		| (1 << 12)  // OVRMOD: Overrun mode, 1 = overwrite
 		| (0 << 10)  // EXTEN(2): External trigger enable and polarity selection for regular channels
 		| (0 <<  5)  // EXTSEL(5): External trigger selection for regular group
+//G4
 		| (0 <<  3)  // RES(2): Data resolution, 0 = 12 bit, 1 = 10 bit, 2 = 8 bit, 3 = 6 bit
+//H7 V
+//		| (0 <<  2)  // RES(3): Data resolution, 0 = 16 bit, 6 = 12 bit, 3 = 10 bit, 7 = 8 bit, 3 = 6 bit
+
 		| (1 <<  1)  // DMACFG: Direct memory access configuration, 0 = One shot mode, 1 = circular mode
 		| (1 <<  0)  // DMAEN: Direct memory access enable
 	;
@@ -731,6 +737,11 @@ void THwAdc_stm32::SetupChannels(uint32_t achsel)
 	regs->SQR2 = sqr[1];
 	regs->SQR3 = sqr[2];
 	regs->SQR4 = sqr[3];
+
+  #if defined(ADC_PCSEL_PCSEL_0)
+	regs->PCSEL = channel_map;
+  #endif
+
 #else
 	regs->SQR3 = sqr[0];
 	regs->SQR2 = sqr[1];
