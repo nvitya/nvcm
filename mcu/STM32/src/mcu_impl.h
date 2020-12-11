@@ -52,6 +52,7 @@
 
 #ifdef HWDMA_H_
   #include "hwdma_stm32.h"
+  #include "hwdma_stm32_mxb.h"
 #endif
 
 #ifdef HWINTFLASH_H_

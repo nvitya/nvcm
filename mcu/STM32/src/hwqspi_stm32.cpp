@@ -69,6 +69,9 @@ bool THwQspi_stm32::InitInterface() // the pins must be configured before, becau
 #if defined(MCUSF_G4)
 	txdma.Init(dmanum, dmach, 40);  // request 40 = QUADSPI
 	rxdma.Init(dmanum, dmach, 40);  // use the same channel for tx and rx
+#elif defined(MCUSF_H7)
+	txdma.Init(0, dmach, 23);  // MDMA 23: QSPI Transfer Complete
+	rxdma.Init(0, dmach, 23);  // use the same channel for tx and rx
 #else
 	// The DMA 2 / stream 7 / chanel 3 is assigned to the QSPI
 	txdma.Init(2, 7, 3);

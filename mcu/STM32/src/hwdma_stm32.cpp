@@ -29,6 +29,10 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#include "platform.h"
+
+#if !defined(HWDMA_MXB)
+
 #include "hwdma.h"
 
 #if HWDMA_IMPLEMENTED
@@ -381,3 +385,5 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 }
 
 #endif // if HWDMA_IMPLEMENTED
+
+#endif // !defined(HWDMA_MXB)
