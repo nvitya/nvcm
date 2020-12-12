@@ -70,8 +70,8 @@ bool THwQspi_stm32::InitInterface() // the pins must be configured before, becau
 	txdma.Init(dmanum, dmach, 40);  // request 40 = QUADSPI
 	rxdma.Init(dmanum, dmach, 40);  // use the same channel for tx and rx
 #elif defined(MCUSF_H7)
-	txdma.Init(0, dmach, 23);  // MDMA 23: QSPI Transfer Complete
-	rxdma.Init(0, dmach, 23);  // use the same channel for tx and rx
+	txdma.Init(0, dmach, 22);  // MDMA22: fifo threshold, MDMA 23: QSPI Transfer Complete
+	rxdma.Init(0, dmach, 22);  // use the same channel for tx and rx
 #else
 	// The DMA 2 / stream 7 / chanel 3 is assigned to the QSPI
 	txdma.Init(2, 7, 3);
@@ -155,6 +155,50 @@ bool THwQspi_stm32::Init()
 	return true;
 }
 
+void THwQspi_stm32::SetMemMappedMode()
+{
+	while (busy)
+	{
+		Run();
+	}
+
+	unsigned cmd = 0x0B; // fast read;
+	unsigned dummy = 8;
+	unsigned abmode = 0;
+
+	if (multi_line_count == 2)
+	{
+		cmd = 0xBB; // dual io
+		dummy = 4;  // 1x dummy bytes
+	}
+	else if (multi_line_count == 4)
+	{
+		cmd = 0xEB; // quad io
+		dummy = 4;  // = 2x dummy bytes
+		abmode = mlcode;  // alternate bytes required for this too
+	}
+
+	unsigned ccr = 0
+		| (0 << 31) // DDRM: double data rate mode
+		| (0 << 30) // DHHC: DDR hold
+		| (0 << 28) // SIOO: send instruction only once, 0 = send inst. for every transaction
+		| (3 << 26) // FMODE(2): functional mode, 0 = write mode, 1 = read mode, 2 = polling, 3 = memory mapped
+		| (mlcode << 24) // DMODE(2): data mode, 0 = no data, 1 = single, 2 = dual, 4 = quad
+		| (dummy  << 18) // DCYC(5): number of dummy cycles
+		| (0 << 16) // ABSIZE(2): alternate byte size, 0 = 1 byte, 3 = 4 byte
+		| (abmode << 14) // ABMODE(2): alternate byte mode, 0 = no bytes, 1 = single, 2 = dual, 3 = quad
+		| (2 << 12) // ADSIZE(2): address size, 0 = 1 byte, 3 = 4 byte
+		| (mlcode << 10) // ADMODE(2): address mode, 0 = do not send, 1 = single, 2 = dual, 3 = quad
+		| (1 <<  8) // IMODE(2): instruction mode, 0 = do not send, 1 = single, 2 = dual, 3 = quad
+		| ((cmd & 0xFF) <<  0) // INSTRUCTION(8): command / instruction byte
+	;
+
+	regs->FCR = 0x1F;
+	regs->ABR = 0;
+	//regs->AR = 0;
+	regs->CCR = ccr;
+}
+
 int THwQspi_stm32::StartReadData(unsigned acmd, unsigned address, void * dstptr, unsigned len)
 {
 	if (busy)
@@ -185,7 +229,6 @@ int THwQspi_stm32::StartReadData(unsigned acmd, unsigned address, void * dstptr,
 	unsigned fields = ((acmd >> 8) & 0xF);
 
 	// data
-	regs->DLR = datalen;
 	if (datalen > 0)
 	{
 		if (fields & 8)
@@ -222,15 +265,29 @@ int THwQspi_stm32::StartReadData(unsigned acmd, unsigned address, void * dstptr,
 	}
 
 	// dummy
-	unsigned dsize = ((acmd >> 20) & 0xF);
-	if (dsize)
+	unsigned dummybytes = ((acmd >> 20) & 0xF);
+	if (dummybytes)
 	{
 		// dummy required
-		if (8 == dsize)
+		if (8 == dummybytes)
 		{
-			dsize = dummysize;
+			dummybytes = dummysize;
 		}
-		ccr |= ((dsize * 8) << 18);
+
+		unsigned dummybits = (dummybytes * 8);
+		if (fields & 2) // multiline address ?
+		{
+			if (multi_line_count == 4)
+			{
+				dummybits = (dummybytes << 1);  // *2
+			}
+			else if (multi_line_count == 2)
+			{
+				dummybits = (dummybytes << 2);  // *4
+			}
+		}
+
+		ccr |= (dummybits << 18);
 	}
 
 	// alternate is not supported yet
@@ -247,6 +304,8 @@ int THwQspi_stm32::StartReadData(unsigned acmd, unsigned address, void * dstptr,
 
 	dmaused = (remainingbytes > 0);
 
+	regs->FCR = 0x1F; // clear flags
+	regs->DLR = (datalen > 0 ? (datalen - 1) : 0);
 	regs->CCR = ccr;
 
 	if (rqaddrlen)
@@ -303,7 +362,6 @@ int THwQspi_stm32::StartWriteData(unsigned acmd, unsigned address, void * srcptr
 	unsigned fields = ((acmd >> 8) & 0xF);
 
 	// data
-	regs->DLR = datalen;
 	if (datalen > 0)
 	{
 		if (fields & 8)
@@ -366,6 +424,8 @@ int THwQspi_stm32::StartWriteData(unsigned acmd, unsigned address, void * srcptr
 
 	dmaused = (remainingbytes > 0);
 
+	regs->FCR = 0x1F; // clear flags
+	regs->DLR = (datalen > 0 ? (datalen - 1) : 0);
 	regs->CCR = ccr;
 
 	if (rqaddrlen)
@@ -411,6 +471,7 @@ void THwQspi_stm32::Run()
 				return;
 			}
 
+
 			if ((sr & QUADSPI_SR_TCF) == 0) // transfer complete ?
 			{
 				return;
@@ -418,6 +479,7 @@ void THwQspi_stm32::Run()
 		}
 		else
 		{
+
 			if ((sr & QUADSPI_SR_TCF) == 0) // transfer complete ?
 			{
 				return;

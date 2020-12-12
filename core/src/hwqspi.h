@@ -116,6 +116,7 @@ public: // mandatory
 
 	int  StartReadData(unsigned acmd, unsigned address, void * dstptr, unsigned len)   { return ERROR_NOTIMPL; }
 	int  StartWriteData(unsigned acmd, unsigned address, void * srcptr, unsigned len)  { return ERROR_NOTIMPL; }
+	void SetMemMappedMode() { }
 	void Run()  { }
 };
 

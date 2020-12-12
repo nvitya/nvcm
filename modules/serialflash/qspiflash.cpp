@@ -147,7 +147,7 @@ void TQspiFlash::Run()
 
 				if (qspi.multi_line_count == 4)
 				{
-					qspi.StartReadData(0xEB | QSPICM_SMM | QSPICM_ADDR | QSPICM_DUMMY, address, dataptr, chunksize);
+					qspi.StartReadData(0xEB | QSPICM_SMM | QSPICM_ADDR4 | QSPICM_DUMMY2, (address << 8), dataptr, chunksize);
 				}
 				else if (qspi.multi_line_count == 2)
 				{
