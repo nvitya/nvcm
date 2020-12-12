@@ -98,6 +98,7 @@ bool TQspiFlash::InitInherited()
 bool TQspiFlash::ReadIdCode()
 {
 	rxbuf[0] = 0; rxbuf[1] = 0; rxbuf[2] = 0; rxbuf[3] = 0;
+	//rxbuf[0] = 0x55; rxbuf[1] = 0x56; rxbuf[2] = 0x57; rxbuf[3] = 0x58;
 
 	qspi.StartReadData(0x9F, 0, &rxbuf[0], 4);
 	qspi.WaitFinish();

@@ -213,8 +213,8 @@ bool THwPwmChannel_stm32::Init(int atimernum, int achnum, int aoutnum) // outnum
 	regs->CCER = ccer;
 
 	regs->DCR = 0;
-	regs->AF1 = 0;
-	regs->AF2 = 0;
+	//regs->AF1 = 0;
+	//regs->AF2 = 0;
 	regs->DIER = 0;
 
 	if (advanced_timer)

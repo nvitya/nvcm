@@ -126,7 +126,7 @@ bool THwQspi_stm32::Init()
 	;
 
 	tmp = 0
-		| (20 << 16) // FSIZE(5): Flash memory size (in 2^(FSIZE+1) bytes)
+		| (23 << 16) // FSIZE(5): Flash memory size (in 2^(FSIZE+1) bytes)
 		| (0  <<  8) // CSHT(3): chip select high time, 0 = 1 cycles, 1 = 2 cycles ...
 		| (0  <<  0) // CKMODE: 0 = idle clock low, 1 = idle clock high
 	;

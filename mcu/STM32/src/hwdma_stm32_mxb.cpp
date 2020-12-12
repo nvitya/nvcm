@@ -214,6 +214,9 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 		unsigned sbus = 0;
 		unsigned dbus = 0;
 
+		unsigned sinc = 0;
+		unsigned dinc = 0;
+
 		if (axfer->flags & DMATR_MEM_TO_MEM)
 		{
 			// DIR=0:
@@ -221,18 +224,22 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 			mregs->CDAR = (uint32_t)axfer->dstaddr;
 			sbus = get_busid_by_address(axfer->srcaddr);
 			dbus = get_busid_by_address(axfer->dstaddr);
+			sinc = 2;
+			dinc = 2;
 		}
 		else if (istx)
 		{
 			mregs->CSAR = (uint32_t)axfer->srcaddr;
 			mregs->CDAR = (uint32_t)periphaddr;
 			sbus = get_busid_by_address(axfer->srcaddr);
+			sinc = (meminc << 1);
 		}
 		else
 		{
 			mregs->CSAR = (uint32_t)periphaddr;
 			mregs->CDAR = (uint32_t)axfer->dstaddr;
 			dbus = get_busid_by_address(axfer->dstaddr);
+			dinc = (meminc << 1);
 		}
 
 		// channel configuration
@@ -262,8 +269,8 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 			| (sizecode <<  8)  // SINCOS(2): src. increment offset, 0=8bit, 1=16bit, 2=32bit, 3=64bit
 			| (sizecode <<  6)  // DSIZE(2)
 			| (sizecode <<  4)  // SSIZE(2)
-			| (0        <<  2)  // DINC(2): 0 = no dst. increment, 2 = +DINCOS, 3 = -DINCOS
-			| (0        <<  0)  // SINC(2): 0 = no src. increment, 2 = +SINCOS, 3 = -SINCOS
+			| (dinc     <<  2)  // DINC(2): 0 = no dst. increment, 2 = +DINCOS, 3 = -DINCOS
+			| (sinc     <<  0)  // SINC(2): 0 = no src. increment, 2 = +SINCOS, 3 = -SINCOS
 		;
 
 		mregs->CTBR = 0
@@ -272,7 +279,10 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 			| (rqnum <<  0) // TSEL(6): Trigger Select
 		;
 
-		mregs->CBNDTR = (uint32_t)axfer->count;  // no block repeat stuff here
+		mregs->CBNDTR = 0
+			| (0 << 20) // BRC(12): block repeat count
+			| (uint32_t)axfer->count  // no block repeat stuff here
+		;
 
 		mregs->CBRUR = 0;
 
@@ -287,7 +297,7 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 			xregs->CR = 0
 				| (0  << 23)        // MBURST(2): memory burst, 0 = single transfer
 				| (0  << 21)        // PBURST(2): peripheral burst
-				| (0  << 19)        // CT: current target
+				| (0  << 19)        // CT: current target (for double buffer mode)
 				| (0  << 18)        // DBM: double buffer mode
 				| ((priority & 3) << 16) // PL(2): priority level
 				| (0  << 15)        // PINCOS: peripheral increment offset
