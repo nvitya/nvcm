@@ -220,7 +220,7 @@ void TQspiFlash::Run()
 
 				if (chunksize > remaining)  chunksize = remaining;
 
-				if (false) //(qspi.multi_line_count == 4) && ((idcode & 0xFF) != 0xC2))
+				if ((qspi.multi_line_count == 4) && ((idcode & 0xFF) != 0xC2))
 				{
 					qspi.StartWriteData(0x32 | QSPICM_SSM | QSPICM_ADDR, address, dataptr, chunksize);
 				}
