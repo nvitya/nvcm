@@ -168,14 +168,11 @@ void THwQspi_stm32::SetMemMappedMode()
 
 	if (multi_line_count == 2)
 	{
-		cmd = 0xBB; // dual io
-		dummy = 4;  // 1x dummy bytes
+		cmd = 0x3B; // dual data
 	}
 	else if (multi_line_count == 4)
 	{
-		cmd = 0xEB; // quad io
-		dummy = 4;  // = 2x dummy bytes
-		abmode = mlcode;  // alternate bytes required for this too
+		cmd = 0x6B; // quad data
 	}
 
 	unsigned ccr = 0
@@ -186,9 +183,9 @@ void THwQspi_stm32::SetMemMappedMode()
 		| (mlcode << 24) // DMODE(2): data mode, 0 = no data, 1 = single, 2 = dual, 4 = quad
 		| (dummy  << 18) // DCYC(5): number of dummy cycles
 		| (0 << 16) // ABSIZE(2): alternate byte size, 0 = 1 byte, 3 = 4 byte
-		| (abmode << 14) // ABMODE(2): alternate byte mode, 0 = no bytes, 1 = single, 2 = dual, 3 = quad
+		| (0 << 14) // ABMODE(2): alternate byte mode, 0 = no bytes, 1 = single, 2 = dual, 3 = quad
 		| (2 << 12) // ADSIZE(2): address size, 0 = 1 byte, 3 = 4 byte
-		| (mlcode << 10) // ADMODE(2): address mode, 0 = do not send, 1 = single, 2 = dual, 3 = quad
+		| (1 << 10) // ADMODE(2): address mode, 0 = do not send, 1 = single, 2 = dual, 3 = quad
 		| (1 <<  8) // IMODE(2): instruction mode, 0 = do not send, 1 = single, 2 = dual, 3 = quad
 		| ((cmd & 0xFF) <<  0) // INSTRUCTION(8): command / instruction byte
 	;

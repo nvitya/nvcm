@@ -136,6 +136,9 @@ bool THwDmaChannel_stm32::Init(int admanum, int achannel, int arequest)
 		irqclrmask = 0x1F;
 	}
 
+	// disable the channel:
+	Disable();
+
 	Prepare(true, nullptr, 0); // set some defaults
 
 	initialized = true;
