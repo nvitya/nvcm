@@ -147,11 +147,13 @@ void TQspiFlash::Run()
 
 				if (qspi.multi_line_count == 4)
 				{
-					qspi.StartReadData(0xEB | QSPICM_SMM | QSPICM_ADDR4 | QSPICM_DUMMY2, (address << 8), dataptr, chunksize);
+					qspi.StartReadData(0xEB | QSPICM_SMM | QSPICM_ADDR3 | QSPICM_MODE1 | QSPICM_DUMMY2, address, dataptr, chunksize);
+					//qspi.StartReadData(0x6B | QSPICM_SSM | QSPICM_ADDR | QSPICM_DUMMY, address, dataptr, chunksize);
 				}
 				else if (qspi.multi_line_count == 2)
 				{
-					qspi.StartReadData(0xBB | QSPICM_SMM | QSPICM_ADDR | QSPICM_DUMMY, address, dataptr, chunksize);
+					qspi.StartReadData(0xBB | QSPICM_SMM | QSPICM_ADDR | QSPICM_MODE1, address, dataptr, chunksize);
+					//qspi.StartReadData(0x3B | QSPICM_SSM | QSPICM_ADDR | QSPICM_DUMMY, address, dataptr, chunksize);
 				}
 				else
 				{
@@ -218,9 +220,9 @@ void TQspiFlash::Run()
 
 				if (chunksize > remaining)  chunksize = remaining;
 
-				if ((qspi.multi_line_count == 4) && ((idcode & 0xFF) != 0xC2))
+				if (false) //(qspi.multi_line_count == 4) && ((idcode & 0xFF) != 0xC2))
 				{
-					qspi.StartWriteData(0x32 | QSPICM_SMM | QSPICM_ADDR, address, dataptr, chunksize);
+					qspi.StartWriteData(0x32 | QSPICM_SSM | QSPICM_ADDR, address, dataptr, chunksize);
 				}
 				else
 				{

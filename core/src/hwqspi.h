@@ -59,6 +59,15 @@
 #define QSPICM_DUMMY4     0x00400000
 #define QSPICM_DUMMY_MASK 0x00F00000
 
+// mode bits
+#define QSPICM_MODE       0x80000000  // send mode bits with the default size
+#define QSPICM_MODE0      0x00000000  // do not send mode bits (default)
+#define QSPICM_MODE1      0x10000000  // 1 mode bytes
+#define QSPICM_MODE2      0x20000000  // 2 mode bytes
+#define QSPICM_MODE3      0x30000000  // 3 mode bytes
+#define QSPICM_MODE4      0x40000000  // 4 mode bytes
+
+
 class THwQspi_pre
 {
 public:	// settings
@@ -68,8 +77,11 @@ public:	// settings
 	bool           idleclk_high = true;
 
 	unsigned       addrlen = 3;
-	unsigned       dummydata = 0;
+	unsigned       modelen = 1;
 	unsigned       dummysize = 1; // default dummy size = 1 byte
+
+	unsigned       modedata = 0;
+	unsigned       dummydata = 0;
 
 	unsigned       multi_line_count = 2;  // 4 = quad, 2 = dual mode, 1 = disable multi line mode
 

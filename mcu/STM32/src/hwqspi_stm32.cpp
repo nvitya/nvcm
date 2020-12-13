@@ -264,6 +264,30 @@ int THwQspi_stm32::StartReadData(unsigned acmd, unsigned address, void * dstptr,
 		}
 	}
 
+	// mode / alternate bytes
+	unsigned ablen = ((acmd >> 28) & 0xF);
+	if (ablen)
+	{
+		if (fields & 2)
+		{
+			ccr |= (mlcode << 14); // multi line alternate bytes
+		}
+		else
+		{
+			ccr |= (1 << 14); // single line alternate bytes
+		}
+
+		if (8 == ablen)
+		{
+			ccr |= ((modelen-1) << 16); // default addrlen
+		}
+		else
+		{
+			ccr |= ((ablen-1) << 16); // requested address length
+		}
+		regs->ABR = modedata;
+	}
+
 	// dummy
 	unsigned dummybytes = ((acmd >> 20) & 0xF);
 	if (dummybytes)
@@ -289,8 +313,6 @@ int THwQspi_stm32::StartReadData(unsigned acmd, unsigned address, void * dstptr,
 
 		ccr |= (dummybits << 18);
 	}
-
-	// alternate is not supported yet
 
 	// command
 	if (fields & 1)
@@ -397,20 +419,54 @@ int THwQspi_stm32::StartWriteData(unsigned acmd, unsigned address, void * srcptr
 		}
 	}
 
-	// dummy
-	// warning: silicon bug!
-	unsigned dsize = ((acmd >> 20) & 0xF);
-	if (dsize)
+	// mode / alternate bytes
+	unsigned ablen = ((acmd >> 28) & 0xF);
+	if (ablen)
 	{
-		// dummy required
-		if (8 == dsize)
+		if (fields & 2)
 		{
-			dsize = dummysize;
+			ccr |= (mlcode << 14); // multi line alternate bytes
 		}
-		ccr |= ((dsize * 8) << 18);
+		else
+		{
+			ccr |= (1 << 14); // single line alternate bytes
+		}
+
+		if (8 == ablen)
+		{
+			ccr |= ((modelen-1) << 16); // default addrlen
+		}
+		else
+		{
+			ccr |= ((ablen-1) << 16); // requested address length
+		}
+		regs->ABR = modedata;
 	}
 
-	// alternate is not supported yet
+	unsigned dummybytes = ((acmd >> 20) & 0xF);
+	if (dummybytes)
+	{
+		// dummy required
+		if (8 == dummybytes)
+		{
+			dummybytes = dummysize;
+		}
+
+		unsigned dummybits = (dummybytes * 8);
+		if (fields & 2) // multiline address ?
+		{
+			if (multi_line_count == 4)
+			{
+				dummybits = (dummybytes << 1);  // *2
+			}
+			else if (multi_line_count == 2)
+			{
+				dummybits = (dummybytes << 2);  // *4
+			}
+		}
+
+		ccr |= (dummybits << 18);
+	}
 
 	// command
 	if (fields & 1)
