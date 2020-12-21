@@ -31,6 +31,7 @@
 
 #include "platform.h"
 #include "hwdma.h"
+#include "stdarg.h"
 
 #define FMT_BUFFER_SIZE  256
 
@@ -100,6 +101,7 @@ public:
 	bool DmaRecvCompleted();
 
 	void printf(const char * fmt, ...);
+	void printf_va(const char * fmt, va_list arglist);
 };
 
 #endif /* HWUART_H_ */

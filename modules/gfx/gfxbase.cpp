@@ -56,8 +56,8 @@ POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "string.h"
-#include <stdio.h>
 #include <stdarg.h>
+#include "mp_printf.h"
 #include "gfxbase.h"
 #include "math.h"
 
@@ -227,7 +227,7 @@ void TGfxBase::printf(const char * fmt, ...)
 
 	*pch = 0;
 
-	vsnprintf(pch, FMT_BUFFER_SIZE, fmt, arglist);
+	mp_vsnprintf(pch, FMT_BUFFER_SIZE, fmt, arglist);
 
 	while (*pch != 0)
 	{

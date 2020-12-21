@@ -30,8 +30,8 @@
 
 #if __CORTEX_M >= 3 // available only from Cortex-M3 and above
 
-#include <stdio.h>
 #include <stdarg.h>
+#include "mp_printf.h"
 
 #include "swo.h"
 
@@ -83,7 +83,7 @@ void swo_printf(const char * fmt, ...)
 
   *pch = 0;
 
-  vsnprintf(pch, SWO_MAX_MESSAGE, fmt, arglist);
+  mp_vsnprintf(pch, SWO_MAX_MESSAGE, fmt, arglist);
 
   while (*pch != 0)
   {

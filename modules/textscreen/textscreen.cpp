@@ -8,6 +8,7 @@
 #include "string.h"
 #include <stdio.h>
 #include <stdarg.h>
+#include <mp_printf.h>
 #include <textscreen.h>
 
 void TTextScreen::InitCharBuf(unsigned acols, unsigned arows, uint8_t * ascreenbuf, uint8_t * achangemap)
@@ -129,26 +130,28 @@ void TTextScreen::Run()
 
 #define FMT_BUFFER_SIZE  256
 
-void TTextScreen::printf(const char* fmt, ...)
+void TTextScreen::printf_va(const char * fmt, va_list arglist)
 {
-  va_list arglist;
-  va_start(arglist, fmt);
-  char * pch;
-
   // allocate format buffer on the stack:
   char fmtbuf[FMT_BUFFER_SIZE];
-
-  pch = &fmtbuf[0];
-
+  char * pch = &fmtbuf[0];
   *pch = 0;
 
-  vsnprintf(pch, FMT_BUFFER_SIZE, fmt, arglist);
+  mp_vsnprintf(pch, FMT_BUFFER_SIZE, fmt, arglist);
 
   while (*pch != 0)
   {
   	WriteChar(*pch);
     ++pch;
   }
+}
+
+void TTextScreen::printf(const char * fmt, ...)
+{
+  va_list arglist;
+  va_start(arglist, fmt);
+
+  printf_va(fmt, arglist);
 
   va_end(arglist);
 }

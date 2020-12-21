@@ -4,6 +4,7 @@
 #define TEXTSCREEN_H_
 
 #include "stdint.h"
+#include <stdarg.h>
 
 class TTextScreen
 {
@@ -37,6 +38,7 @@ public:
 	void            SetPos(unsigned acol, unsigned arow);
 
 	void            printf(const char * fmt, ...);
+	void            printf_va(const char * fmt, va_list arglist);
 
 	void            Refresh();
 
