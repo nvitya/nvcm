@@ -3,6 +3,8 @@
  *
  *   The functions are prefixed with mp_ and kept only the string formatting and the
  *   callback variants without problematic macro defines like #define printf.
+ *   Extra features (float, long long) turned off by default.
+ *   New option PRINTF_SUPPORT_FULL to turn on all
  *
  *   Modifications made by nvitya@gmail.com, in 2020-12-20 to use this in NVCM core.
  */
@@ -41,33 +43,38 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "platform.h"  // include NVCM platform includes,
+                       // which might include printf support flags
+
 #include <mp_printf.h>
 
-// 'ntoa' conversion buffer size, this must be big enough to hold one converted
-// numeric number including padded zeros (dynamically created on stack)
-// default: 32 byte
-#ifndef PRINTF_NTOA_BUFFER_SIZE
-#define PRINTF_NTOA_BUFFER_SIZE    32U
+//------------------------------------------------------------------------------
+// feature activation with the following defines
+//
+//   PRINTF_SUPPORT_FLOAT           - support for the floating point type (%f), double precision !
+//   PRINTF_SUPPORT_EXPONENTIAL     - support for exponential floating point notation (%e/%g)
+//   PRINTF_SUPPORT_LONG_LONG       - support for the long long types (%llu)
+//
+//   PRINTF_SUPPORT_FULL            - turn on all above
+
+#if !defined(PRINTF_SUPPORT_FLOAT) && defined(PRINTF_SUPPORT_FULL)
+ #define PRINTF_SUPPORT_FLOAT
 #endif
 
-// 'ftoa' conversion buffer size, this must be big enough to hold one converted
-// float number including padded zeros (dynamically created on stack)
-// default: 32 byte
-#ifndef PRINTF_FTOA_BUFFER_SIZE
-#define PRINTF_FTOA_BUFFER_SIZE    32U
+#if !defined(PRINTF_SUPPORT_EXPONENTIAL) && defined(PRINTF_SUPPORT_FULL)
+ #define PRINTF_SUPPORT_EXPONENTIAL
 #endif
 
-// support for the floating point type (%f)
-// default: activated
-#ifndef PRINTF_DISABLE_SUPPORT_FLOAT
-#define PRINTF_SUPPORT_FLOAT
+#if !defined(PRINTF_SUPPORT_LONG_LONG)  && defined(PRINTF_SUPPORT_FULL)
+ #define PRINTF_SUPPORT_LONG_LONG
 #endif
 
-// support for exponential floating point notation (%e/%g)
-// default: activated
-#ifndef PRINTF_DISABLE_SUPPORT_EXPONENTIAL
-#define PRINTF_SUPPORT_EXPONENTIAL
-#endif
+// support for the ptrdiff_t type (%t)
+// ptrdiff_t is normally defined in <stddef.h> as long or long long type
+// default: disabled
+//#define PRINTF_SUPPORT_PTRDIFF_T
+
+//-----------------------------------------------------------------------------
 
 // define the default floating point precision
 // default: 6 digits
@@ -81,17 +88,18 @@
 #define PRINTF_MAX_FLOAT  1e9
 #endif
 
-// support for the long long types (%llu or %p)
-// default: activated
-#ifndef PRINTF_DISABLE_SUPPORT_LONG_LONG
-#define PRINTF_SUPPORT_LONG_LONG
+// 'ntoa' conversion buffer size, this must be big enough to hold one converted
+// numeric number including padded zeros (dynamically created on stack)
+// default: 32 byte
+#ifndef PRINTF_NTOA_BUFFER_SIZE
+#define PRINTF_NTOA_BUFFER_SIZE    32U
 #endif
 
-// support for the ptrdiff_t type (%t)
-// ptrdiff_t is normally defined in <stddef.h> as long or long long type
-// default: activated
-#ifndef PRINTF_DISABLE_SUPPORT_PTRDIFF_T
-#define PRINTF_SUPPORT_PTRDIFF_T
+// 'ftoa' conversion buffer size, this must be big enough to hold one converted
+// float number including padded zeros (dynamically created on stack)
+// default: 32 byte
+#ifndef PRINTF_FTOA_BUFFER_SIZE
+#define PRINTF_FTOA_BUFFER_SIZE    32U
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
