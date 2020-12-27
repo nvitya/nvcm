@@ -92,6 +92,10 @@
   #include "hwsdram_stm32.h"
 #endif
 
+#if defined(HWSDCARD_H_) && (defined(SDMMC) || defined(SDMMC1))
+  #include "hwsdcard_stm32.h"
+#endif
+
 #if defined(LTDC_SRCR_IMR) && defined(HWLCDCTRL_H_)
   #include "hwlcdctrl_stm32.h"
 #endif

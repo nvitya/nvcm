@@ -38,11 +38,6 @@ bool THwSdcard::Init()
 {
 	initialized = false;
 
-	if (!dma.initialized)
-	{
-		return false;
-	}
-
 	if (!HwInit())
 	{
 		return false;
@@ -94,14 +89,14 @@ void THwSdcard::RunInitialization()
 	case 0: // send init clocks
 
 		// required low settings for the initialization
-		SetSpeed(400000); // initial speed = 400 kHz
+		SetSpeed(initial_speed); // initial speed = 400 kHz
 		SetBusWidth(1);
 
 		card_present = false;
 		high_capacity = false;
 		card_v2 = false;
 
-		SendSpecialCmd(SD_SPECIAL_CMD_INIT); // never fails
+		//SendCmd(1, 0, SDCMD_RES_NO | SDCMD_OPENDRAIN); // never fails
 		++initstate;
 		break;
 
@@ -141,7 +136,8 @@ void THwSdcard::RunInitialization()
 		else
 		{
 			// get operating status
-			carg = 0x001f8000;
+			carg = 0x801f8000;
+
 			if (card_v2)  carg |= (1u << 30);
 			SendCmd(41, carg, SDCMD_RES_48BIT | SDCMD_OPENDRAIN);
 			++initstate;
@@ -265,7 +261,7 @@ void THwSdcard::RunInitialization()
 			TRACE("SCR register read error!\r\n");
 			initstate = 100;
 		}
-		else if (!dma.Active())
+		else if (!dma.initialized || !dma.Active())
 		{
 			TRACE("SDCARD SCR = ");
 			for (i = 0; i < 8; ++i)
@@ -295,7 +291,7 @@ void THwSdcard::RunInitialization()
 		else
 		{
 			SetSpeed(clockspeed);
-			SetBusWidth(4); // always 4 bit bus
+			SetBusWidth(bus_width);
 			++initstate;
 		}
 		break;

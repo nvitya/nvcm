@@ -37,6 +37,11 @@
 
 bool THwSdcard_atsam::HwInit()
 {
+	if (!dma.initialized)
+	{
+		return false;
+	}
+
 	unsigned code;
 	unsigned perid;
 	unsigned periphclock = atsam_peripheral_clock();

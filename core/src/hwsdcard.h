@@ -49,7 +49,8 @@ public:
 	bool          high_speed = false;
 
 	uint8_t       bus_width = 4;
-	uint32_t      clockspeed = 20000000; // 20 MHz by default
+	uint32_t      initial_speed = 400000; // 400 kHz is the maximum
+	uint32_t      clockspeed  = 20000000;  // 20 MHz by default
 
 	bool          initialized = false;
 
@@ -57,6 +58,10 @@ public:
 	bool          cmdrunning = false;
 	bool          cmderror = false;
 	uint32_t      lastcmdtime = 0;
+
+	uint8_t       curcmd = 0;
+	uint32_t      curcmdflags = 0;
+	uint32_t      curcmdarg = 0;
 
 	uint32_t      after_error_delay_clocks = 1;
 
