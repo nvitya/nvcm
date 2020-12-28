@@ -48,6 +48,11 @@
 
 class THwDmaChannel_stm32 : public THwDmaChannel_pre
 {
+public: // special STM32 specific settings
+	unsigned           per_burst = 0;  // 0 = single, 1 = 4 beats, 2 = 8 beats, 3 = 16 beats
+	unsigned           mem_burst = 0;  // 0 = single, 1 = 4 beats, 2 = 8 beats, 3 = 16 beats
+	unsigned           per_flow_controller = 0;  // 0 = DMA, 1 = peripheral
+
 public:
 	int                dmanum = 1;
 	HW_DMA_REGS *      regs = nullptr;
@@ -69,7 +74,12 @@ public:
 	void Enable();
 
 	inline bool Enabled()        { return ((*crreg & 1) != 0); }
-	inline bool Active() 				 { return (regs->DMA_NDTR_REG != 0);	}
+
+	// using the NDTR register for the termination is not reliable
+	// because sometimes it might overflow due bursts
+  //	inline bool Active() 				 { return (regs->DMA_NDTR_REG != 0);	}
+	inline bool Active() 				 { return ((*crreg & 1) != 0);	}
+
 	inline uint16_t Remaining()  { return regs->DMA_NDTR_REG; }
 
 	bool StartTransfer(THwDmaTransfer * axfer);

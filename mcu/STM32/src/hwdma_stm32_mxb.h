@@ -61,7 +61,12 @@ public:
 	void Enable();
 
 	inline bool Enabled()        { return ((*crreg & 1) != 0); }
-	inline bool Active() 				 { return ((*ndtreg & 0xFFFF) != 0);	}
+
+	// using the NDTR register for the termination is not reliable
+	// because sometimes it might overflow due bursts
+	//inline bool Active() 				 { return ((*ndtreg & 0xFFFF) != 0);	}
+	inline bool Active()        { return ((*crreg & 1) != 0); }
+
 	inline uint16_t Remaining()  { return (*ndtreg & 0xFFFF); }
 	inline void ClearIrqFlag()   { *irqstclrreg = irqclrmask; }
 

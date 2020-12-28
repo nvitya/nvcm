@@ -92,6 +92,10 @@ bool THwSdcard_stm32::HwInit()
 		| (0  << 12)  // PWRSAV
 		| (0  <<  0)  // CLKDIV(10)
 	);
+
+	// clear the data fifo
+	regs->DCTRL = SDMMC_CLKCR_FIFORST;
+
 #else
 	regs->CLKCR = (0
 		| (0  << 14)  // HWFC_EN: 1 = hardware flow control enable
@@ -108,20 +112,6 @@ bool THwSdcard_stm32::HwInit()
 
 	// power on card
 	regs->POWER |= 3; // power on
-
-	// clear the data fifo
-	regs->DCTRL = (0
-		| (1  << 13)  // FIFORST
-		| (0  << 12)  // BOOTACKEN
-		| (0  << 11)  // SDIOEN
-		| (0  << 10)  // RWMOD
-		| (0  <<  9)  // RWSTOP
-		| (0  <<  8)  // RWSTART
-		| (0  <<  4)  // DBLOCKSIZE(4): 9 = 512
-		| (0  <<  2)  // DTMODE(2)
-		| (0  <<  1)  // DTDIR: 0 = host to card, 1 = card to host
-		| (0  <<  0)  // DTEN: 1 = start data without CPSM transfer command
-	);
 
 	// wait 74 SD clycles
 
@@ -275,44 +265,59 @@ void THwSdcard_stm32::StartDataReadCmd(uint8_t acmd, uint32_t cmdarg, uint32_t c
 {
 	regs->DTIMER = 0xFFFFFF; // todo: adjust data timeout
 
+	uint32_t bsizecode = 9; // 512 byte
+	if (datalen <= 512)
+	{
+		bsizecode = 31 - __CLZ(datalen);
+	}
+
+#ifdef MCUSF_H7
   // setup data control register
 	uint32_t dcr = (0
-		| (0  << 13)  // FIFORST
+		| (1  << 13)  // FIFORST
 		| (0  << 12)  // BOOTACKEN
 		| (0  << 11)  // SDIOEN
 		| (0  << 10)  // RWMOD
 		| (0  <<  9)  // RWSTOP
 		| (0  <<  8)  // RWSTART
-		| (0  <<  4)  // DBLOCKSIZE(4): 0 = 1 byte, 9 = 512
+		| (bsizecode <<  4)  // DBLOCKSIZE(4): 0 = 1 byte, 9 = 512
 		| (0  <<  2)  // DTMODE(2): 0 = single block, 3 = multiple blocks
 		| (1  <<  1)  // DTDIR: 0 = host to card, 1 = card to host
 		| (0  <<  0)  // DTEN: 1 = start data without CPSM transfer command
 	);
 
-	if (datalen <= 512)
-	{
-		// single block mode, the data length must be power of two !
-
-		uint32_t lz = 31-__CLZ(datalen);
-		dcr |= (0
-			| (lz  <<  4) // DBLOCKSIZE(4): 0 = 1 byte, 9 = 512
-	  );
-	}
-	else
-	{
-		// multi block mode, the data length must be mutiple of 512 !
-		dcr |= (0
-			| (1  << 13)  // FIFORST
-			| (9  <<  4)  // DBLOCKSIZE(4): 0 = 1 byte, 9 = 512
-	  );
-	}
-
-#ifdef MCUSF_H7
 	// the DMA must be started before DCTRL (DTEN)
+
 	regs->IDMABASE0 = (uint32_t)dataptr;
 	regs->IDMABSIZE = datalen; // not really necessary for single buffer mode ?
 	regs->IDMACTRL = 1; // enable the internal DMA
 #else
+
+  // setup data control register
+	uint32_t dcr = (0
+		| (0  << 11)  // SDIOEN
+		| (0  << 10)  // RWMOD
+		| (0  <<  9)  // RWSTOP
+		| (0  <<  8)  // RWSTART
+		| (bsizecode <<  4)  // DBLOCKSIZE(4): 0 = 1 byte, 9 = 512
+		| (1  <<  3)  // DMAEN: 1 = enable DMA
+		| (0  <<  2)  // DTMODE: 0 = block mode, 1 = stream / multibyte
+		| (1  <<  1)  // DTDIR: 0 = host to card, 1 = card to host
+		| (1  <<  0)  // DTEN: 1 = data enable
+	);
+
+	// start the DMA channel
+
+	dma.Prepare(false, (void *)&regs->FIFO, 0); // setup the DMA for receive
+
+	dmaxfer.flags = 0; // use defaults
+	dmaxfer.bytewidth = 4;  // destination must be aligned !!!
+	dmaxfer.count = (datalen >> 2);
+	dmaxfer.dstaddr = dataptr;
+	// only with the peripheral flow controller settings works properly
+	// but the remaining count at the DMA might overflow !
+	dma.per_flow_controller = 1;
+	dma.StartTransfer(&dmaxfer);
 
 #endif
 
@@ -325,28 +330,25 @@ void THwSdcard_stm32::StartDataReadCmd(uint8_t acmd, uint32_t cmdarg, uint32_t c
 	curcmdarg = cmdarg;
 	curcmdflags = cmdflags;
 
-	uint32_t cmdr = (0
-		| (0  << 16)  // CMDSUSPEND
-		| (0  << 15)  // BOOTEN
-		| (0  << 14)  // BOOTMODE
-		| (0  << 13)  // DTHOLD
-		| (1  << 12)  // CPSMEN: 1 = starts the command state machinde
-		| (0  << 11)  // WAITPEND
-		| (0  << 10)  // WAITINT
-		| (0  <<  8)  // WAITRESP(2): 0 = no response, 1 = short, 2 = short + no CRC, 3 = long
-		| (0  <<  7)  // CMDSTOP
-		| (1  <<  6)  // CMDTRANS: ???
-		| (acmd <<  0)  // CMDINDEX(6)
-	);
-
+	uint32_t waitresp = 0;
 	uint8_t restype = (cmdflags & SDCMD_RES_MASK);
 	if (restype)
 	{
 		// response present
-		if (restype == SDCMD_RES_48BIT)        cmdr |= (1 << 8); // short response
-		else if (restype == SDCMD_RES_136BIT)  cmdr |= (3 << 8); // long response
-		else if (restype == SDCMD_RES_R1B)     cmdr |= (1 << 8); // short response
+		if (restype == SDCMD_RES_48BIT)        waitresp = 1; // short response
+		else if (restype == SDCMD_RES_136BIT)  waitresp = 3; // long response
+		else if (restype == SDCMD_RES_R1B)     waitresp = 1; // short response
 	}
+
+	uint32_t cmdr = (0
+		|	SDMMC_CMD_CPSMEN
+		| (waitresp << SDMMC_CMD_WAITRESP_Pos)
+		| (acmd <<  SDMMC_CMD_CMDINDEX_Pos)
+	);
+
+#ifdef MCUSF_H7
+	cmdr |= SDMMC_CMD_CMDTRANS;
+#endif
 
 	regs->ICR = 0xFFFFFFFF; // clear all flags
 
@@ -397,6 +399,11 @@ void THwSdcard_stm32::RunTransfer()
 		else
 		{
 			if (0 == (regs->STA & SDMMC_STA_DATAEND))
+			{
+				return;
+			}
+
+			if (dma.initialized && dma.Active())
 			{
 				return;
 			}

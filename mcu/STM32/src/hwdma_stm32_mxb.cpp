@@ -298,8 +298,8 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 		if (xregs)
 		{
 			xregs->CR = 0
-				| (0  << 23)        // MBURST(2): memory burst, 0 = single transfer
-				| (0  << 21)        // PBURST(2): peripheral burst
+				| (mem_burst  << 23)        // MBURST(2): memory burst, 0 = single transfer
+				| (per_burst  << 21)        // PBURST(2): peripheral burst
 				| (0  << 19)        // CT: current target (for double buffer mode)
 				| (0  << 18)        // DBM: double buffer mode
 				| ((priority & 3) << 16) // PL(2): priority level
@@ -310,7 +310,7 @@ void THwDmaChannel_stm32::PrepareTransfer(THwDmaTransfer * axfer)
 				| (0  <<  9)        // PINC: Peripheral increment mode
 				| (circ <<  8)      // CIRC: Circular mode
 				| (dircode <<  6)   // DIR(2): Data transfer direction
-				| (0  <<  5)        // PFCTRL: Peripheral flow controller, 0 = DMA is the flow controller
+				| (per_flow_controller  <<  5)        // PFCTRL: Peripheral flow controller, 0 = DMA is the flow controller
 				| (inte << 4)       // TCIE: TCIE: Transfer complete interrupt enable
 				| (0  <<  1)        // (3): error interrupts
 				| (0  <<  0)        // EN: keep not enabled

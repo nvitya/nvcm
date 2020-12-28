@@ -39,7 +39,7 @@ public:
 	SDMMC_TypeDef *    regs = nullptr;
 
 	int                trstate = 0;
-	uint8_t            dma_stream = 3;  // default = 3, alternative = 6
+	uint8_t            dma_stream = 6;  // default = 6, alternative = 3 (channel 4)
 
 	bool HwInit();
 
@@ -54,6 +54,7 @@ public:
 
 	uint32_t GetCmdResult32();
 	void GetCmdResult128(void * adataptr);
+
 };
 
 #define HWSDCARD_IMPL THwSdcard_stm32
