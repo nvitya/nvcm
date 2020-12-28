@@ -653,16 +653,26 @@ bool THwClkCtrl_stm32::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acp
 void THwClkCtrl_stm32::PrepareHiSpeed(unsigned acpuspeed)
 {
 #if defined(SYSCFG_PWRCR_ODEN) /* STM32H74xxx and STM32H75xxx lines */
-
   uint32_t tmp;
+
+  // set LDO
+	tmp = PWR->CR3;
+	tmp &= ~(PWR_CR3_SCUEN | PWR_CR3_LDOEN | PWR_CR3_BYPASS);
+	tmp |= PWR_CR3_LDOEN;
+	PWR->CR3 = tmp;
+
+	while ((PWR->CSR1 & PWR_CSR1_ACTVOSRDY) != PWR_CSR1_ACTVOSRDY)
+	{
+		// wait until ready....
+	}
+
   tmp = PWR->D3CR;
   tmp &= PWR_D3CR_VOS_Msk;
-  tmp |= PWR_D3CR_VOS_0; // VOS0 (=Scale 3) required for maximal speed
+  tmp |= (3 << PWR_D3CR_VOS_Pos); // VOS0 (=Scale 3) required for maximal speed
 	PWR->D3CR = tmp;
-	while (0 == (PWR->D3CR & PWR_D3CR_VOSRDY))
-	{
-		// wait until ready
-	}
+
+	if (PWR->D3CR) { } // some delay
+	if (PWR->D3CR) { } // some delay
 
 	// Enable the PWR overdrive for the maximal speed
 	SYSCFG->PWRCR |= SYSCFG_PWRCR_ODEN;
