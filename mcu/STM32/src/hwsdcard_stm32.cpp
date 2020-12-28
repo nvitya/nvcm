@@ -33,7 +33,24 @@
 
 #include "traces.h"
 
-#if defined(SDMMC) || defined(SDMMC1)
+#if defined(SDIO) || defined(SDMMC) || defined(SDMMC1)
+
+#ifdef SDIO
+  #define SDMMC_CLKCR_CLKEN       SDIO_CLKCR_CLKEN
+  #define SDMMC_CLKCR_WIDBUS_Pos  SDIO_CLKCR_WIDBUS_Pos
+
+  #define SDMMC_STA_CMDSENT       SDIO_STA_CMDSENT
+  #define SDMMC_STA_CCRCFAIL      SDIO_STA_CCRCFAIL
+  #define SDMMC_STA_DCRCFAIL      SDIO_STA_DCRCFAIL
+  #define SDMMC_STA_CMDREND       SDIO_STA_CMDREND
+  #define SDMMC_STA_CTIMEOUT      SDIO_STA_CTIMEOUT
+  #define SDMMC_STA_DTIMEOUT      SDIO_STA_DTIMEOUT
+  #define SDMMC_STA_DATAEND       SDIO_STA_DATAEND
+
+  #define SDMMC_CMD_CPSMEN        SDIO_CMD_CPSMEN
+  #define SDMMC_CMD_WAITRESP_Pos  SDIO_CMD_WAITRESP_Pos
+  #define SDMMC_CMD_CMDINDEX_Pos  SDIO_CMD_CMDINDEX_Pos
+#endif
 
 bool THwSdcard_stm32::HwInit()
 {
@@ -41,30 +58,43 @@ bool THwSdcard_stm32::HwInit()
 	unsigned perid;
 	//unsigned periphclock = atsam_peripheral_clock();
 
-	regs = SDMMC1;
+#ifdef SDIO
+	regs = SDIO;
 
-#if defined(RCC_AHB3ENR_SDMMC1EN) // H7
-
-	RCC->AHB3ENR |= RCC_AHB3ENR_SDMMC1EN;
-	if (RCC->AHB3ENR) { } // some syncing
-
-	// reset
-	RCC->AHB3RSTR |= RCC_AHB3RSTR_SDMMC1RST;
-	if (RCC->AHB3RSTR) { } // some syncing
-	RCC->AHB3RSTR &= ~RCC_AHB3RSTR_SDMMC1RST;
-	if (RCC->AHB3RSTR) { } // some syncing
-
-#else
-	RCC->APB2ENR |= RCC_APB2ENR_SDMMC1EN;
+	RCC->APB2ENR |= RCC_APB2ENR_SDIOEN;
 	if (RCC->APB2ENR) { } // some syncing
 
 	// reset
-	RCC->APB2RSTR |= RCC_APB2RSTR_SDMMC1RST;
+	RCC->APB2RSTR |= RCC_APB2RSTR_SDIORST;
 	if (RCC->APB2RSTR) { } // some syncing
-	RCC->APB2RSTR &= ~RCC_APB2RSTR_SDMMC1RST;
+	RCC->APB2RSTR &= ~RCC_APB2RSTR_SDIORST;
 	if (RCC->APB2RSTR) { } // some syncing
-#endif
+#else
+	regs = SDMMC1;
 
+	#if defined(RCC_AHB3ENR_SDMMC1EN) // H7
+
+		RCC->AHB3ENR |= RCC_AHB3ENR_SDMMC1EN;
+		if (RCC->AHB3ENR) { } // some syncing
+
+		// reset
+		RCC->AHB3RSTR |= RCC_AHB3RSTR_SDMMC1RST;
+		if (RCC->AHB3RSTR) { } // some syncing
+		RCC->AHB3RSTR &= ~RCC_AHB3RSTR_SDMMC1RST;
+		if (RCC->AHB3RSTR) { } // some syncing
+
+	#else
+		RCC->APB2ENR |= RCC_APB2ENR_SDMMC1EN;
+		if (RCC->APB2ENR) { } // some syncing
+
+		// reset
+		RCC->APB2RSTR |= RCC_APB2RSTR_SDMMC1RST;
+		if (RCC->APB2RSTR) { } // some syncing
+		RCC->APB2RSTR &= ~RCC_APB2RSTR_SDMMC1RST;
+		if (RCC->APB2RSTR) { } // some syncing
+	#endif
+
+#endif
 
 #if defined(SDMMC_IDMA_IDMAEN)
 	// use the IDMA

@@ -32,6 +32,10 @@
 #define HWSDCARD_PRE_ONLY
 #include "hwsdcard.h"
 
+#ifdef SDIO
+	typedef SDIO_TypeDef  SDMMC_TypeDef;
+#endif
+
 class THwSdcard_stm32 : public THwSdcard_pre
 {
 public:

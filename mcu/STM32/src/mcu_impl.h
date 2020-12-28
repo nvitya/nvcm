@@ -92,7 +92,7 @@
   #include "hwsdram_stm32.h"
 #endif
 
-#if defined(HWSDCARD_H_) && (defined(SDMMC) || defined(SDMMC1))
+#if defined(HWSDCARD_H_) && (defined(SDIO) || defined(SDMMC) || defined(SDMMC1))
   #include "hwsdcard_stm32.h"
 #endif
 
