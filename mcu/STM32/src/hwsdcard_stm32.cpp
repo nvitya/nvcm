@@ -46,6 +46,7 @@
   #define SDMMC_STA_CTIMEOUT      SDIO_STA_CTIMEOUT
   #define SDMMC_STA_DTIMEOUT      SDIO_STA_DTIMEOUT
   #define SDMMC_STA_DATAEND       SDIO_STA_DATAEND
+  #define SDMMC_STA_RXDAVL        SDIO_STA_RXDAVL
 
   #define SDMMC_CMD_CPSMEN        SDIO_CMD_CPSMEN
   #define SDMMC_CMD_WAITRESP_Pos  SDIO_CMD_WAITRESP_Pos
@@ -124,7 +125,7 @@ bool THwSdcard_stm32::HwInit()
 	);
 
 	// clear the data fifo
-	regs->DCTRL = SDMMC_CLKCR_FIFORST;
+	regs->DCTRL = SDMMC_DCTRL_FIFORST;
 
 #else
 	regs->CLKCR = (0
@@ -347,6 +348,8 @@ void THwSdcard_stm32::StartDataReadCmd(uint8_t acmd, uint32_t cmdarg, uint32_t c
 	// only with the peripheral flow controller settings works properly
 	// but the remaining count at the DMA might overflow !
 	dma.per_flow_controller = 1;
+	//dma.per_burst = 1;
+	//dma.mem_burst = 1;
 	dma.StartTransfer(&dmaxfer);
 
 #endif
@@ -453,6 +456,15 @@ void THwSdcard_stm32::RunTransfer()
 		break;
 
 	case 106: // wait until transfer done flag set
+
+#ifndef MCUSF_H7
+		while (regs->STA & SDMMC_STA_RXDAVL)
+		{
+			if (regs->FIFO) { }  // read the fifo
+		}
+
+		regs->DCTRL &= ~(1 | (1 << 3)); // disable data, disable DMA
+#endif
 
 		if (cmderror)
 		{

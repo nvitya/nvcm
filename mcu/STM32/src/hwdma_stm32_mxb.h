@@ -44,6 +44,11 @@
 
 class THwDmaChannel_stm32 : public THwDmaChannel_pre
 {
+public: // special STM32 specific settings
+	unsigned           per_burst = 0;  // 0 = single, 1 = 4 beats, 2 = 8 beats, 3 = 16 beats
+	unsigned           mem_burst = 0;  // 0 = single, 1 = 4 beats, 2 = 8 beats, 3 = 16 beats
+	unsigned           per_flow_controller = 0;  // 0 = DMA, 1 = peripheral
+
 public:
 	MDMA_Channel_TypeDef *  mregs = nullptr;
 	DMA_Stream_TypeDef *    xregs = nullptr;
