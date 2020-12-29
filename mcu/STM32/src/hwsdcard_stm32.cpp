@@ -62,14 +62,17 @@ bool THwSdcard_stm32::HwInit()
 #ifdef SDIO
 	regs = SDIO;
 
-	RCC->APB2ENR |= RCC_APB2ENR_SDIOEN;
-	if (RCC->APB2ENR) { } // some syncing
+	#ifdef RCC_APB2ENR_SDIOEN
+		RCC->APB2ENR |= RCC_APB2ENR_SDIOEN;
+		if (RCC->APB2ENR) { } // some syncing
 
-	// reset
-	RCC->APB2RSTR |= RCC_APB2RSTR_SDIORST;
-	if (RCC->APB2RSTR) { } // some syncing
-	RCC->APB2RSTR &= ~RCC_APB2RSTR_SDIORST;
-	if (RCC->APB2RSTR) { } // some syncing
+		// reset
+		RCC->APB2RSTR |= RCC_APB2RSTR_SDIORST;
+		if (RCC->APB2RSTR) { } // some syncing
+		RCC->APB2RSTR &= ~RCC_APB2RSTR_SDIORST;
+		if (RCC->APB2RSTR) { } // some syncing
+	#endif
+
 #else
 	regs = SDMMC1;
 
