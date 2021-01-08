@@ -30,10 +30,7 @@
 
 void TFileSysFat::HandleInitState()
 {
-	if (!stra.completed)
-	{
-		return;
-	}
+	// called only when stra.completed == true and stra.errorcode == 0
 
 	if (0 == initstate)  // read the boot sector
 	{
@@ -80,8 +77,10 @@ void TFileSysFat::HandleInitState()
 			fatcount = buf[0x010];
 			clusterbytes = (buf[0x0D] << 9);
 			clustersizeshift = 31 - __CLZ(clusterbytes);
+			cluster_base_mask = ~uint64_t((1 << clustersizeshift) - 1);
 
 			rootdirbytes = (*(uint16_t *)&buf[0x11] << 5);  // 32 byte / entry
+
 			totalbytes = (*(uint16_t *)&buf[0x13] << 9);
 			if (!totalbytes)
 			{
@@ -100,6 +99,7 @@ void TFileSysFat::HandleInitState()
 			}
 
 			sysbytes = reservedbytes + rootdirbytes + fatcount * fatbytes;
+			rootdirstart =  firstaddr + sysbytes;
 			databytes = totalbytes - sysbytes;
 			clustercount = (databytes >> clustersizeshift);
 
@@ -127,6 +127,112 @@ void TFileSysFat::HandleInitState()
 	}
 }
 
-void TFileSysFat::HandleTransactions()
+void TFileSysFat::HandleDirRead()
 {
+	// called only when stra.completed == true and stra.errorcode == 0
+
+	TFsTransDir * tradir = (TFsTransDir *)curtra;
+
+	if (0 == state)
+	{
+		// cache the 512 byte of the directory sector
+		// todo: check the directory end, do not read more, especially important for FAT32 root directories, where the length is not known
+		// todo: handle cluster boundaries and fat chains
+		// todo: handle long file names
+
+		sectoraddr = (tradir->curlocation & sector_base_mask);
+
+		if (bufaddr != sectoraddr)
+		{
+			// read the sector
+			pstorman->AddTransaction(&stra, STRA_READ, sectoraddr,  &buf[0], 512);
+			state = 1;
+			return;
+		}
+
+		state = 2;  // the sector is already there
+	}
+	else if (1 == state)  // wait for sector read
+	{
+		bufaddr = sectoraddr;
+		state = 2;
+	}
+
+	if (2 == state) // the sector is in buf[]
+	{
+		bufendaddr = bufaddr + 512;
+		while (tradir->curlocation < bufendaddr)
+		{
+			uint64_t dirlocation = tradir->curlocation;
+			TFsFatDirEntry * pdire = (TFsFatDirEntry *)&buf[dirlocation & 0x1FF];
+			if (0 == pdire->name[0])
+			{
+				// 0 at signalizes the end of the directory (and a free entry)
+				FinishCurTra(FSRESULT_EOF);
+				return;
+			}
+
+			tradir->curlocation += sizeof(TFsFatDirEntry);  // advance to the next location
+
+			bool bok = true;
+			if ((0x05 == pdire->name[0]) || (0xE5 == pdire->name[0])) // is the entry deleted ?
+			{
+				bok = false;
+			}
+			else if (0x0F == pdire->attr) // is it a long file name chunk ?
+			{
+				bok = false;
+			}
+
+			if (bok)
+			{
+				// convert the directory entry to the unified format
+				ConvertDirEntry(pdire, &tradir->fdata, dirlocation);
+				FinishCurTra(0);
+				return;
+			}
+		}
+
+		// this sector is exhausted, load the next one.
+		// todo: here shoulde be the cluster boundary handled
+		state = 0;
+	}
+}
+
+void TFileSysFat::ConvertDirEntry(TFsFatDirEntry * pdire, TFileDirData * pfdata, uint64_t adirlocation)
+{
+	pfdata->size = pdire->size;
+	pfdata->location = ClusterToAddr(pdire->cluster_low + (pdire->cluster_high << 16));
+	pfdata->dirlocation = adirlocation;
+	//pfdata->create_time = 0; // todo: implement
+	//pfdata->modif_time = 0; // todo: implement
+
+	// 8+3 name:
+	char * dp = &pfdata->name[0];
+	char * sp = &pdire->name[0];
+	char * endp = &pdire->name[8];
+	while ((sp < endp) && (*sp > 32))
+	{
+		*dp++ = *sp++;
+	}
+	sp = &pdire->name[8];
+	endp = &pdire->name[11];
+	if (*sp > 32)
+	{
+		*dp++ = '.';
+	}
+	while ((sp < endp) && (*sp > 32))
+	{
+		*dp++ = *sp++;
+	}
+	*dp = 0; // zero terminate
+}
+
+uint64_t TFileSysFat::ClusterToAddr(uint32_t acluster)
+{
+	if ((acluster < 2) || (acluster >= clustercount))
+	{
+		return FS_INVALID_ADDR;
+	}
+	return firstaddr + sysbytes + (uint64_t(acluster - 2) << clustersizeshift);
 }

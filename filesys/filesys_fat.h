@@ -31,6 +31,22 @@
 
 #include "filesystem.h"
 
+struct TFsFatDirEntry
+{
+	char          name[11];      // 0x00:  8 + 3 format padded with space
+	uint8_t       attr;          // 0x0B
+	uint8_t       attr_ex;       // 0x0C
+	uint8_t       dffc_ctime_hr; // 0x0D deleted file first char / create time 10 ms
+	uint16_t      ctime;         // 0x0E
+	uint16_t      cdate;         // 0x10
+	uint16_t      last_acc_date; // 0x12
+	uint16_t      cluster_high;  // 0x14
+	uint16_t      mtime;         // 0x16
+	uint16_t      mdate;         // 0x18
+	uint16_t      cluster_low;   // 0x1A
+	uint32_t      size;          // 0x1C
+};
+
 class TFileSysFat : public TFileSystem
 {
 public:
@@ -42,6 +58,10 @@ public:
 	uint64_t      totalbytes = 0;
 	uint64_t      databytes = 0;
 
+	uint64_t      rootdirstart = 0;
+	uint64_t      cluster_base_mask = 0xFFFFFFFFFFFFFE00;
+
+
 	uint32_t      sysbytes = 0;
 	uint32_t      reservedbytes = 0;
 	uint32_t      rootdirbytes = 0;
@@ -50,12 +70,21 @@ public:
 	uint32_t      clusterbytes = 0;
 	uint32_t      fatbytes = 0;
 
+	uint64_t      sectoraddr = 0; // used internally
+	uint64_t      sectorend = 0; // used internally
+
+	uint64_t      bufaddr = 1; // invalid
+	uint64_t      bufendaddr = 1; // invalid
 	uint8_t       buf[512] __attribute__((aligned(16)));
 
 	virtual ~TFileSysFat() { }
 
-	virtual void  HandleTransactions();
+	virtual void  HandleDirRead();
 	virtual void  HandleInitState();
+
+protected:
+	void          ConvertDirEntry(TFsFatDirEntry * pdire, TFileDirData * pfdata, uint64_t adirlocation);
+	uint64_t      ClusterToAddr(uint32_t acluster);
 };
 
 #endif /* FILESYS_FAT_H_ */

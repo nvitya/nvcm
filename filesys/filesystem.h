@@ -30,34 +30,86 @@
 #define FILESYSTEM_H_
 
 #include "stdint.h"
+#include "filesystem_types.h"
 #include "stormanager.h"
 
-struct TMbrPtEntry
+#define FSRESULT_OK          0
+#define FSRESULT_EOF         1  // end of file, end of find
+#define FSRESULT_NOTIMPL     2
+#define FSRESULT_IOERROR     3
+
+#define FS_FNAME_MAX_LEN    64
+#define FS_PATH_MAX_LEN    128
+#define FS_MAX_TDATA       256
+
+#define FS_INVALID_ADDR    0x00FFFFFFFFFF0000ull
+
+struct TFileDateTime  // temporary, not fully specified
 {
-	uint8_t      status;
-	uint8_t      first_h;
-	uint8_t      first_s;
-	uint8_t      first_c;
-	uint8_t      ptype;
-	uint8_t      last_h;
-	uint8_t      last_s;
-	uint8_t      last_c;
+	uint32_t    fdate;
+	uint32_t    ftime;
+};
 
-	uint32_t     first_lba;     // warning, misaligned for 32 bit read (exception on cortex-m0)
-	uint32_t     sector_count;  // warning, misaligned for 32 bit read (exception on cortex-m0)
-//
-} __attribute__((packed));
-
-struct TMasterBootRecord // aka MBR
+struct TFileDirData
 {
-	uint8_t      bootstrap_code[446];
+	uint64_t        size;
+	uint64_t        location;     // first data byte location
+	uint64_t        dirlocation;  // directory entry location
+	uint32_t        attributes;
+	TFileDateTime   create_time;
+	TFileDateTime   modif_time;
+	char            name[FS_FNAME_MAX_LEN];
+};
 
-	TMbrPtEntry  ptentry[4];  // warning: 16 byte / entry but misaligned
+struct TDirReadStatus
+{
+	TFileDirData    fdata;
 
-	uint16_t     signature;   // should be 0xAA55
-//
-} __attribute__((packed));
+	uint64_t        dirlocation;  // directory entry location
+	uint32_t        attributes;
+	TFileDateTime   create_time;
+	TFileDateTime   modif_time;
+	char            name[FS_FNAME_MAX_LEN];
+};
 
+enum TFsTraType
+{
+	FSTRA_DIR_READ,
+
+#if 0
+	FSTRA_FOPEN,
+	FSTRA_DELETE,
+
+	FSTRA_FCLOSE,
+	FSTRA_FREAD,
+	FSTRA_FWRITE,
+	FSTRA_FSEEK,
+#endif
+};
+
+typedef void (* PFsCbFunc)(void * arg);
+
+struct TFsTrans
+{
+	TFsTrans *        next;
+	bool              completed;
+	TFsTraType        ttype;
+	uint8_t           state;
+	uint8_t           phase;
+	int               result;
+
+	PFsCbFunc         callback = nullptr;
+	void *            callbackarg = nullptr;
+};
+
+struct TFsTransDir
+{
+	TFsTrans         fstra;  // must be the first!
+
+	uint64_t         curlocation;
+	char             pattern[FS_FNAME_MAX_LEN];
+	TFileDirData     fdata;
+};
 
 class TFileSystem
 {
@@ -66,21 +118,38 @@ public:
 	bool             fsok = false;
 
 	int              initstate = 0;
+	int              state = 0;
 
 	TStorManager *   pstorman = nullptr;
 	uint64_t         firstaddr = 0;
 	uint64_t         maxsize = 0;
 
+	uint64_t         sector_base_mask = 0xFFFFFFFFFFFFFE00;  // gives the sector base address
+
 	TStorTrans       stra;
+
+	TFsTrans *       curtra = nullptr;
+	TFsTrans *       lasttra = nullptr;
 
 	virtual ~TFileSystem() { }
 
 	void Init(TStorManager * astorman, uint64_t afirstaddr, uint64_t amaxsize);
 
-	virtual void Run();
+	void DirReadInit(TFsTransDir * atra, uint64_t adirstart, const char * apattern);  // completes instantly.
+	void DirReadExec(TFsTransDir * atra);
 
-	virtual void HandleTransactions();
-	virtual void HandleInitState();
+	virtual void     Run();
+
+	virtual void     HandleDirRead();
+	virtual void     HandleInitState();
+
+protected:
+	void             AddTransaction(TFsTrans * atra, TFsTraType atype);
+
+	void             ExecCallback(TFsTrans * atra);
+
+	void             FinishCurTra(int aresult);
+
 };
 
 #endif /* FILESYSTEM_H_ */
