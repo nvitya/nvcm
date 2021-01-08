@@ -53,21 +53,15 @@ public:
 	uint8_t       fatcount = 0;
 	bool          fat32 = false;
 	bool          fat12 = false;
-	uint8_t       clustersizeshift = 0;
 
 	uint64_t      totalbytes = 0;
 	uint64_t      databytes = 0;
-
-	uint64_t      rootdirstart = 0;
-	uint64_t      cluster_base_mask = 0xFFFFFFFFFFFFFE00;
-
 
 	uint32_t      sysbytes = 0;
 	uint32_t      reservedbytes = 0;
 	uint32_t      rootdirbytes = 0;
 
 	uint32_t      clustercount = 0;
-	uint32_t      clusterbytes = 0;
 	uint32_t      fatbytes = 0;
 
 	uint64_t      sectoraddr = 0; // used internally
@@ -83,8 +77,13 @@ public:
 	virtual void  HandleInitState();
 
 protected:
+	uint32_t      next_cluster = 0;  // fat resolution target
+
+	void          FindNextCluster(uint32_t acluster);
+
 	void          ConvertDirEntry(TFsFatDirEntry * pdire, TFileDirData * pfdata, uint64_t adirlocation);
 	uint64_t      ClusterToAddr(uint32_t acluster);
+	uint32_t      AddrToCluster(uint64_t aaddr);
 };
 
 #endif /* FILESYS_FAT_H_ */

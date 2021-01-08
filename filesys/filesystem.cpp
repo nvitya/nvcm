@@ -74,6 +74,8 @@ void TFileSystem::HandleInitState()
 void TFileSystem::DirReadInit(TFsTransDir * atra, uint64_t adirstart, const char * apattern)
 {
 	atra->curlocation = adirstart;
+	atra->cluster_end = (adirstart & cluster_base_mask) + clusterbytes;
+
 	strncpy(&atra->pattern[0], apattern, sizeof(atra->pattern));
 	atra->fstra.completed = true;
 	atra->fstra.state = 0;
