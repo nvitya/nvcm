@@ -73,8 +73,11 @@ public:
 
 	virtual ~TFileSysFat() { }
 
-	virtual void  HandleDirRead();
+public: // overrides
+
+	virtual void  RunOpDirRead();
 	virtual void  HandleInitState();
+	virtual void  HandleFileRead();
 
 protected:
 	uint32_t      next_cluster = 0;  // fat resolution target

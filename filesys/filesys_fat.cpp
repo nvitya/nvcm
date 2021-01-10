@@ -26,6 +26,7 @@
  *  authors:  nvitya
 */
 
+#include "string.h"
 #include <filesys_fat.h>
 #include "traces.h"
 
@@ -128,13 +129,12 @@ void TFileSysFat::HandleInitState()
 	}
 }
 
-void TFileSysFat::HandleDirRead()
+
+void TFileSysFat::RunOpDirRead()
 {
 	// called only when stra.completed == true and stra.errorcode == 0
 
-	TFsTransDir * tradir = (TFsTransDir *)curtra;
-
-	if (5 == state) // wait for FAT resolution
+	if (5 == opstate) // wait for FAT resolution
 	{
 		TRACE("FAT next cluster = %u\r\n", next_cluster);
 		if ((next_cluster < 2) || (next_cluster >= clustercount))
@@ -143,65 +143,64 @@ void TFileSysFat::HandleDirRead()
 			return;
 		}
 
-		tradir->curlocation = ClusterToAddr(next_cluster);
-		tradir->cluster_end = tradir->curlocation + clusterbytes;
-		state = 0; // go on with sector read
+		op_location = ClusterToAddr(next_cluster);
+		op_cluster_end = op_location + clusterbytes;
+		opstate = 0; // go on with sector read
 	}
 
-	if (0 == state)
+	if (0 == opstate)
 	{
-		if (tradir->curlocation < tradir->cluster_end)
+		if (op_location < op_cluster_end)
 		{
 			// cache the 512 byte of the directory sector
-			// todo: handle cluster boundaries and fat chains
 			// todo: handle long file names
 
-			sectoraddr = (tradir->curlocation & sector_base_mask);
+			sectoraddr = (op_location & sector_base_mask);
 
 			if (bufaddr != sectoraddr)
 			{
 				// read the sector
 				//TRACE("[r %08X]", uint32_t(sectoraddr));
 				pstorman->AddTransaction(&stra, STRA_READ, sectoraddr,  &buf[0], 512);
-				state = 1;
+				opstate = 1;
 				return;
 			}
 
-			state = 2;  // the sector is already there
+			opstate = 2;  // the sector is already there
 		}
 		else // cluster end reached
 		{
 			// resolve FAT chain
-			uint32_t curcluster = AddrToCluster(tradir->curlocation) - 1;
+			uint32_t curcluster = AddrToCluster(op_location) - 1;
 			TRACE("FAT find next cluster of %u\r\n", curcluster);
 
 			FindNextCluster(curcluster);
-			state = 5;
+			opstate = 5;
 			return;
 		}
 	}
-	else if (1 == state)  // wait for sector read
+	else if (1 == opstate)  // wait for sector read
 	{
 		bufaddr = sectoraddr;
-		state = 2;
+		opstate = 2;
 	}
 
-	if (2 == state) // the sector is in buf[]
+	if (2 == opstate) // the sector is in buf[]
 	{
 		bufendaddr = bufaddr + 512;
 
-		while (tradir->curlocation < bufendaddr)
+		while (op_location < bufendaddr)
 		{
-			uint64_t dirlocation = tradir->curlocation;
+			uint64_t dirlocation = op_location;
 			TFsFatDirEntry * pdire = (TFsFatDirEntry *)&buf[dirlocation & 0x1FF];
 			if (0 == pdire->name[0])
 			{
 				// 0 at signalizes the end of the directory (and a free entry)
-				FinishCurTra(FSRESULT_EOF);
+				FinishCurOp(FSRESULT_EOF);
 				return;
 			}
 
-			tradir->curlocation += sizeof(TFsFatDirEntry);  // advance to the next location
+			op_location += sizeof(TFsFatDirEntry);  // advance to the next location
 
 			bool bok = true;
 			if ((0x05 == pdire->name[0]) || (0xE5 == pdire->name[0])) // is the entry deleted ?
@@ -216,15 +215,15 @@ void TFileSysFat::HandleDirRead()
 			if (bok)
 			{
 				// convert the directory entry to the unified format
-				ConvertDirEntry(pdire, &tradir->fdata, dirlocation);
-				FinishCurTra(0);
+				ConvertDirEntry(pdire, &fdata, dirlocation);
+				FinishCurOp(0);
 				return;
 			}
 		}
 
 		// this sector is exhausted, load the next one.
 
-		state = 0;
+		opstate = 0;
 	}
 }
 
@@ -300,3 +299,63 @@ uint32_t TFileSysFat::AddrToCluster(uint64_t aaddr)
 	//TRACE("AddrToCluster(%llu)=%u\r\n", aaddr, res);
 	return res;
 }
+
+void TFileSysFat::HandleFileRead()
+{
+	// called only when curop == FSOP_IDLE and stra.competed without error
+
+	TFsTransFile * traf = (TFsTransFile *)curtra;
+
+	if (1 == trastate) // wait for chunk read finish
+	{
+		traf->curlocation += chunksize;
+		traf->dataptr += chunksize;
+		traf->transferred += chunksize;
+		traf->filepos += chunksize;
+		traf->remaining -= chunksize;
+	}
+
+	if (0 == traf->remaining)
+	{
+		FinishCurTra(0);
+		return;
+	}
+
+	if (5 == trastate) // wait for FAT next cluster
+	{
+		TRACE("FAT next cluster = %u\r\n", next_cluster);
+		if ((next_cluster < 2) || (next_cluster >= clustercount))
+		{
+			FinishCurTra(FSRESULT_EOF);
+			return;
+		}
+
+		traf->curlocation = ClusterToAddr(next_cluster);
+		traf->cluster_end = traf->curlocation + clusterbytes;
+		trastate = 0; // go on with normal read
+	}
+
+	// process the next chunk
+	// the curlocation must point to a valid file segment !
+	chunksize = (traf->cluster_end - traf->curlocation);
+	if (0 == chunksize)
+	{
+		// FAT chain resolution required
+		uint32_t curcluster = AddrToCluster(traf->curlocation) - 1;
+		TRACE("FAT find next cluster of %u\r\n", curcluster);
+
+		FindNextCluster(curcluster);
+		trastate = 5;
+		return;
+	}
+
+	if (chunksize > traf->remaining)
+	{
+		chunksize = traf->remaining;
+	}
+
+	pstorman->AddTransaction(&stra, STRA_READ, traf->curlocation,  traf->dataptr, chunksize);
+	trastate = 1;
+	return;
+}
+
