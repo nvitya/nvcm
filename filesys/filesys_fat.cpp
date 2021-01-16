@@ -29,6 +29,50 @@
 #include "string.h"
 #include <filesys_fat.h>
 #include "traces.h"
+#include <new> // required for placement new
+
+TFileFat::TFileFat(TFileSysFat * afilesys)
+  : super(afilesys)
+{
+	//super::TFile(afilesys);
+}
+
+//--------------------------------------------------------------------------------------------
+
+TFile * TFileSysFat::NewFileObj(void * astorage, unsigned astoragesize)
+{
+	TFile * result = nullptr;
+	if (astorage)
+	{
+		if (astoragesize < sizeof(TFileFat))
+		{
+			return nullptr;
+		}
+
+		uint8_t * saddr = (uint8_t *)astorage;
+		unsigned salign = (unsigned(saddr) & 0xF);
+		if (salign) // wrong aligned address, objects require 16 byte aligment!
+		{
+			if (astoragesize < sizeof(TFileFat) + (16 - salign))
+			{
+				return nullptr;
+			}
+			saddr += (16 - salign);
+		}
+
+	  TFile * pfile = (TFile *)saddr;
+
+    result = new ((TFileFat *)pfile) TFileFat(this);
+    result->allocated_on_heap = false;
+	}
+	else
+	{
+    result = new TFileFat(this);
+    result->allocated_on_heap = true;
+	}
+
+	return result;
+}
 
 void TFileSysFat::HandleInitState()
 {
@@ -129,7 +173,6 @@ void TFileSysFat::HandleInitState()
 	}
 }
 
-
 void TFileSysFat::RunOpDirRead()
 {
 	// called only when stra.completed == true and stra.errorcode == 0
@@ -227,6 +270,63 @@ void TFileSysFat::RunOpDirRead()
 	}
 }
 
+void TFileSysFat::HandleFileRead()
+{
+	// called only when curop == FSOP_IDLE and stra.competed without error
+
+	if (1 == trastate) // wait for chunk read finish
+	{
+		curtra->curlocation += chunksize;
+		curtra->dataptr += chunksize;
+		curtra->transferlen += chunksize;
+		curtra->filepos += chunksize;
+		curtra->remaining -= chunksize;
+	}
+
+	if (0 == curtra->remaining)
+	{
+		FinishCurTra(0);
+		return;
+	}
+
+	if (5 == trastate) // wait for FAT next cluster
+	{
+		TRACE("FAT next cluster = %u\r\n", next_cluster);
+		if ((next_cluster < 2) || (next_cluster >= clustercount))
+		{
+			FinishCurTra(FSRESULT_EOF);
+			return;
+		}
+
+		curtra->curlocation = ClusterToAddr(next_cluster);
+		curtra->cluster_end = curtra->curlocation + clusterbytes;
+		trastate = 0; // go on with normal read
+	}
+
+	// process the next chunk
+	// the curlocation must point to a valid file segment !
+	chunksize = (curtra->cluster_end - curtra->curlocation);
+	if (0 == chunksize)
+	{
+		// FAT chain resolution required
+		uint32_t curcluster = AddrToCluster(curtra->curlocation) - 1;
+		TRACE("FAT find next cluster of %u\r\n", curcluster);
+
+		FindNextCluster(curcluster);
+		trastate = 5;
+		return;
+	}
+
+	if (chunksize > curtra->remaining)
+	{
+		chunksize = curtra->remaining;
+	}
+
+	pstorman->AddTransaction(&stra, STRA_READ, curtra->curlocation,  curtra->dataptr, chunksize);
+	trastate = 1;
+	return;
+}
+
 void TFileSysFat::ConvertDirEntry(TFsFatDirEntry * pdire, TFileDirData * pfdata, uint64_t adirlocation)
 {
 	pfdata->size = pdire->size;
@@ -300,62 +400,4 @@ uint32_t TFileSysFat::AddrToCluster(uint64_t aaddr)
 	return res;
 }
 
-void TFileSysFat::HandleFileRead()
-{
-	// called only when curop == FSOP_IDLE and stra.competed without error
-
-	TFsTransFile * traf = (TFsTransFile *)curtra;
-
-	if (1 == trastate) // wait for chunk read finish
-	{
-		traf->curlocation += chunksize;
-		traf->dataptr += chunksize;
-		traf->transferred += chunksize;
-		traf->filepos += chunksize;
-		traf->remaining -= chunksize;
-	}
-
-	if (0 == traf->remaining)
-	{
-		FinishCurTra(0);
-		return;
-	}
-
-	if (5 == trastate) // wait for FAT next cluster
-	{
-		TRACE("FAT next cluster = %u\r\n", next_cluster);
-		if ((next_cluster < 2) || (next_cluster >= clustercount))
-		{
-			FinishCurTra(FSRESULT_EOF);
-			return;
-		}
-
-		traf->curlocation = ClusterToAddr(next_cluster);
-		traf->cluster_end = traf->curlocation + clusterbytes;
-		trastate = 0; // go on with normal read
-	}
-
-	// process the next chunk
-	// the curlocation must point to a valid file segment !
-	chunksize = (traf->cluster_end - traf->curlocation);
-	if (0 == chunksize)
-	{
-		// FAT chain resolution required
-		uint32_t curcluster = AddrToCluster(traf->curlocation) - 1;
-		TRACE("FAT find next cluster of %u\r\n", curcluster);
-
-		FindNextCluster(curcluster);
-		trastate = 5;
-		return;
-	}
-
-	if (chunksize > traf->remaining)
-	{
-		chunksize = traf->remaining;
-	}
-
-	pstorman->AddTransaction(&stra, STRA_READ, traf->curlocation,  traf->dataptr, chunksize);
-	trastate = 1;
-	return;
-}
 

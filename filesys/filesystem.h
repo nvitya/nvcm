@@ -33,6 +33,13 @@
 #include "filesystem_types.h"
 #include "stormanager.h"
 
+#ifndef FILESYS_MAX_FSYS
+  #define FILESYS_MAX_FSYS  4
+#endif
+
+#define FOPEN_CREATE              1
+#define FOPEN_DIRECTORY           8
+
 #define FSRESULT_OK               0
 #define FSRESULT_EOF              1  // end of file, end of find
 #define FSRESULT_NOTIMPL          2
@@ -41,6 +48,8 @@
 #define FSRESULT_INVALID_NAME     5
 #define FSRESULT_FILE_NOT_FOUND   6
 #define FSRESULT_FILE_NOT_OPEN    7
+#define FSRESULT_DIR_NOT_FOUND    8
+#define FSRESULT_INVALID_FDATABUF 9  // data buffer for fdata entry (directory read)
 
 #define FS_FNAME_MAX_LEN    64
 #define FS_PATH_MAX_LEN    128
@@ -83,64 +92,104 @@ enum TFsTraType
 	FSTRA_FILE_OPEN,
 	FSTRA_FILE_READ,
 	FSTRA_FILE_SEEK,
-
-#if 0
-	FSTRA_FOPEN,
-	FSTRA_DELETE,
-
-	FSTRA_FCLOSE,
-	FSTRA_FREAD,
-	FSTRA_FWRITE,
-	FSTRA_FSEEK,
-#endif
 };
 
-typedef void (* PFsCbFunc)(void * arg);
 
-struct TFsTrans
+class TFsTransaction;
+class TFileSystem;
+class TFile;
+
+typedef void (* PFsCbFunc)(TFile * afile, void * arg);
+
+class TFsTransaction
 {
-	TFsTrans *        next;
-	bool              completed;
-	TFsTraType        ttype;
-	uint8_t           state;
-	uint8_t           phase;
-	int               result;
+	friend class TFileSystem;
+
+public:
+	bool              finished = true;
+	int               result = 0;
+	TFsTraType        tratype;
+
+	uint8_t *         dataptr = nullptr;
+	uint32_t          datalen = 0;         // read: dst buffer size, write: data size
+	uint32_t          transferlen = 0;     // read: bytes written into the dst buffer
 
 	PFsCbFunc         callback = nullptr;
 	void *            callbackarg = nullptr;
+
+protected:
+	TFsTransaction *  nexttra = nullptr;
+	TFileSystem *     filesys = nullptr;
 };
 
-struct TFsTransDir
+class TFile : public TFsTransaction
 {
-	TFsTrans         fstra;  // must be the first!
-	TFileDirData     fdata;
-	char             pattern[FS_FNAME_MAX_LEN];
-	uint64_t         curlocation;
-	uint64_t         cluster_end;
-};
+public:
+	bool             opened = false;
+	bool             allocated_on_heap = false;
+	bool             directory = false;  // false = normal file, true = direcotry mode
+	uint32_t         open_flags = 0;
 
-struct TFsTransFile
-{
-	TFsTrans         fstra;  // must be the first!
 	char             path[FS_PATH_MAX_LEN];
-	bool             opened;
+
+public:
 	TFileDirData     fdata;
+	uint64_t         filepos = 0;
+	uint64_t         curlocation = 0;
+	uint64_t         cluster_end = 0;
 
-	uint8_t *        dataptr;
-	uint32_t         remaining;
-	uint32_t         transferred;
+	uint32_t         remaining = 0;
 
-	uint64_t         filepos;
-	uint64_t         curlocation;
-	uint64_t         cluster_end;
+public:
+	                 TFile(TFileSystem * afilesys);
+	virtual          ~TFile() { }
+
+	void             Open(const char * aname, uint32_t aflags);
+	void             Read(void * dst, uint32_t len);
+
+	int              WaitComplete(); // returns the result
+
+public:
+	void             FinishTra(int aresult);
 };
 
 class TFileSystem
 {
+	friend class TFile;
+
 public:
+	uint8_t          fsidx = 0;
 	bool             initialized = false;
 	bool             fsok = false;
 
+	TStorManager *   pstorman = nullptr;
+	uint64_t         firstaddr = 0;
+	uint64_t         maxsize = 0;
+
+public:
+	uint32_t         clusterbytes = 0;
+	uint64_t         rootdirstart = 0;
+	uint8_t          clustersizeshift = 0;
+
+public:
+	virtual          ~TFileSystem() { }
+
+	void             Init(TStorManager * astorman, uint64_t afirstaddr, uint64_t amaxsize);
+
+	void             Run();
+
+public:
+	virtual TFile *  NewFileObj(void * astorage, unsigned astoragesize);
+	virtual void     HandleInitState();
+	virtual void     RunOpDirRead();
+	virtual void     HandleFileRead();
+
+protected:
+
+	void             HandleFileOpen();
+	void             HandleDirRead();
+
+protected:
 	int              initstate = 0;
 
 	TFsOpType        curop = FSOP_IDLE;
@@ -149,45 +198,19 @@ public:
 
 	int              trastate = 0;
 
-	uint8_t          clustersizeshift = 0;
-
-	TStorManager *   pstorman = nullptr;
-	uint64_t         firstaddr = 0;
-	uint64_t         maxsize = 0;
 
 	uint64_t         sector_base_mask = 0xFFFFFFFFFFFFFE00;  // gives the sector base address
-	uint64_t         rootdirstart = 0;
 	uint64_t         cluster_base_mask = 0xFFFFFFFFFFFFFE00;
-	uint32_t         clusterbytes = 0;
 
 
-	TFsTrans *       curtra = nullptr;
-	TFsTrans *       lasttra = nullptr;
+	TFile *          curtra = nullptr;
+	TFile *          lasttra = nullptr;
 
 	uint64_t         op_location = 0;
 	uint64_t         op_cluster_end = 0;
 
 	TStorTrans       stra;
 	TFileDirData     fdata;
-
-	virtual ~TFileSystem() { }
-
-	void             Init(TStorManager * astorman, uint64_t afirstaddr, uint64_t amaxsize);
-
-	void             DirReadInit(TFsTransDir * atra, uint64_t adirstart, const char * apattern);  // completes instantly.
-	void             DirReadExec(TFsTransDir * atra);
-
-	void             FileOpen(TFsTransFile * atra, const char * aname);
-	void             FileRead(TFsTransFile * atra, void * dst, uint32_t len);
-
-	void             Run();
-	void             HandleDirRead();
-	void             HandleFileOpen();
-
-public:
-	virtual void     RunOpDirRead();
-	virtual void     HandleInitState();
-	virtual void     HandleFileRead();
 
 protected:
 
@@ -203,12 +226,9 @@ protected:
 	void             FinishCurOp(int aresult);
 	bool             StartOpDirRead(uint64_t alocation, uint64_t acluster_end);  // returns true when not finished yet
 
-	void             AddTransaction(TFsTrans * atra, TFsTraType atype);
-
-	void             ExecCallback(TFsTrans * atra);
+	void             AddTransaction(TFile * afile, TFsTraType atype);
 
 	void             FinishCurTra(int aresult);
-
 };
 
 #endif /* FILESYSTEM_H_ */

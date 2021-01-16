@@ -47,6 +47,17 @@ struct TFsFatDirEntry
 	uint32_t      size;          // 0x1C
 };
 
+class TFileSysFat;
+
+class TFileFat : public TFile
+{
+private:
+	typedef TFile super;
+
+public:
+	              TFileFat(TFileSysFat * afilesys);
+};
+
 class TFileSysFat : public TFileSystem
 {
 public:
@@ -71,13 +82,18 @@ public:
 	uint64_t      bufendaddr = 1; // invalid
 	uint8_t       buf[512] __attribute__((aligned(16)));
 
-	virtual ~TFileSysFat() { }
+public:
+	virtual       ~TFileSysFat() { }
 
 public: // overrides
 
-	virtual void  RunOpDirRead();
+	virtual TFile *  NewFileObj(void * astorage, unsigned astoragesize);
+
 	virtual void  HandleInitState();
+
+	virtual void  RunOpDirRead();
 	virtual void  HandleFileRead();
+
 
 protected:
 	uint32_t      next_cluster = 0;  // fat resolution target

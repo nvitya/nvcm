@@ -1,13 +1,116 @@
-/*
- * filesystem.cpp
+/* -----------------------------------------------------------------------------
+ * This file is a part of the NVCM Tests project: https://github.com/nvitya/nvcmtests
+ * Copyright (c) 2020 Viktor Nagy, nvitya
  *
- *  Created on: 29 Dec 2020
- *      Author: vitya
- */
+ * This software is provided 'as-is', without any express or implied warranty.
+ * In no event will the authors be held liable for any damages arising from
+ * the use of this software. Permission is granted to anyone to use this
+ * software for any purpose, including commercial applications, and to alter
+ * it and redistribute it freely, subject to the following restrictions:
+ *
+ * 1. The origin of this software must not be misrepresented; you must not
+ *    claim that you wrote the original software. If you use this software in
+ *    a product, an acknowledgment in the product documentation would be
+ *    appreciated but is not required.
+ *
+ * 2. Altered source versions must be plainly marked as such, and must not be
+ *    misrepresented as being the original software.
+ *
+ * 3. This notice may not be removed or altered from any source distribution.
+ * --------------------------------------------------------------------------- */
+/*
+ *  file:     filesystem.h
+ *  brief:    File System Base Class
+ *  version:  1.00
+ *  date:     2020-12-29
+ *  authors:  nvitya
+*/
 
 #include "string.h"
 #include <filesystem.h>
 #include "traces.h"
+
+
+TFile::TFile(TFileSystem * afilesys)
+{
+	filesys = afilesys;
+}
+
+void TFile::Open(const char * aname, uint32_t aflags)
+{
+	if (!finished)
+	{
+		TRACE("TFile::Open: File Busy!\r\n");
+		return;
+	}
+
+	opened = false;
+	open_flags = aflags;
+	directory = (0 != (open_flags & FOPEN_DIRECTORY));
+	strncpy(path, aname, sizeof(path));
+
+	filesys->AddTransaction(this, FSTRA_FILE_OPEN);
+}
+
+void TFile::FinishTra(int aresult)
+{
+	result = aresult;
+	finished = true;
+
+	if (callback)
+	{
+		(* (callback))(this, callbackarg);
+	}
+}
+
+void TFile::Read(void * dst, uint32_t len)
+{
+	if (!finished)
+	{
+		TRACE("TFile::Read: File Busy!\r\n");
+		return;
+	}
+
+	dataptr = (uint8_t *)dst;
+	datalen = len;
+	transferlen = 0;
+
+	remaining = len;
+
+	if (!opened)
+	{
+		FinishTra(FSRESULT_FILE_NOT_OPEN);
+		return;
+	}
+
+	if (!directory)
+	{
+		// check file end
+		if (filepos + remaining > fdata.size)
+		{
+			if (filepos > fdata.size)  // this should not happen !
+			{
+				filepos = fdata.size;
+			}
+
+			remaining = (fdata.size - filepos);
+		}
+	}
+
+	filesys->AddTransaction(this, FSTRA_FILE_READ);
+}
+
+int TFile::WaitComplete()
+{
+	while (!finished)
+	{
+		filesys->Run();
+	}
+
+	return result;
+}
+
+//----------------------------------------------------------------------------------------------------
 
 void TFileSystem::Init(TStorManager * astorman, uint64_t afirstaddr, uint64_t amaxsize)
 {
@@ -67,17 +170,20 @@ void TFileSystem::Run()
 				return;
 			}
 
-			if (FSTRA_FILE_READ == curtra->ttype)
-			{
-				HandleFileRead();
-			}
-			else if (FSTRA_DIR_READ == curtra->ttype)
-			{
-				HandleDirRead();
-			}
-			else if (FSTRA_FILE_OPEN == curtra->ttype)
+			if (FSTRA_FILE_OPEN == curtra->tratype)
 			{
 				HandleFileOpen();
+			}
+			else if (FSTRA_FILE_READ == curtra->tratype)
+			{
+				if (curtra->directory)
+				{
+					HandleDirRead();
+				}
+				else
+				{
+					HandleFileRead();
+				}
 			}
 			else
 			{
@@ -95,167 +201,13 @@ void TFileSystem::Run()
 	}
 }
 
-void TFileSystem::HandleInitState()
-{
-	// should be overridden
-}
-
-void TFileSystem::RunOpDirRead()
-{
-	// should be overridden
-}
-
-void TFileSystem::DirReadInit(TFsTransDir * atra, uint64_t adirstart, const char * apattern)
-{
-	atra->curlocation = adirstart;
-	atra->cluster_end = (adirstart & cluster_base_mask) + clusterbytes;
-
-	strncpy(&atra->pattern[0], apattern, sizeof(atra->pattern));
-	atra->fstra.completed = true;
-	atra->fstra.state = 0;
-	atra->fstra.phase = 0;
-}
-
-void TFileSystem::DirReadExec(TFsTransDir * atra)
-{
-	AddTransaction(&atra->fstra, FSTRA_DIR_READ);
-}
-
-void TFileSystem::AddTransaction(TFsTrans * atra, TFsTraType atype)
-{
-	atra->next = nullptr;
-	atra->completed = false;
-	atra->result = 0;
-	atra->ttype = atype;
-
-	if (lasttra)
-	{
-		lasttra->next = atra;
-		lasttra = atra;
-	}
-	else
-	{
-		// set as first
-		curtra = atra;
-		lasttra = atra;
-	}
-}
-
-void TFileSystem::ExecCallback(TFsTrans * atra)
-{
-	if (atra->callback)
-	{
-		(* (atra->callback))(atra->callbackarg);
-	}
-}
-
-void TFileSystem::FileOpen(TFsTransFile * atra, const char * aname)
-{
-	strncpy(atra->path, aname, sizeof(atra->path));
-	atra->opened = false;
-
-	AddTransaction(&atra->fstra, FSTRA_FILE_OPEN);
-}
-
-void TFileSystem::FileRead(TFsTransFile * atra, void * dst, uint32_t len)
-{
-	atra->dataptr = (uint8_t *)dst;
-	atra->remaining = len;
-	atra->transferred = 0;
-
-	if (!atra->opened)
-	{
-		// do not even add to the transactions
-		atra->fstra.result = FSRESULT_FILE_NOT_OPEN;
-		atra->fstra.completed = true;
-		ExecCallback(&atra->fstra);
-		return;
-	}
-
-	// check file end
-	if (atra->filepos + atra->remaining > atra->fdata.size)
-	{
-		if (atra->filepos > atra->fdata.size)  // this should not happen !
-		{
-			atra->filepos = atra->fdata.size;
-		}
-
-		atra->remaining = (atra->fdata.size - atra->filepos);
-	}
-
-	AddTransaction(&atra->fstra, FSTRA_FILE_READ);
-}
-
-void TFileSystem::FinishCurTra(int aresult)
-{
-	// request completed
-	// the callback function might add the same transaction object as new
-	// therefore we have to remove the transaction from the chain before we call the callback
-
-	TFsTrans * ptra = curtra;
-
-	curtra->result = aresult;
-	curtra->completed = true;
-	curtra = curtra->next; // advance to the next transaction
-	if (!curtra)  lasttra = nullptr;
-
-	trastate = 0;
-
-	ExecCallback(ptra);
-}
-
-void TFileSystem::FinishCurOp(int aresult)
-{
-	opresult = aresult;
-	curop = FSOP_IDLE;
-}
-
-bool TFileSystem::StartOpDirRead(uint64_t alocation, uint64_t acluster_end)
-{
-	op_location = alocation;
-	op_cluster_end = acluster_end;
-
-	curop = FSOP_DIR_READ;
-	opstate = 0;
-
-	RunOpDirRead();
-
-	return (curop != FSOP_IDLE);
-}
-
-void TFileSystem::HandleDirRead()  // must be overridden
-{
-	// called only when curop == FSOP_IDLE
-
-	TFsTransDir * tradir = (TFsTransDir *)curtra;
-
-	if (0 == trastate)
-	{
-		trastate = 1;
-		if (StartOpDirRead(tradir->curlocation, tradir->cluster_end))
-		{
-			return; // not finished yet
-		}
-	}
-	else // process the result
-	{
-		tradir->fdata = fdata; // copy the local fdata
-		tradir->curlocation = op_location;
-		tradir->cluster_end = op_cluster_end;
-
-		FinishCurTra(opresult);
-	}
-}
-
 void TFileSystem::HandleFileOpen()
 {
 	// called only when curop == FSOP_IDLE
 
-	TFsTransFile * traf = (TFsTransFile *)curtra;
-
 	if (0 == trastate)  // start path resolution
 	{
-		strncpy(path, traf->path, sizeof(path));
+		strncpy(path, curtra->path, sizeof(path));
 
 		pseg_start = path;
 		dir_location = rootdirstart;
@@ -281,6 +233,18 @@ void TFileSystem::HandleFileOpen()
 		pseg_len = pseg_end - pseg_start;
 		if (pseg_len <= 0)
 		{
+			if (curtra->directory && (0 == *pseg_end))  // handling root directory and "/" terminated paths
+			{
+				// directory found
+				curtra->fdata = fdata;
+				curtra->opened = true;
+				curtra->filepos = 0;
+				curtra->curlocation = dir_location;
+				curtra->cluster_end = dir_cluster_end;
+				FinishCurTra(0);
+				return;
+			}
+
 			FinishCurTra(FSRESULT_INVALID_PATH);
 			return;
 		}
@@ -316,17 +280,25 @@ void TFileSystem::HandleFileOpen()
 
 			if (0 == *pseg_end) // this is the last path segment, this should be a file
 			{
-				if (fdata.attributes & FSATTR_NONFILE)
+				if (curtra->directory)
+				{
+					if (0 == (fdata.attributes & FSATTR_DIR))
+					{
+						FinishCurTra(FSRESULT_DIR_NOT_FOUND);
+						return;
+					}
+				}
+				else if (fdata.attributes & FSATTR_NONFILE)
 				{
 					FinishCurTra(FSRESULT_FILE_NOT_FOUND);
 					return;
 				}
 
-				traf->fdata = fdata;
-				traf->opened = true;
-				traf->filepos = 0;
-				traf->curlocation = fdata.location;
-				traf->cluster_end = fdata.location + clusterbytes;
+				curtra->fdata = fdata;
+				curtra->opened = true;
+				curtra->filepos = 0;
+				curtra->curlocation = fdata.location;
+				curtra->cluster_end = fdata.location + clusterbytes;
 				FinishCurTra(0);
 				return;
 			}
@@ -358,8 +330,112 @@ void TFileSystem::HandleFileOpen()
 	}
 }
 
+void TFileSystem::HandleDirRead()  // must be overridden
+{
+	// called only when curop == FSOP_IDLE
+
+	if (0 == trastate)
+	{
+		trastate = 1;
+		if (StartOpDirRead(curtra->curlocation, curtra->cluster_end))
+		{
+			return; // not finished yet
+		}
+	}
+	else // process the result
+	{
+		curtra->curlocation = op_location;
+		curtra->cluster_end = op_cluster_end;
+		if (0 == opresult)
+		{
+			if (curtra->datalen < sizeof(fdata))
+			{
+				FinishCurTra(FSRESULT_INVALID_FDATABUF);
+				return;
+			}
+
+			memcpy(curtra->dataptr, &fdata, sizeof(fdata)); // copy the local fdata
+			curtra->transferlen = sizeof(fdata);
+		}
+		FinishCurTra(opresult);
+	}
+}
+
+TFile * TFileSystem::NewFileObj(void * astorage, unsigned astoragesize)  // must be overridden
+{
+	return nullptr;
+}
+
+void TFileSystem::HandleInitState()
+{
+	// should be overridden
+}
+
+void TFileSystem::RunOpDirRead()
+{
+	// should be overridden
+}
+
 void TFileSystem::HandleFileRead() // must be overridden
 {
 	FinishCurTra(FSRESULT_NOTIMPL);
 }
+
+void TFileSystem::AddTransaction(TFile * afile, TFsTraType atype)
+{
+	afile->nexttra = nullptr;
+	afile->finished = false;
+	afile->result = 0;
+	afile->tratype = atype;
+
+	if (lasttra)
+	{
+		lasttra->nexttra = afile;
+		lasttra = afile;
+	}
+	else
+	{
+		// set as first
+		curtra = afile;
+		lasttra = afile;
+	}
+}
+
+void TFileSystem::FinishCurTra(int aresult)
+{
+	// request completed
+	// the callback function might add the same transaction object as new
+	// therefore we have to remove the transaction from the chain before we call the callback
+
+	TFile * ptra = curtra;
+
+	// unchain:
+	curtra = (TFile *)curtra->nexttra; // advance to the next transaction
+	if (!curtra)  lasttra = nullptr;
+
+	trastate = 0;
+
+	ptra->FinishTra(aresult);
+}
+
+void TFileSystem::FinishCurOp(int aresult)
+{
+	opresult = aresult;
+	curop = FSOP_IDLE;
+}
+
+bool TFileSystem::StartOpDirRead(uint64_t alocation, uint64_t acluster_end)
+{
+	op_location = alocation;
+	op_cluster_end = acluster_end;
+
+	curop = FSOP_DIR_READ;
+	opstate = 0;
+
+	RunOpDirRead();
+
+	return (curop != FSOP_IDLE);
+}
+
+//---------------------------------------------------------------------------------------------
 
