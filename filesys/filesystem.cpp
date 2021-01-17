@@ -30,6 +30,11 @@
 #include <filesystem.h>
 #include "traces.h"
 
+#if 0
+  #define TRACE_PATH(...)  TRACE( __VA_ARGS__ )
+#else
+  #define TRACE_PATH(...)
+#endif
 
 TFile::TFile(TFileSystem * afilesys)
 {
@@ -324,11 +329,11 @@ void TFileSystem::HandleFileOpen()
 
 		if (strncasecmp(pseg_start, fdata.name, pseg_len) == 0)
 		{
-      #if 1
+      #ifdef TRACE_PATH
 			  char segname[FS_FNAME_MAX_LEN];
 			  strncpy(segname, pseg_start, pseg_len);
 			  segname[pseg_len] = 0; // ensure zero termination !
-			  TRACE("Segment \"%s\" found.\r\n", &segname[0]);
+			  TRACE_PATH("Segment \"%s\" found.\r\n", &segname[0]);
       #endif
 
 			// segment found

@@ -32,6 +32,12 @@
 #include "traces.h"
 #include <new> // required for placement new
 
+#if 0
+  #define TRACE_CHAIN(...)  TRACE( __VA_ARGS__ )
+#else
+  #define TRACE_CHAIN(...)
+#endif
+
 TFileFat::TFileFat(TFileSysFat * afilesys)
   : super(afilesys)
 {
@@ -181,7 +187,7 @@ void TFileSysFat::RunOpDirRead()
 
 	if (5 == opstate) // wait for FAT resolution
 	{
-		TRACE("FAT next cluster = %u\r\n", next_cluster);
+		TRACE_CHAIN("FAT next cluster = %u\r\n", next_cluster);
 		if ((next_cluster < 2) || (next_cluster >= clustercount))
 		{
 			FinishCurTra(FSRESULT_EOF);
@@ -217,7 +223,7 @@ void TFileSysFat::RunOpDirRead()
 		{
 			// resolve FAT chain
 			uint32_t curcluster = AddrToCluster(op_location) - 1;
-			TRACE("FAT find next cluster of %u\r\n", curcluster);
+			TRACE_CHAIN("FAT find next cluster of %u\r\n", curcluster);
 
 			FindNextCluster(curcluster);
 			opstate = 5;
@@ -293,7 +299,7 @@ void TFileSysFat::HandleFileRead()
 
 	if (5 == trastate) // wait for FAT next cluster
 	{
-		TRACE("FAT next cluster = %u\r\n", next_cluster);
+		TRACE_CHAIN("FAT next cluster = %u\r\n", next_cluster);
 		if ((next_cluster < 2) || (next_cluster >= clustercount))
 		{
 			FinishCurTra(FSRESULT_EOF);
@@ -312,7 +318,7 @@ void TFileSysFat::HandleFileRead()
 	{
 		// FAT chain resolution required
 		uint32_t curcluster = AddrToCluster(curtra->curlocation) - 1;
-		TRACE("FAT find next cluster of %u\r\n", curcluster);
+		TRACE_CHAIN("FAT find next cluster of %u\r\n", curcluster);
 
 		FindNextCluster(curcluster);
 		trastate = 5;
@@ -335,7 +341,7 @@ void TFileSysFat::HandleFileSeek()
 
 	if (5 == trastate) // wait for FAT next cluster
 	{
-		TRACE("FAT next cluster = %u\r\n", next_cluster);
+		TRACE_CHAIN("FAT next cluster = %u\r\n", next_cluster);
 		if ((next_cluster < 2) || (next_cluster >= clustercount))
 		{
 			FinishCurTra(FSRESULT_EOF);
@@ -357,7 +363,7 @@ void TFileSysFat::HandleFileSeek()
 
 	// go to the next cluster
 	uint32_t curcluster = AddrToCluster(curtra->curlocation);
-	TRACE("FAT find next cluster of %u\r\n", curcluster);
+	TRACE_CHAIN("FAT find next cluster of %u\r\n", curcluster);
 	FindNextCluster(curcluster);
 	trastate = 5;
 }
