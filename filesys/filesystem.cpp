@@ -100,6 +100,57 @@ void TFile::Read(void * dst, uint32_t len)
 	filesys->AddTransaction(this, FSTRA_FILE_READ);
 }
 
+void TFile::Seek(uint64_t afilepos)
+{
+	if (!finished)
+	{
+		TRACE("TFile::Seek: File Busy!\r\n");
+		return;
+	}
+
+	if (!opened)
+	{
+		FinishTra(FSRESULT_FILE_NOT_OPEN);
+		return;
+	}
+
+	if (!directory)
+	{
+		if (afilepos > fdata.size)
+		{
+			FinishTra(FSRESULT_SEEK_BEYOND_EOF);
+			return;
+		}
+	}
+
+	targetpos = afilepos;
+
+	// check if withing the current cluster
+	if ((targetpos & filesys->cluster_start_mask) == (filepos & filesys->cluster_start_mask))
+	{
+		filepos = targetpos;
+		curlocation = (curlocation & filesys->cluster_start_mask) + (targetpos & filesys->cluster_reminder_mask);
+		FinishTra(0);
+		return;
+	}
+
+	// set back to the beginning
+	filepos = 0;
+	curlocation = fdata.location;
+	cluster_end = fdata.location + filesys->clusterbytes;
+
+	// some fast path:
+	if (afilepos < filesys->clusterbytes)
+	{
+		filepos = afilepos;
+		curlocation += afilepos;
+		FinishTra(0);
+		return;
+	}
+
+	filesys->AddTransaction(this, FSTRA_FILE_SEEK);
+}
+
 int TFile::WaitComplete()
 {
 	while (!finished)
@@ -184,6 +235,10 @@ void TFileSystem::Run()
 				{
 					HandleFileRead();
 				}
+			}
+			else if (FSTRA_FILE_SEEK == curtra->tratype)
+			{
+				HandleFileSeek();
 			}
 			else
 			{
@@ -377,6 +432,11 @@ void TFileSystem::RunOpDirRead()
 }
 
 void TFileSystem::HandleFileRead() // must be overridden
+{
+	FinishCurTra(FSRESULT_NOTIMPL);
+}
+
+void TFileSystem::HandleFileSeek() // must be overridden
 {
 	FinishCurTra(FSRESULT_NOTIMPL);
 }

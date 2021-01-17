@@ -89,11 +89,11 @@ public: // overrides
 
 	virtual TFile *  NewFileObj(void * astorage, unsigned astoragesize);
 
-	virtual void  HandleInitState();
+	virtual void     HandleInitState();
 
-	virtual void  RunOpDirRead();
-	virtual void  HandleFileRead();
-
+	virtual void     RunOpDirRead();
+	virtual void     HandleFileRead();
+	virtual void     HandleFileSeek();
 
 protected:
 	uint32_t      next_cluster = 0;  // fat resolution target

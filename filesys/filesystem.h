@@ -37,19 +37,20 @@
   #define FILESYS_MAX_FSYS  4
 #endif
 
-#define FOPEN_CREATE              1
-#define FOPEN_DIRECTORY           8
+#define FOPEN_CREATE                1
+#define FOPEN_DIRECTORY             8
 
-#define FSRESULT_OK               0
-#define FSRESULT_EOF              1  // end of file, end of find
-#define FSRESULT_NOTIMPL          2
-#define FSRESULT_IOERROR          3
-#define FSRESULT_INVALID_PATH     4
-#define FSRESULT_INVALID_NAME     5
-#define FSRESULT_FILE_NOT_FOUND   6
-#define FSRESULT_FILE_NOT_OPEN    7
-#define FSRESULT_DIR_NOT_FOUND    8
-#define FSRESULT_INVALID_FDATABUF 9  // data buffer for fdata entry (directory read)
+#define FSRESULT_OK                 0
+#define FSRESULT_EOF                1  // end of file, end of find
+#define FSRESULT_NOTIMPL            2
+#define FSRESULT_IOERROR            3
+#define FSRESULT_INVALID_PATH       4
+#define FSRESULT_INVALID_NAME       5
+#define FSRESULT_FILE_NOT_FOUND     6
+#define FSRESULT_FILE_NOT_OPEN      7
+#define FSRESULT_DIR_NOT_FOUND      8
+#define FSRESULT_INVALID_FDATABUF   9  // data buffer for fdata entry (directory read)
+#define FSRESULT_SEEK_BEYOND_EOF   10
 
 #define FS_FNAME_MAX_LEN    64
 #define FS_PATH_MAX_LEN    128
@@ -139,6 +140,7 @@ public:
 	uint64_t         cluster_end = 0;
 
 	uint32_t         remaining = 0;
+	uint64_t         targetpos = 0;
 
 public:
 	                 TFile(TFileSystem * afilesys);
@@ -146,6 +148,7 @@ public:
 
 	void             Open(const char * aname, uint32_t aflags);
 	void             Read(void * dst, uint32_t len);
+	void             Seek(uint64_t afilepos);
 
 	int              WaitComplete(); // returns the result
 
@@ -170,6 +173,8 @@ public:
 	uint32_t         clusterbytes = 0;
 	uint64_t         rootdirstart = 0;
 	uint8_t          clustersizeshift = 0;
+	uint64_t         cluster_reminder_mask = 0x1FF;
+	uint64_t         cluster_start_mask = 0xFFFFFFFFFFFFFE00;
 
 public:
 	virtual          ~TFileSystem() { }
@@ -183,6 +188,7 @@ public:
 	virtual void     HandleInitState();
 	virtual void     RunOpDirRead();
 	virtual void     HandleFileRead();
+	virtual void     HandleFileSeek();
 
 protected:
 
@@ -200,8 +206,6 @@ protected:
 
 
 	uint64_t         sector_base_mask = 0xFFFFFFFFFFFFFE00;  // gives the sector base address
-	uint64_t         cluster_base_mask = 0xFFFFFFFFFFFFFE00;
-
 
 	TFile *          curtra = nullptr;
 	TFile *          lasttra = nullptr;

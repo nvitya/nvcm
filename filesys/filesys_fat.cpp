@@ -27,6 +27,7 @@
 */
 
 #include "string.h"
+#include "stormanager.h"
 #include <filesys_fat.h>
 #include "traces.h"
 #include <new> // required for placement new
@@ -123,7 +124,8 @@ void TFileSysFat::HandleInitState()
 			fatcount = buf[0x010];
 			clusterbytes = (buf[0x0D] << 9);
 			clustersizeshift = 31 - __CLZ(clusterbytes);
-			cluster_base_mask = ~uint64_t((1 << clustersizeshift) - 1);
+			cluster_reminder_mask = uint64_t((1 << clustersizeshift) - 1);
+			cluster_start_mask = ~cluster_reminder_mask;
 
 			rootdirbytes = (*(uint16_t *)&buf[0x11] << 5);  // 32 byte / entry
 
@@ -325,6 +327,39 @@ void TFileSysFat::HandleFileRead()
 	pstorman->AddTransaction(&stra, STRA_READ, curtra->curlocation,  curtra->dataptr, chunksize);
 	trastate = 1;
 	return;
+}
+
+void TFileSysFat::HandleFileSeek()
+{
+	// called only when curop == FSOP_IDLE and stra.competed without error
+
+	if (5 == trastate) // wait for FAT next cluster
+	{
+		TRACE("FAT next cluster = %u\r\n", next_cluster);
+		if ((next_cluster < 2) || (next_cluster >= clustercount))
+		{
+			FinishCurTra(FSRESULT_EOF);
+			return;
+		}
+
+		curtra->filepos += clusterbytes;
+		curtra->curlocation = ClusterToAddr(next_cluster);
+		curtra->cluster_end = curtra->curlocation + clusterbytes;
+	}
+
+	if (curtra->filepos + clusterbytes >= curtra->targetpos)  // include the cluster end
+	{
+		curtra->curlocation += (curtra->targetpos & cluster_reminder_mask);
+		curtra->filepos = curtra->targetpos;
+		FinishCurTra(0);
+		return;
+	}
+
+	// go to the next cluster
+	uint32_t curcluster = AddrToCluster(curtra->curlocation);
+	TRACE("FAT find next cluster of %u\r\n", curcluster);
+	FindNextCluster(curcluster);
+	trastate = 5;
 }
 
 void TFileSysFat::ConvertDirEntry(TFsFatDirEntry * pdire, TFileDirData * pfdata, uint64_t adirlocation)
