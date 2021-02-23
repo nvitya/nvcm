@@ -47,6 +47,7 @@ public:
 	int     halfstopbits = 2;
 	bool    parity = false;
 	bool    oddparity = false;
+	bool    singlewire = false;  // single wire mode (half duplex)
 
 public:  // DMA
 	THwDmaChannel *      txdma = nullptr;
@@ -76,6 +77,8 @@ public: // mandatory
 	bool TrySendChar(char ach)    { return false; }
 	bool TryRecvChar(char * ach)  { return false; }
 	bool SendFinished()           { return true; }
+
+	void SetTransmit(bool atransmit)  { } // for single wire mode only
 
 	void DmaAssign(bool istx, THwDmaChannel * admach)  { }
 

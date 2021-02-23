@@ -63,7 +63,6 @@ public:	// settings
 
 	unsigned    bus_error_count = 0;
 
-
 public: // software queues
 	TCanMsg *   rxmsgbuf = nullptr;
 	TCanMsg *   txmsgbuf = nullptr;
