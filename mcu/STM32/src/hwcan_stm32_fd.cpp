@@ -38,7 +38,7 @@
 
 #if defined(HWCAN_IMPL) && HWCAN_STM32_FD
 
-#include "hwcan.h" // for the eclise indexer
+#include "hwcan.h" // for the eclipse indexer
 
 #define HWCAN_MAX_FILTERS   16
 
@@ -99,6 +99,7 @@ bool THwCan_stm32::HwInit(int adevnum)
 	stdfilters = (uint32_t *)(canram_base + SRAMCAN_FLSSA);
 	rxfifo = (hwcan_rx_fifo_t *)(canram_base + SRAMCAN_RF0SA);
 	txfifo = (hwcan_tx_fifo_t *)(canram_base + SRAMCAN_TBSA);
+	txevfifo = (hwcan_txev_fifo_t *)(canram_base + SRAMCAN_TEFSA);
 
 	// select PCLK as the CANFD base clock (=SystemCoreClock)
 	tmp = RCC->CCIPR;
@@ -246,6 +247,8 @@ void THwCan_stm32::SetSpeed(uint32_t aspeed)
 	// do not change the (fast) Data Bit timing register, it won't be used anyway
 	// regs->DBTP = 0;
 
+  canbitcpuclocks = SystemCoreClock / speed;
+
 	if (wasenabled)
 	{
 		Enable();
@@ -283,7 +286,9 @@ void THwCan_stm32::HandleTx() // warning it can be called from multiple contexts
 
 		txmb->DATAL = *(uint32_t *)&msg.data[0]; // must be aligned
 		txmb->DATAH = *(uint32_t *)&msg.data[4];
-		txmb->DLC = (msg.len << 16);
+		unsigned dlc = (msg.len << 16) | (tpi << 24);  // mark the message with the tx fifo index for tx timetamp
+		if (receive_own)  dlc |= (1 << 23); // store the event in the event fifo
+		txmb->DLC = dlc;
 		uint32_t idfl = ((msg.cobid & 0x7FF) << 18);
 		if (msg.cobid & HWCAN_RTR_FLAG)  idfl |= (1 << 29);
 		txmb->IDFL = idfl;
@@ -302,6 +307,8 @@ void THwCan_stm32::HandleTx() // warning it can be called from multiple contexts
 
 void THwCan_stm32::HandleRx()
 {
+	TCanMsg msg;
+
 	while (true)
 	{
 		uint32_t rxfs = regs->RXF0S;  // store Rx FIFO(0) status register
@@ -310,7 +317,7 @@ void THwCan_stm32::HandleRx()
 		{
 			regs->IR = 1; // clear the interrupt (RF0N = New Message in RxFIFO0)
 			if (regs->IR) { } // some sync
-			return; // there are no (more) messages
+			break; // there are no (more) messages
 		}
 
 		uint8_t rgi = ((rxfs >> 8) & 3);
@@ -318,20 +325,100 @@ void THwCan_stm32::HandleRx()
 		// read the message
 		hwcan_rx_fifo_t * rxmb = (rxfifo + rgi);
 
-		TCanMsg msg;
-
 		msg.cobid = ((rxmb->ID >> 18) & 0x7FF);
 		*((uint32_t *)&(msg.data[0])) = rxmb->DATAL;
 		*((uint32_t *)&(msg.data[4])) = rxmb->DATAH;
 		uint32_t dt = rxmb->DLCTS;
 		msg.len = ((dt >> 16) & 15);
-		msg.timestamp = CLOCKCNT; // TODO: use the CAN timestamp
+		if (raw_timestamp)
+		{
+			msg.timestamp = (dt & 0xFFFF);
+		}
+		else
+		{
+			// get the time reference
+
+			unsigned t0, t1;
+			uint16_t cantimer;
+			do
+			{
+				t0 = CLOCKCNT;
+				cantimer = regs->TSCV;
+				t1 = CLOCKCNT;
+			}
+			while (t1-t0 > 100);  // repeat if it was interrupted
+
+			msg.timestamp = t1 - canbitcpuclocks * uint16_t(cantimer - uint16_t(dt & 0xFFFF));
+		}
 
 		++rx_msg_counter;
 
 		OnRxMessage(&msg); // call the virtual function
 
 		regs->RXF0A = rgi; // acknowledge the read
+	}
+
+	if (receive_own) // check TX event FIFO for the own msg timetamp
+	{
+		while (true)
+		{
+			uint32_t txefs = regs->TXEFS;  // Tx FIFO Event Status register
+
+			if ((txefs & 0x7) == 0)
+			{
+				break; // there are no sent messages
+			}
+
+			unsigned efgi = ((txefs >> 8) & 3);  // event fifo get index
+
+			// read the tx event
+			hwcan_txev_fifo_t *  ptxe = (txevfifo + efgi);
+
+			unsigned txdlcts = ptxe->DLCTS; // here is the Tx timestamp
+			unsigned txidx = ((txdlcts >> 24) & 7); // the marker is the tx fifo index
+
+			// read the message back from the TX FIFO
+			hwcan_tx_fifo_t *  txmb = (txfifo + txidx);
+
+			unsigned txdlc = txmb->DLC;
+			if ((txdlc >> 24) == txidx) // marked properly?
+			{
+				unsigned idfl = txmb->IDFL;
+				msg.cobid = ((idfl >> 18) & 0x7FF);
+				if (idfl & (1 << 29))  msg.cobid |= HWCAN_RTR_FLAG;
+
+				*((uint32_t *)&(msg.data[0])) = txmb->DATAL;
+				*((uint32_t *)&(msg.data[4])) = txmb->DATAH;
+
+				msg.len = ((txdlc >> 16) & 15);
+				if (raw_timestamp)
+				{
+					msg.timestamp = (txdlcts & 0xFFFF);
+				}
+				else
+				{
+					// get the time reference
+
+					unsigned t0, t1;
+					uint16_t cantimer;
+					do
+					{
+						t0 = CLOCKCNT;
+						cantimer = regs->TSCV;
+						t1 = CLOCKCNT;
+					}
+					while (t1-t0 > 100);  // repeat if it was interrupted
+
+					msg.timestamp = t1 - canbitcpuclocks * uint16_t(cantimer - uint16_t(txdlcts & 0xFFFF));
+				}
+
+				++rx_msg_counter;
+
+				OnRxMessage(&msg); // call the virtual function
+			}
+
+			regs->TXEFA = efgi; // acknowledge the Tx Event Fifo Read read
+		}
 	}
 }
 
@@ -372,15 +459,56 @@ void THwCan_stm32::AcceptAdd(uint16_t cobid, uint16_t amask)
 	++filtercnt;
 }
 
+uint32_t THwCan_stm32::ReadPsr()  // updates the CAN error counters
+{
+	uint32_t  psr = regs->PSR;  // resets the LEC to 7 when read
+	unsigned  lec = (psr & 7);
+
+	if ((0 == lec) || (7 == lec)) // the fast path, most probable case
+	{
+		//
+	}
+	else if (3 == lec)
+	{
+		++errcnt_ack;
+	}
+	else if (1 == lec)
+	{
+		++errcnt_stuff;
+	}
+	else if (2 == lec)
+	{
+		++errcnt_form;
+	}
+	else if (6 == lec)
+	{
+		++errcnt_crc;
+	}
+
+	return psr;
+}
 
 bool THwCan_stm32::IsBusOff()
 {
-	return (regs->PSR & FDCAN_PSR_BO);
+	uint32_t psr = ReadPsr();
+	return (psr & FDCAN_PSR_BO);
 }
 
 bool THwCan_stm32::IsWarning()
 {
-	return (regs->PSR & FDCAN_PSR_EW);
+	uint32_t psr = ReadPsr();
+	return (psr & FDCAN_PSR_EW);
+}
+
+void THwCan_stm32::UpdateErrorCounters()
+{
+	uint32_t ecr = regs->ECR;
+	acterr_rx = ((ecr >>  8) & 0xFF);
+	acterr_tx = ((ecr >>  0) & 0xFF);
+
+	if (ReadPsr()) // updates the error counters inside
+	{
+	}
 }
 
 #endif

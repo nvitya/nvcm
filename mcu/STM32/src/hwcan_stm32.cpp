@@ -267,4 +267,37 @@ bool THwCan_stm32::IsWarning()
 	return ((regs->ESR & CAN_ESR_EWGF) != 0);
 }
 
+void THwCan_stm32::UpdateErrorCounters()
+{
+	uint32_t esr = regs->ESR;
+	acterr_rx = ((esr >> 24) & 0xFF);
+	acterr_tx = ((esr >> 16) & 0xFF);
+	unsigned lec = ((esr >> 4) & 7);
+
+	if ((0 == lec) || (7 == lec)) // the fast path, most probable case
+	{
+		//
+	}
+	else if (3 == lec)
+	{
+		++errcnt_ack;
+	}
+	else if (1 == lec)
+	{
+		++errcnt_stuff;
+	}
+	else if (2 == lec)
+	{
+		++errcnt_form;
+	}
+	else if (6 == lec)
+	{
+		++errcnt_crc;
+	}
+
+
+	esr |= (7 << 4); // reset lec
+	regs->ESR = esr;
+}
+
 #endif

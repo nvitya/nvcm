@@ -58,10 +58,20 @@ public:	// settings
 
 	bool        silent_monitor_mode = false;
 	bool        loopback_mode = false;
+	bool        raw_timestamp = false;  // true: u32 timestamp = original u16 timestamp (can bit time counter)
+	bool        receive_own   = false;
 
 	unsigned    canbitcpuclocks = 0;
 
 	unsigned    bus_error_count = 0;
+
+	uint32_t    errcnt_stuff = 0;
+	uint32_t    errcnt_form  = 0;
+	uint32_t    errcnt_ack   = 0;
+	uint32_t    errcnt_crc   = 0;
+
+	uint8_t     acterr_tx    = 0;
+	uint8_t     acterr_rx    = 0;
 
 public: // software queues
 	TCanMsg *   rxmsgbuf = nullptr;
@@ -127,6 +137,8 @@ public: // mandatory
 	void Enable()                                     { }
 	void Disable()                                    { }
 	bool Enabled()                                    { return false; }
+
+	void UpdateErrorCounters()                        { }
 };
 
 #define HWCAN_IMPL THwCan_noimpl
