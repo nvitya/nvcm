@@ -34,6 +34,8 @@
 #define SMDS_WAIT_NORMAL           1
 #define SMDS_RD_WAIT_PARTIAL      10
 #define SMDS_RD_PROCESS_PARTIAL   11
+#define SMDS_WR_WAIT_PARTIAL_RD   20
+#define SMDS_WR_WAIT_PARTIAL_WR   21
 #define SMDS_FINISH              100
 
 #define SMD_BLOCK_ADDR_MASK    0xFFFFFFFFFFFFFE00
@@ -87,6 +89,62 @@ void TStorManSdcard::ProcessPartialRead()
 	if (remaining > 0)
 	{
 		StartPartialRead();
+	}
+	else
+	{
+		FinishCurTra();
+	}
+}
+
+void TStorManSdcard::PreparePartialWrite()
+{
+	uint64_t bladdr = (curaddr & SMD_BLOCK_ADDR_MASK);
+	if (bladdr != sdbufaddr)
+	{
+		if (!sdcard->StartReadBlocks((bladdr >> 9), &sdbuf[0], 1))
+		{
+			curtra->errorcode = sdcard->errorcode;
+			state = SMDS_FINISH;
+			return;
+		}
+
+		state = SMDS_WR_WAIT_PARTIAL_RD;
+	}
+	else
+	{
+		// already loaded
+		StartPartialWrite();
+	}
+}
+
+void TStorManSdcard::StartPartialWrite()
+{
+	uint32_t offset = (curaddr & 0x1FF);
+	chunksize = (512 - offset);
+
+	if (chunksize > remaining)  chunksize = remaining;
+
+	memcpy(&sdbuf[offset], dataptr, chunksize);
+
+	if (!sdcard->StartWriteBlocks((sdbufaddr >> 9), &sdbuf[0], 1))
+	{
+		curtra->errorcode = sdcard->errorcode;
+		state = SMDS_FINISH;
+		return;
+	}
+
+	state = SMDS_WR_WAIT_PARTIAL_WR;
+}
+
+void TStorManSdcard::FinishPartialWrite()
+{
+	remaining -= chunksize;
+	dataptr   += chunksize;
+	curaddr   += chunksize;
+
+	if (remaining > 0)
+	{
+		PreparePartialWrite();
 	}
 	else
 	{
@@ -170,6 +228,32 @@ void TStorManSdcard::Run()
 				state = SMDS_WAIT_NORMAL;
 			}
 		}
+		else if (STRA_WRITE == curtra->trtype)
+		{
+			// check partial / full block
+
+			remaining = curtra->datalen;
+			dataptr = curtra->dataptr;
+			curaddr = curtra->address;
+
+			if ((curaddr & 0x1FF) || (remaining & 0x1FF))
+			{
+				// partial mode
+				PreparePartialWrite();
+				return;
+			}
+			else
+			{
+				// full block mode
+				if (!sdcard->StartWriteBlocks((curaddr >> 9), dataptr, (remaining >> 9)))
+				{
+					FinishCurTraError(sdcard->errorcode);
+					return;
+				}
+
+				state = SMDS_WAIT_NORMAL;
+			}
+		}
 		else
 		{
 			FinishCurTraError(ESTOR_NOTIMPL);
@@ -190,6 +274,27 @@ void TStorManSdcard::Run()
 
 		sdbufaddr = (curaddr & SMD_BLOCK_ADDR_MASK);
 		ProcessPartialRead();
+	}
+	else if (SMDS_WR_WAIT_PARTIAL_RD == state)
+	{
+		if (sdcard->errorcode)
+		{
+			FinishCurTraError(sdcard->errorcode);
+			return;
+		}
+
+		sdbufaddr = (curaddr & SMD_BLOCK_ADDR_MASK);
+		StartPartialWrite();
+	}
+	else if (SMDS_WR_WAIT_PARTIAL_WR == state)
+	{
+		if (sdcard->errorcode)
+		{
+			FinishCurTraError(sdcard->errorcode);
+			return;
+		}
+
+		FinishPartialWrite();
 	}
 	else if (SMDS_FINISH == state)
 	{

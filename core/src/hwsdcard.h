@@ -111,6 +111,7 @@ public: // mandatory
 	bool CmdFinished() { return true; }
 
 	void StartDataReadCmd(uint8_t acmd, uint32_t cmdarg, uint32_t cmdflags, void * dataptr, uint32_t datalen) { }
+	void StartDataWriteCmd(uint8_t acmd, uint32_t cmdarg, uint32_t cmdflags, void * dataptr, uint32_t datalen) { }
 
 	uint32_t GetCmdResult32() { return 0; }
 	void GetCmdResult128(void * adataptr) { }
@@ -150,6 +151,7 @@ public:
 public:
 
   bool        StartReadBlocks(uint32_t astartblock, void * adataptr, uint32_t ablockcount);
+  bool        StartWriteBlocks(uint32_t astartblock, void * adataptr, uint32_t ablockcount);
 	void 				WaitForComplete();
 };
 

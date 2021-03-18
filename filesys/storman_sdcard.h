@@ -45,6 +45,12 @@ protected:
 
 	void           StartPartialRead();
 	void           ProcessPartialRead();
+
+	void           PreparePartialWrite();
+	void           StartPartialWrite();
+	void           FinishPartialWrite();
+
+
 	void           FinishCurTra();
 	void           FinishCurTraError(int aerror);
 

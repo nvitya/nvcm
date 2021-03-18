@@ -440,6 +440,37 @@ bool THwSdcard::StartReadBlocks(uint32_t astartblock, void * adataptr, uint32_t 
 	return (errorcode == 0);
 }
 
+bool THwSdcard::StartWriteBlocks(uint32_t astartblock, void * adataptr, uint32_t ablockcount)
+{
+	if (!initialized)
+	{
+		errorcode = ERROR_NOTINIT;
+		completed = true;
+		return false;
+	}
+
+	if (!completed)
+	{
+		errorcode = ERROR_BUSY;  // this might be overwriten later
+		return false;
+	}
+
+	dataptr = (uint8_t *)adataptr;
+	blockcount = ablockcount;
+	remainingblocks = ablockcount;
+	startblock = astartblock;
+	curblock = astartblock;
+
+	errorcode = 0;
+	completed = false;
+
+	trstate = 11; // write blocks
+
+	Run();
+
+	return (errorcode == 0);
+}
+
 void THwSdcard::WaitForComplete()
 {
 	while (!completed)
