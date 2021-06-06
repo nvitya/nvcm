@@ -228,7 +228,8 @@ void THwSdcard::RunInitialization()
 
 	// Select the card and put into transfer mode
 	case 24:
-		SendCmd(7, rca, SDCMD_RES_R1B);
+		//SendCmd(7, rca, SDCMD_RES_R1B);
+		SendCmd(7, rca, SDCMD_RES_48BIT);
 		++initstate;
 		break;
 

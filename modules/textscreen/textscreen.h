@@ -12,11 +12,13 @@ protected:
 	// row[0] is always at the bottom
 	uint8_t *       screenbuf = nullptr;
 	uint32_t *      changemap = nullptr;
-	bool            screenchanged = false;
 
 	unsigned        buf_size = 0;
 
 	void            SetScreenBufChar(unsigned aaddr, char ach);
+
+public:
+	bool            screenchanged = false; // this is useful for the applications
 
 public:
 	virtual ~TTextScreen() { }

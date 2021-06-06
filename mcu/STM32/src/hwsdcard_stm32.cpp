@@ -232,10 +232,29 @@ bool THwSdcard_stm32::CmdFinished()
 	}
 
 #ifdef MCUSF_H7
+
+#if 0
+	if ((curcmdflags & SDCMD_0ES_MASK) == SDCMD_RES_R1B)
+	{
+		if (sr & SDMMC_STA_BUSYD0END)
+		{
+			return true;
+		}
+	}
+	else
+	{
+		if (sr & SDMMC_STA_CMDREND)
+		{
+			return true;
+		}
+	}
+#else
 	if (sr & (SDMMC_STA_CMDREND | SDMMC_STA_BUSYD0END))
 	{
 		return true;
 	}
+#endif
+
 #else
 	if (sr & (SDMMC_STA_CMDREND))
 	{
@@ -515,6 +534,9 @@ void THwSdcard_stm32::RunTransfer()
 		break;
 
 	case 1: // start read blocks
+
+		//TRACE("s.r. STA=%08X\r\n", regs->STA);
+
 		cmdarg = startblock;
 		if (!high_capacity)  cmdarg <<= 9; // byte addressing for low capacity cards
 		cmd = (blockcount > 1 ? 18 : 17);
@@ -525,6 +547,8 @@ void THwSdcard_stm32::RunTransfer()
 		break;
 
 	case 11: // start write blocks
+		//TRACE("s.w. STA=%08X\r\n", regs->STA);
+
 		cmdarg = startblock;
 		if (!high_capacity)  cmdarg <<= 9; // byte addressing for low capacity cards
 		cmd = (blockcount > 1 ? 25 : 24);
@@ -559,7 +583,7 @@ void THwSdcard_stm32::RunTransfer()
 			{
 				// send the stop transmission command
 				SendCmd(12, 0, SDCMD_RES_R1B);
-				trstate = 106;  // wait until the stop command finishes
+				trstate = 105;  // wait until the stop command finishes
 			}
 			else
 			{
@@ -567,6 +591,25 @@ void THwSdcard_stm32::RunTransfer()
 				trstate = 0; // finished
 			}
 		}
+		break;
+
+	case 105: // Handle tranmission stop
+
+		#if 1 //defined(MCUSF_H7)
+
+			if (regs->STA & SDMMC_STA_BUSYD0END)
+			{
+				//trstate = 106;  // wait until the stop command finishes
+			}
+			else
+			{
+				return;
+			}
+
+		#endif
+
+		delay_us(1000);
+		trstate = 106;
 		break;
 
 	case 106: // wait until transfer done flag set
@@ -587,6 +630,9 @@ void THwSdcard_stm32::RunTransfer()
 		}
 		completed = true;
 		trstate = 0; // transfer finished.
+
+		//TRACE("f. STA=%08X\r\n", regs->STA);
+
 		break;
 	}
 
