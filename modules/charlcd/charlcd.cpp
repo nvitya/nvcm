@@ -55,22 +55,26 @@ void TCharLcd::InitPanel()
 {
 	uint8_t tmp;
 
-	if (CHLCD_CTRL_HD44780 == ctrltype)
-	{
-		// set # lines, font size, etc.
+	// set # lines, font size, etc.
 
-		tmp = 0; // bit2: 0 = 5x8 font, 1 = 5x10 font
-		if (!interface_4bit)  tmp |= (1 << 4); // bit4: 0 = 4 bit interface, 1 = 8 bit interface
-		if (rows > 1)         tmp |= (1 << 3); // bit3: 1 = two row mode
-		WriteCmd(0x20 | tmp);
+#if 1
+	tmp = 0; // bit2: 0 = 5x8 font, 1 = 5x10 font
+	if (!interface_4bit)  tmp |= (1 << 4); // bit4: 0 = 4 bit interface, 1 = 8 bit interface
+	if (rows > 1)         tmp |= (1 << 3); // bit3: 1 = two row mode
+	WriteCmd(0x20 | tmp);
+#endif
 
-		WriteCmd(0x08); // clear display
+	delay_us(100);
 
-		delay_us(2000);
+	WriteCmd(0x01); // clear display
 
-		WriteCmd(0x0C); // set the display on without cursor
+	delay_us(2000);
 
-		delay_us(2000);
-	}
+	//WriteCmd(0x06); // Set entry mode, (not necessary, because 0x06 is the default)
+	//delay_us(50);
+
+	WriteCmd(0x0C); // set the display on without cursor
+
+	delay_us(2000);
 }
 

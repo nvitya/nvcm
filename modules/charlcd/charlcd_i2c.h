@@ -42,4 +42,4 @@ protected:
 
 };
 
-#endif /* SRC_MONOLCD_SPI_H_ */
+#endif /* CHARLCD_BB4_H_ */

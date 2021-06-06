@@ -10,6 +10,7 @@ typedef enum
 {
 	CHLCD_CTRL_UNKNOWN = 0,
 	CHLCD_CTRL_HD44780,
+	CHLCD_CTRL_ST7066U,
 //
 } TCharLcdCtrlType;
 
