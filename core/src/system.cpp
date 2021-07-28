@@ -21,37 +21,49 @@
 /*
  *  file:     system.cpp
  *  brief:    Newlib C library requirements, _sbrk implementation
- *  version:  1.00
+ *  version:  2.00
  *  date:     2018-02-10
  *  authors:  nvitya
+ *  ------------------------------
+ *    v2.00: new heap allocator using the linker script defined heap size
 */
 
 #include <errno.h>
 
 extern int errno;
-register char * stack_ptr asm("sp");
 
 extern "C"
 {
 
+extern unsigned  __end;       // end of the used ram RAM (where the heap begins), defined in the linker script
+extern unsigned  __stack;     // end of the RAM (where the zero size stack begins), defined in the linker script
+extern unsigned  _Heap_Limit; // end of the RAM available for heap (where the maximal size stack begins), defined in the linker script
+
+unsigned         system_heap_size = 0;
+char *           system_heap_end_ptr = nullptr;  // actual end of the RAM used as heap
+
 __attribute__((weak))  unsigned _sbrk(int incr)
 {
-	extern char end asm("end");
-	static char *heap_end;
-	char *prev_heap_end;
+  char * sys_heap_limit = (char *)&_Heap_Limit;
 
-	if (heap_end == 0)  heap_end = &end;
+  char * chunk_begin = system_heap_end_ptr;
+  if (!chunk_begin)
+  {
+    chunk_begin = (char *)&__end;
+  }
 
-	prev_heap_end = heap_end;
-	if (heap_end + incr > stack_ptr)
-	{
-		errno = ENOMEM;
-		return (unsigned) -1;
-	}
+  char * chunk_end   = chunk_begin + incr;
 
-	heap_end += incr;
+  if (chunk_end > sys_heap_limit)
+  {
+    errno = ENOMEM;
+    return (unsigned) -1;
+  }
 
-	return (unsigned)prev_heap_end;
+  system_heap_size += incr;
+  system_heap_end_ptr = chunk_end;
+
+  return (unsigned)chunk_begin;
 }
 
 // At some compiler settings these system functions might needed
