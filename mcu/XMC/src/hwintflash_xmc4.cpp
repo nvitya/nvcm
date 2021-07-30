@@ -53,7 +53,7 @@ bool THwIntFlash_xmc::HwInit()
 
 	bytesize = MCU_FLASH_SIZE * 1024;
 
-	pagesize = 256; // used here as burst length
+	pagesize = 256;
 
 	bank_count = 1;
 
@@ -359,7 +359,7 @@ void THwIntFlash_xmc::CmdWritePage()
   *addr = 0x55;
   addr = (uint32_t *)(uc_start_address + 0x5554);
   *addr = 0xA0;
-  addr = (uint32_t *)(uc_start_address + (address & addr_mask));
+  addr = (uint32_t *)(uc_start_address + ((address & ~pagemask) & addr_mask));
   *addr = 0xAA;
 }
 
