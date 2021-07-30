@@ -147,7 +147,7 @@ bool THwIntFlash::StartCopyMem(uint32_t aaddr, void * asrcptr, uint32_t alen)
 		return false;
 	}
 
-	address = aaddr; // checked before
+	address = aaddr; // alignment checked before
 	length = ((alen + 3) & 0xFFFFFFFC); // ensure that it is rounded to the minimum
 	srcaddr = (uint32_t *)asrcptr;
 	dstaddr = (uint32_t *)address;

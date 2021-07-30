@@ -29,7 +29,9 @@
 #include "platform.h"
 #include "hwpins.h"
 
-#if defined(PORT6_BASE)
+#if defined(PORT15_BASE)
+  #define MAX_PORT_NUMBER  16
+#elif defined(PORT6_BASE)
   #define MAX_PORT_NUMBER  7
 #elif defined(PORT5_BASE)
   #define MAX_PORT_NUMBER  6
@@ -146,6 +148,8 @@ bool THwPinCtrl_xmc::PinSetup(int aportnum, int apinnum, unsigned flags)
 	if (flags & PINCFG_HWC_MASK)
 	{
 		cfg = ((1 + (flags >> PINCFG_HWC_SHIFT)) & 0x3);
+
+		flags |= PINCFG_GPIO_INIT_1;  // some peripherals require this !
 	}
 	else
 	{

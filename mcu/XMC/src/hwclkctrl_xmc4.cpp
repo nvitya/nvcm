@@ -160,9 +160,44 @@ bool THwClkCtrl_xmc::SetupPlls(bool aextosc, unsigned abasespeed, unsigned acpus
 
   SCU_CLK->CCUCLKCR = 0; // no div2 for CCU
   SCU_CLK->WDTCLKCR = 0; // use the OFI for the WDT
-  SCU_CLK->USBCLKCR = ((3 - 1) << 0) | (1 << 16); // use PLL with /3
-  //SCU_CLK->ECATCLKCR = ???;
-  SCU_CLK->EXTCLKCR = 0; // use SYS clock for the external clock
+  SCU_CLK->USBCLKCR = ((6 - 1) << 0) | (1 << 16); // use PLL with /6
+  SCU_CLK->EXTCLKCR = 0x01200003; // use SYS clock for the external clock
+
+#if defined(ECAT0)
+
+  SCU_CLK->ECATCLKCR = 0x00000001; // divide USBPLL by 2 = 100 MHz clock
+
+  // set the USBPLL to generate 200 MHz clock (400 MHz VCO, fix /2 included at the output)
+
+  /* Go to bypass the USB PLL */
+  SCU_PLL->USBPLLCON |= SCU_PLL_USBPLLCON_VCOBYP_Msk;
+
+  /* disconnect Oscillator from USB PLL */
+  SCU_PLL->USBPLLCON |= SCU_PLL_USBPLLCON_FINDIS_Msk;
+
+  // Settings for 400 MHz VCO:
+  uint32_t usb_pdiv = (abasespeed / 4000000);  // use fix 4 MHz input
+  uint32_t usb_ndiv = 100;                     // multiple by 100
+
+  /* Setup Divider settings for USB PLL */
+  SCU_PLL->USBPLLCON = (((usb_ndiv - 1) << SCU_PLL_USBPLLCON_NDIV_Pos) |
+                        ((usb_pdiv - 1) << SCU_PLL_USBPLLCON_PDIV_Pos));
+
+  /* Set OSCDISCDIS */
+  SCU_PLL->USBPLLCON |= SCU_PLL_USBPLLCON_OSCDISCDIS_Msk;
+
+  /* connect Oscillator to USB PLL */
+  SCU_PLL->USBPLLCON &= ~SCU_PLL_USBPLLCON_FINDIS_Msk;
+
+  /* restart PLL Lock detection */
+  SCU_PLL->USBPLLCON |= SCU_PLL_USBPLLCON_RESLD_Msk;
+
+  while ((SCU_PLL->USBPLLSTAT & SCU_PLL_USBPLLSTAT_VCOLOCK_Msk) == 0U)
+  {
+    /* wait for PLL Lock */
+  }
+
+#endif
 
   /* Enable selected clocks */
   SCU_CLK->CLKSET = 0; // no effect ...

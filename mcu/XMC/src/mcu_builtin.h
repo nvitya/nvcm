@@ -65,12 +65,14 @@
   #define MCUF_XMC
   #define MCUSF_4000
   #define XMC4108_Q48x64
+	#define MCU_FLASH_SIZE  64
   #include "xmc_device.h"
 
 #elif defined(MCU_XMC4300F100X256)
   #define MCUF_XMC
   #define MCUSF_4000
   #define XMC4300_F100x256
+	#define MCU_FLASH_SIZE  256
   #include "xmc_device.h"
 
 #else

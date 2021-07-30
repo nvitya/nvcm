@@ -38,6 +38,10 @@
   #include "hwuart_xmc.h"
 #endif
 
+#ifdef HWINTFLASH_H_
+  #include "hwintflash_xmc.h"
+#endif
+
 #ifdef HWSPI_H_
   #include "hwspi_xmc.h"
 #endif

@@ -87,7 +87,8 @@ typedef enum {
   VADC0_G1_0_IRQn               =  22,              /*!<  22  VADC0_G1_0                                                       */
   VADC0_G1_1_IRQn               =  23,              /*!<  23  VADC0_G1_1                                                       */
   VADC0_G1_2_IRQn               =  24,              /*!<  24  VADC0_G1_2                                                       */
-  VADC0_G1_3_IRQn               =  25,              /*!<  25  VADC0_G1_3   													   */         DAC0_0_IRQn                   =  42,              /*!<  42  DAC0_0                                                           */
+  VADC0_G1_3_IRQn               =  25,              /*!<  25  VADC0_G1_3   													                           */
+	DAC0_0_IRQn                   =  42,              /*!<  42  DAC0_0                                                           */
   DAC0_1_IRQn                   =  43,              /*!<  43  DAC0_1                                                           */
   CCU40_0_IRQn                  =  44,              /*!<  44  CCU40_0                                                          */
   CCU40_1_IRQn                  =  45,              /*!<  45  CCU40_1                                                          */
