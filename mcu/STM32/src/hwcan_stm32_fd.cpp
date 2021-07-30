@@ -325,7 +325,11 @@ void THwCan_stm32::HandleRx()
 		// read the message
 		hwcan_rx_fifo_t * rxmb = (rxfifo + rgi);
 
-		msg.cobid = ((rxmb->ID >> 18) & 0x7FF);
+		msg.cobid = (
+				((rxmb->ID >> 18) & 0x7FF)
+				| ((rxmb->ID >> 14) & HWCAN_RTR_FLAG)  // move bit 29 to bit 15
+		);
+
 		*((uint32_t *)&(msg.data[0])) = rxmb->DATAL;
 		*((uint32_t *)&(msg.data[4])) = rxmb->DATAH;
 		uint32_t dt = rxmb->DLCTS;

@@ -105,6 +105,9 @@ public:
 
 	hwcan_rx_fifo_t *  rxfifo = nullptr;
 	hwcan_tx_fifo_t *  txfifo = nullptr;
+	hwcan_txev_fifo_t *  txevfifo = nullptr;
+
+	ALWAYS_INLINE uint32_t           ReadPsr(); // special function to handle the reset on read fields
 #endif
 };
 
