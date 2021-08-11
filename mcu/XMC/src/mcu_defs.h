@@ -53,6 +53,8 @@
 		#endif
 	#endif
 
+  #define MAX_IRQ_HANDLER_COUNT 127
+
 #endif
 
 
