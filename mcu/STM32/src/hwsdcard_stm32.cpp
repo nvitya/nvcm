@@ -595,7 +595,7 @@ void THwSdcard_stm32::RunTransfer()
 
 	case 105: // Handle tranmission stop
 
-		#if 1 //defined(MCUSF_H7)
+		#if defined(MCUSF_H7)
 
 			if (regs->STA & SDMMC_STA_BUSYD0END)
 			{
