@@ -68,6 +68,7 @@ public:
 	void ResetChip();
 
 	bool StartReadStatus();
+	bool StartWriteEnable();
 
 };
 
