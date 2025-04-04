@@ -42,4 +42,4 @@ protected:
 
 };
 
-#endif /* CHARLCD_BB4_H_ */
+#endif /* CHARLCD_I2C_H_ */
