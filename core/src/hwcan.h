@@ -69,6 +69,8 @@ public:	// settings
 	uint32_t    errcnt_form  = 0;
 	uint32_t    errcnt_ack   = 0;
 	uint32_t    errcnt_crc   = 0;
+	uint32_t    errcnt_bit0  = 0;
+	uint32_t    errcnt_bit1  = 0;
 
 	uint8_t     acterr_tx    = 0;
 	uint8_t     acterr_rx    = 0;
